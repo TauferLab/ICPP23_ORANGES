@@ -26,15 +26,16 @@ int main(int argc, char *argv[]) {
   /* Read in Network: Reads the file and converts it into a network of type A_Network*/
   A_Network X;
   readin_network(&X,argv[1],1,-1);
+  
   GDV_functions gdvf;
-
   // looping through nodes 
   // Loop through all the vertices. currently considered integers starting from 0 to n and none are missing.
   for (int i=0;i<X.size(); i++ ){
     printf("%d\n",i);
     vector<int> neighbours;
-    gdvf.find_neighbours(i,X,2,neighbours);
+    gdvf.find_neighbours(i,X,2,&neighbours);
     print_vector(neighbours);
+    
   }
 
   print_network(X);
