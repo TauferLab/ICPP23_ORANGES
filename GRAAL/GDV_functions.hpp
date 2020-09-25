@@ -17,8 +17,10 @@ public:
   void find_combination ( int set[], int size, vector<vector<int>>& output);
   void inducedSubGraph(A_Network network, vector<int> nodes, A_Network& output);
   void isConnected(A_Network network, bool& isConnected);
-  void find_neighbours(int node,A_Network network,int distance,vector<int> &neighbours);
-  
+  void find_neighbours(int node,A_Network network,int distance,vector<int> &neighbours) {
+    get_unq_neighbors(node, network, distance, &neighbours);
+    return;
+  }  
 };
 
 

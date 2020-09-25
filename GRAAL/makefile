@@ -54,8 +54,8 @@ BASIC_CHANGE_INC=-I$(BASIC_CHANGE)/Level0 \
 BASIC_ANALYSIS=$(ESSENS)/Basic_Analysis
 BASIC_ANALYSIS_INC=-I$(BASIC_ANALYSIS)/Level0
 
-all: 	main_code.cpp
-	$(CXX) $(CXXFLAGS) $(BASIC_IO_INC) $(BASIC_SETOP_INC) $(BASIC_TRAVERSAL_INC) $(BASIC_CHANGE_INC) $(BASIC_ANALYSIS_INC) main_code.cpp GDV_functions.cpp
+all: 	main_code.cpp GDV_functions.hpp
+	$(CXX) $(CXXFLAGS) $(BASIC_IO_INC) $(BASIC_SETOP_INC) $(BASIC_TRAVERSAL_INC) $(BASIC_CHANGE_INC) $(BASIC_ANALYSIS_INC) main_code.cpp #GDV_functions.cpp
 cE: 	create_edgelist.cpp
 	$(CXX) -g -o cE.out $(BASIC_IO_INC) $(BASIC_SETOP_INC) $(BASIC_TRAVERSAL_INC) $(BASIC_CHANGE_INC) $(BASIC_ANALYSIS_INC) create_edgelist.cpp
 sparse: sparsify.cpp
