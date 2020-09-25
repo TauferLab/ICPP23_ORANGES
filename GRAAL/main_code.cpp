@@ -6,34 +6,43 @@
 #include "printout_network.hpp"
 #include "ADJ/find_Xneighbors.hpp"
 #include "GDV_functions.hpp"
+
 using namespace std;
 
-int main(int argc, char *argv[])
-{       
-	clock_t q, q1, q2,t;
-    /* Accepts file as input. 
-    Input should be in the format of ( node1 node2 weight ). 
-    By default, weight should be 1
-    Should be sorted.
-    */ 
-     ifstream the_file1 ( argv[1] ); if (!the_file1.is_open() ) { cout<<"INPUT ERROR:: Could not open the input file\n";}
+int main(int argc, char *argv[]) {
+       
+  clock_t q, q1, q2,t;
+ 
+  /* Accepts file as input. 
+     Input should be in the format of ( node1 node2 weight ). 
+     By default, weight should be 1
+     Should be sorted.
+  */ 
+  ifstream the_file1 ( argv[1] ); 
+  if (!the_file1.is_open() ) { 
+    cout<<"INPUT ERROR:: Could not open the input file\n";
+  }
   
-   /* Read in Network: Reads the file and converts it into a network of type A_Network*/
-    A_Network X;
-    readin_network(&X,argv[1],1,-1);
-    GDV_functions gdvf;
-    // looping through nodes 
-    // Loop through all the vertices. currently considered integers starting from 0 to n and none are missing.
-    for (int i=0;i<X.size(); i++ ){
-        printf("%d\n",i);
-        vector<int> neighbours;
-        gdvf.find_neighbours(i,X,2,neighbours);
-        print_vector(neighbours);
-        }
-    print_network(X);
+  /* Read in Network: Reads the file and converts it into a network of type A_Network*/
+  A_Network X;
+  readin_network(&X,argv[1],1,-1);
+  GDV_functions gdvf;
 
-	return 0;
-}//end of main
+  // looping through nodes 
+  // Loop through all the vertices. currently considered integers starting from 0 to n and none are missing.
+  for (int i=0;i<X.size(); i++ ){
+    printf("%d\n",i);
+    vector<int> neighbours;
+    gdvf.find_neighbours(i,X,2,neighbours);
+    //GDV_functions::find_neighbours(i,X,2,neighbours);
+    print_vector(neighbours);
+  }
+
+  print_network(X);
+
+  return 0;
+
+}
 
 
 
