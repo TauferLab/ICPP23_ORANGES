@@ -18,8 +18,6 @@ public:
   void inducedSubGraph(A_Network network, vector<int> nodes, A_Network& output);
   void isConnected(A_Network network, bool& isConnected);
   void find_neighbours(int node,A_Network network,int distance,vector<int> &neighbours);
-  //void find_neighbours(int node, vector<ADJ_Bundle> network, int distance, vector<int> &neighbours);
-  void test_func();
   
 };
 

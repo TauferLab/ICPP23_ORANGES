@@ -34,7 +34,6 @@ int main(int argc, char *argv[]) {
     printf("%d\n",i);
     vector<int> neighbours;
     gdvf.find_neighbours(i,X,2,neighbours);
-    //GDV_functions::find_neighbours(i,X,2,neighbours);
     print_vector(neighbours);
   }
 
