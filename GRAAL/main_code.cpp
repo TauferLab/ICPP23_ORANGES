@@ -30,15 +30,17 @@ int main(int argc, char *argv[]) {
   // Objects for testing GDV induced subgraph function
   A_Network subgraph;
   vector<int> subgraph_nodes;
+  subgraph_nodes.push_back(0);
   subgraph_nodes.push_back(1);
   subgraph_nodes.push_back(2);
-  subgraph_nodes.push_back(9);
-  //gdvf.inducedSubgraph(X, subgraph_nodes, subgraph);
+  subgraph_nodes.push_back(6);
+  gdvf.inducedSubgraph(X, subgraph_nodes, subgraph);
   //gdvf.print_disconnected_network(subgraph);
 
   // Objects for testing connectedness function
   bool is_connected = false;
-  //gdvf.isConnected(subgraph, &is_connected);
+  gdvf.isConnected(subgraph, is_connected);
+  //cout << is_connected << endl;
 
   // looping through nodes 
   // Loop through all the vertices. currently considered integers starting from 0 to n and none are missing.

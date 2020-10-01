@@ -25,7 +25,7 @@ public:
   // List all combinations of size from set.  Store in output.                                                                                                                                                                                
   void find_combinations(int set[], int size, vector<vector<int>>& output)
   {
-
+    
   };
 
   // Create a graph output using nodes from network.                                                                                                                                                                                          
@@ -38,7 +38,6 @@ public:
     output.clear();
 
     // Create needed objects for function.                                                                                                                                                                                                   
-    //create_Network(subgraph_nodes, 0, subgraph);                                   
     vector<int> nodei;
     nodei.push_back(0);
     vector<int> neighbor_list;
@@ -81,12 +80,60 @@ public:
     return;
   };
 
+  // BFS algorithm for A_Network that returns list of visited nodes.
+  void a_network_bfs(A_Network network, vector<int> &visited) {
+
+    // Set up BFS
+    visited.clear();
+    vector<int> queue;
+    queue.push_back(network[0].Row);
+    int head;
+    bool bfs_visited;
+    int visited_count;
+
+    // Loop through rest of network
+    while (!queue.empty()) {
+      head = queue[0];
+      queue.erase(queue.begin());
+      for (int i = 0; i < network[head].ListW.size(); i++) {
+	
+	// Determine if neighbor is already visited
+	bfs_visited = false;
+	visited_count = 0;
+	while (!bfs_visited && visited_count < visited.size()) {
+	  if (network[head].ListW[i].first == visited[visited_count]) {
+	    bfs_visited = true;
+	  } 
+	  visited_count += 1;
+	}
+
+	// If neighbor not already visted, add neighbor to queue
+	if (!bfs_visited) {
+	  queue.push_back(network[head].ListW[i].first);
+	}
+
+      }
+      visited.push_back(head);
+    }
+    return;
+
+  };
+
   // Evaluate whether network is a connected graph.  Store result in isConnected.                  
   void isConnected(A_Network network, bool& isConnected)
   {
     A_Network spanning_tree;
-    A_Network* spanning_tree_point = &spanning_tree;
-    //traversal(0, network, "bfs", spanning_tree_point);
+    vector<int> visited_nodes;
+    a_network_bfs(network, visited_nodes);
+    
+    // Make connectedness check
+    if (visited_nodes.size() == network.size()) {
+      isConnected = true;
+    }
+    else {
+      isConnected = false;
+    }
+
     return;
   };
 
