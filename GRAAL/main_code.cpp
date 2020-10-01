@@ -32,9 +32,9 @@ int main(int argc, char *argv[]) {
   vector<int> subgraph_nodes;
   subgraph_nodes.push_back(1);
   subgraph_nodes.push_back(2);
-  subgraph_nodes.push_back(3);
+  subgraph_nodes.push_back(9);
   //gdvf.inducedSubgraph(X, subgraph_nodes, subgraph);
-  //print_network(subgraph);
+  //gdvf.print_disconnected_network(subgraph);
 
   // Objects for testing connectedness function
   bool is_connected = false;
@@ -43,10 +43,10 @@ int main(int argc, char *argv[]) {
   // looping through nodes 
   // Loop through all the vertices. currently considered integers starting from 0 to n and none are missing.
   for (int i=0;i<X.size(); i++ ) {
-    printf("%d\n",i);
+    //printf("%d\n",i);
     vector<int> neighbours;
-    gdvf.find_neighbours(i,X,2,&neighbours);
-    print_vector(neighbours);
+    gdvf.find_neighbours(i, X, 2, neighbours);
+    //print_vector(neighbours);
     
   }
 

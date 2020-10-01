@@ -11,7 +11,7 @@
 #include "ADJ/find_Xneighbors.hpp"
 #include "ADJ/network_defs.hpp"
 #include "ADJ/create_network.hpp"
-#include "traversal.hpp"
+//#include "ADJ/traversal.hpp"
 #include <iostream>
 
 using namespace std;
@@ -38,12 +38,12 @@ public:
     output.clear();
 
     // Create needed objects for function.                                                                                                                                                                                                   
-    //create_Network(subgraph_nodes, 0, subgraph);                                                                                                                                                                                            
+    //create_Network(subgraph_nodes, 0, subgraph);                                   
     vector<int> nodei;
     nodei.push_back(0);
     vector<int> neighbor_list;
 
-    // Variables for storing ADJ information                                                                                                                                                                                                  
+    // Variables for storing ADJ information                  
     ADJ_Bundle temp_bundle;
     int_double temp_edge;
 
@@ -53,13 +53,13 @@ public:
       nodei[0] = network[nodes[i]].Row;
       get_neighbors(nodei, network, &neighbor_list);
 
-      // Ensure subgraph contains next node.                                                                                                                                                                                                  
+      // Ensure subgraph contains next node.              
       temp_bundle.Row = i;
       output.push_back(temp_bundle);
 
       for (int j = 0; j < subgraph_nodes; j++) {
 
-        // Retrieve edge weight for potential edge                                                                                                                                                                                            
+        // Retrieve edge weight for potential edge                
         for (int k = 0; k < network[nodes[i]].ListW.size(); k++) {
           if (network[nodes[i]].ListW[k].first == network[nodes[j]].Row) {
             temp_edge.first = j;
@@ -67,7 +67,7 @@ public:
           }
         }
 
-        // Determine if j is a neighbor of i by looping through the neighbors of i                                                                                                                                                            
+        // Determine if j is a neighbor of i by looping through the neighbors of i                
         for (int k = 0; k < neighbor_list.size(); k++) {
           if (neighbor_list[k] == network[nodes[j]].Row) {
             output[i].ListW.push_back(temp_edge);
@@ -81,19 +81,33 @@ public:
     return;
   };
 
-  // Evaluate whether network is a connected graph.  Store result in isConnected.                                                                                                                                                             
+  // Evaluate whether network is a connected graph.  Store result in isConnected.                  
   void isConnected(A_Network network, bool& isConnected)
   {
     A_Network spanning_tree;
     A_Network* spanning_tree_point = &spanning_tree;
-    traversal(0, network, "bfs", spanning_tree_point);
+    //traversal(0, network, "bfs", spanning_tree_point);
     return;
   };
 
-  // List neighbors up to distance from node in network.                                                                                                                                                                                      
+  // List neighbors up to distance from node in network.                                                               
   void find_neighbours(int node,A_Network network,int distance,vector<int> &neighbours)
   {
     get_unq_neighbors(node, network, distance, &neighbours);
+    return;
+  };
+
+  // Can be used for printing disconnected graphs.             
+  void print_disconnected_network(A_Network &network) 
+  {
+    for (int i = 0; i < network.size(); i++) {
+      cout << "-------------------------------------" << endl;
+      cout << network[i].Row << ":" << endl;
+      for (int j = 0; j < network[i].ListW.size(); j++) {
+	cout << network[i].ListW[j].first << " , " << endl;
+      }
+      cout << "-------------------------------------" << endl;
+    }
     return;
   };
 

@@ -1,6 +1,6 @@
 #Change thos line to a different location if needed
-ESSENS =/mnt/c/users/lohit/desktop/RA/Src_GraphAlignment/ESSENS-master
-# ESSENS=/home/pnbell/Src_GraphAlignment/ESSENS-master
+#ESSENS =/mnt/c/users/lohit/desktop/RA/Src_GraphAlignment/ESSENS-master
+ESSENS=/home/pnbell/Src_GraphAlignment/ESSENS-master
 #ESSENS= ./ESSENS
 
 #Use this to run on Linux
@@ -58,27 +58,27 @@ BASIC_ANALYSIS_INC=-I$(BASIC_ANALYSIS)/Level0
 ESSENS_PATHS=$(BASIC_IO_INC) $(BASIC_SETOP_INC) $(BASIC_TRAVERSAL_INC) $(BASIC_CHANGE_INC) $(BASIC_ANALYSIS_INC)
 
 all:    main_code.cpp GDV_functions.hpp
-        echo $(ESSENS_PATHS)
-        $(CXX) $(CXXFLAGS) -o graal $(ESSENS_PATHS) main_code.cpp
+	echo $(ESSENS_PATHS)
+	$(CXX) $(CXXFLAGS) -o graal $(ESSENS_PATHS) main_code.cpp
 
 cE:     create_edgelist.cpp
-        $(CXX) -g -o cE.out $(ESSENS_PATHS) create_edgelist.cpp
+	$(CXX) -g -o cE.out $(ESSENS_PATHS) create_edgelist.cpp
 sparse: sparsify.cpp
-        $(CXX) -g  -o sparse.out $(ESSENS_PATHS) sparsify.cpp
+	$(CXX) -g  -o sparse.out $(ESSENS_PATHS) sparsify.cpp
 tEx:    traversalEx.cpp
-        $(CXX) -g  -o tEx.out $(ESSENS_PATHS) traversalEx.cpp
+	$(CXX) -g  -o tEx.out $(ESSENS_PATHS) traversalEx.cpp
 bfs:    BFS.cpp
-        $(CXX) -g -o bfs.out $(ESSENS_PATHS) BFS.cpp
+	$(CXX) -g -o bfs.out $(ESSENS_PATHS) BFS.cpp
 chChk:  chordalchk.cpp
-        $(CXX) -g -o chChk.out $(ESSENS_PATHS) chordalchk.cpp
+	$(CXX) -g -o chChk.out $(ESSENS_PATHS) chordalchk.cpp
 lpath:  longest_path.cpp
-        $(CXX) -g -o lpath.out $(ESSENS_PATHS) longest_path.cpp
+	$(CXX) -g -o lpath.out $(ESSENS_PATHS) longest_path.cpp
 permF:  permute_file.cpp
-        $(CXX) -g -o permF.out $(ESSENS_PATHS) permute_file.cpp
+	$(CXX) -g -o permF.out $(ESSENS_PATHS) permute_file.cpp
 BFS_try: BFS.cpp
-        $(CXX) -g -fopenmp -o BFST.out $(ESSENS_PATHS) BFS.cpp
+	$(CXX) -g -fopenmp -o BFST.out $(ESSENS_PATHS) BFS.cpp
 test1:  test_SetOps.cpp
-        $(CXX) $(BASIC_IO_INC) $(BASIC_SETOP_INC) $(BASIC_TRAVERSAL_INC) test_SetOps.cpp
+	$(CXX) $(BASIC_IO_INC) $(BASIC_SETOP_INC) $(BASIC_TRAVERSAL_INC) test_SetOps.cpp
 
 clean:
 	$(RM) *.out *.o graal
