@@ -11,6 +11,8 @@
 #include "ADJ/find_Xneighbors.hpp"
 #include "ADJ/network_defs.hpp"
 #include "ADJ/create_network.hpp"
+#include "combinations.hpp"
+#include "class_definitions.hpp"
 //#include "ADJ/traversal.hpp"
 #include <iostream>
 
@@ -23,10 +25,12 @@ class GDV_functions{
 public:
 
   // List all combinations of size from set.  Store in output.                                                                                                                                                                                
-  void find_combinations(int set[], int size, vector<vector<int>>& output)
-  {
-    
-  };
+    void find_combinations ( int set[], int n,int size, vector<vector<int>> *output){
+      Combinations c;
+      c.getCombination(set,n,size,output);
+      return;
+      }
+
 
   // Create a graph output using nodes from network.                                                                                                                                                                                          
   void inducedSubgraph(A_Network network, vector<int> nodes, A_Network& output)
@@ -138,11 +142,11 @@ public:
   };
 
   // List neighbors up to distance from node in network.                                                               
-  void find_neighbours(int node,A_Network network,int distance,vector<int> &neighbours)
-  {
-    get_unq_neighbors(node, network, distance, &neighbours);
-    return;
-  };
+  void find_neighbours(int node,A_Network network,int distance,vector<int> *neighbours)
+    {
+      get_unq_neighbors(node, network, distance, neighbours);
+      return;
+    }
 
   // Can be used for printing disconnected graphs.             
   void print_disconnected_network(A_Network &network) 
@@ -162,3 +166,5 @@ public:
 
 
 #endif
+
+
