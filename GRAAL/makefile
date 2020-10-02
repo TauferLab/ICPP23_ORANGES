@@ -57,7 +57,7 @@ BASIC_ANALYSIS_INC=-I$(BASIC_ANALYSIS)/Level0
 
 ESSENS_PATHS=$(BASIC_IO_INC) $(BASIC_SETOP_INC) $(BASIC_TRAVERSAL_INC) $(BASIC_CHANGE_INC) $(BASIC_ANALYSIS_INC)
 
-all:    main_code.cpp GDV_functions.hpp
+all:    main_code.cpp GDV_functions.hpp bfs.hpp print_disconnected_graph.hpp
 	echo $(ESSENS_PATHS)
 	$(CXX) $(CXXFLAGS) -o graal $(ESSENS_PATHS) main_code.cpp
 

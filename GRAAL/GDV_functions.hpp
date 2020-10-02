@@ -15,6 +15,8 @@
 #include "class_definitions.hpp"
 //#include "ADJ/traversal.hpp"
 #include <iostream>
+#include "bfs.hpp"
+#include "print_disconnected_graph.hpp"
 
 using namespace std;
 
@@ -24,15 +26,14 @@ class GDV_functions{
 
 public:
 
-  // List all combinations of size from set.  Store in output.                                                                                                                                                                                
-    void find_combinations ( int set[], int n,int size, vector<vector<int>> *output){
-      Combinations c;
-      c.getCombination(set,n,size,output);
-      return;
-      }
+  // List all combinations of size from set.  Store in output.                     
+  void find_combinations ( int set[], int n,int size, vector<vector<int>> *output){
+    Combinations c;
+    c.getCombination(set,n,size,output);
+    return;
+  }
 
-
-  // Create a graph output using nodes from network.                                                                                                                                                                                          
+  // Create a graph output using nodes from network.                                                                                                                             
   void inducedSubgraph(A_Network network, vector<int> nodes, A_Network& output)
   {
 
@@ -84,45 +85,6 @@ public:
     return;
   };
 
-  // BFS algorithm for A_Network that returns list of visited nodes.
-  void a_network_bfs(A_Network network, vector<int> &visited) {
-
-    // Set up BFS
-    visited.clear();
-    vector<int> queue;
-    queue.push_back(network[0].Row);
-    int head;
-    bool bfs_visited;
-    int visited_count;
-
-    // Loop through rest of network
-    while (!queue.empty()) {
-      head = queue[0];
-      queue.erase(queue.begin());
-      for (int i = 0; i < network[head].ListW.size(); i++) {
-	
-	// Determine if neighbor is already visited
-	bfs_visited = false;
-	visited_count = 0;
-	while (!bfs_visited && visited_count < visited.size()) {
-	  if (network[head].ListW[i].first == visited[visited_count]) {
-	    bfs_visited = true;
-	  } 
-	  visited_count += 1;
-	}
-
-	// If neighbor not already visted, add neighbor to queue
-	if (!bfs_visited) {
-	  queue.push_back(network[head].ListW[i].first);
-	}
-
-      }
-      visited.push_back(head);
-    }
-    return;
-
-  };
-
   // Evaluate whether network is a connected graph.  Store result in isConnected.                  
   void isConnected(A_Network network, bool& isConnected)
   {
@@ -143,24 +105,26 @@ public:
 
   // List neighbors up to distance from node in network.                                                               
   void find_neighbours(int node,A_Network network,int distance,vector<int> *neighbours)
-    {
-      get_unq_neighbors(node, network, distance, neighbours);
-      return;
-    }
-
-  // Can be used for printing disconnected graphs.             
-  void print_disconnected_network(A_Network &network) 
   {
-    for (int i = 0; i < network.size(); i++) {
-      cout << "-------------------------------------" << endl;
-      cout << network[i].Row << ":" << endl;
-      for (int j = 0; j < network[i].ListW.size(); j++) {
-	cout << network[i].ListW[j].first << " , " << endl;
-      }
-      cout << "-------------------------------------" << endl;
-    }
+    get_unq_neighbors(node, network, distance, neighbours);
     return;
-  };
+  }
+
+  // Calculate degree signature for network
+  void degree_signature(A_Network network, vector<int> &deg_sig)
+  {
+    deg_sig.clear();
+    for (int i = 0; i < network.size(); i++) {
+      deg_sig.push_back(network[i].ListW.size());
+    }
+  }
+
+  // Calculate distance signature for network
+  void distance_signature(int node, A_Network network, vector<int> &dist_sig)
+  {
+    dist_sig.clear();
+    
+  }
 
 };
 
