@@ -117,13 +117,15 @@ public:
     for (int i = 0; i < network.size(); i++) {
       deg_sig.push_back(network[i].ListW.size());
     }
+    return;
   }
 
   // Calculate distance signature for network
   void distance_signature(int node, A_Network network, vector<int> &dist_sig)
   {
     dist_sig.clear();
-    
+    bfs_shortest_paths(node, network, dist_sig);
+    return;
   }
 
 };

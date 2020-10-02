@@ -26,7 +26,7 @@ int main(int argc, char *argv[]) {
   /* Read in Network: Reads the file and converts it into a network of type A_Network*/
   A_Network X;
   readin_network(&X,argv[1],1,-1);  
- 
+  GDV_functions test_gdvf;
 
   // Objects for testing GDV induced subgraph function
   // A_Network subgraph;
@@ -43,15 +43,24 @@ int main(int argc, char *argv[]) {
   // gdvf.isConnected(subgraph, is_connected);
   //cout << is_connected << endl;
 
-    
+  // Objects for testing degree signature
+  //vector<int> degree_sig;
+  //test_gdvf.degree_signature(X, degree_sig);
+  //print_vector(degree_sig);
+
+  // Objects for testing distance signature
+  //vector<int> distance_sig;
+  //test_gdvf.distance_signature(2, X, distance_sig);
+  //print_vector(distance_sig);
+  
   // for (int i=0;i<X.size(); i++)
   // {
   //   // Calculate_GDV(i,X);
   // }
   vector<int> GDV;
   int node;
-  GDVMetric gdv(node,GDV);
-  gdv = Calculate_GDV(2,X);
+  //GDVMetric gdv(node,GDV);
+  //gdv = Calculate_GDV(2,X);
   return 0;
 }
 
@@ -82,7 +91,7 @@ GDVMetric Calculate_GDV(int node,A_Network Graph)
         gdvf.inducedSubgraph(Graph, combination, induced_sgraph);
         cout<<"sub graph for combination "<<endl;
         print_network(induced_sgraph);
-        gdvf.print_disconnected_network(induced_sgraph);
+        print_disconnected_network(induced_sgraph);
         gdvf.isConnected(induced_sgraph, is_connected);
         if(is_connected)
         {
