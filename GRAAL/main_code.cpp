@@ -73,7 +73,7 @@ GDVMetric Calculate_GDV(int node,A_Network Graph)
     int set[neighbours.size()]; 
     std::copy( neighbours.begin(), neighbours.end(), set );
     int numElements = *(&set + 1) - set;
-    vector<vector<int>> combinationsList;
+    
     // // for info 
     // for (int i = numElements - 1; i >= 0; i--) 
     // {
@@ -81,6 +81,7 @@ GDVMetric Calculate_GDV(int node,A_Network Graph)
     // }
     for (int node_count = 0; node_count < 5; node_count++)
     {
+      vector<vector<int>> combinationsList;
       gdvf.find_combinations(set, numElements,node_count,&combinationsList);
       for (vector<int> combination : combinationsList)
       {
