@@ -34,50 +34,46 @@ public:
   }
 
   // Create a graph output using nodes from network.                                                                                                                             
+  // Vector nodes should correspond to actual node labels, not node indices.
   void inducedSubgraph(A_Network network, vector<int> nodes, A_Network& output)
   {
 
-    // Store number of nodes being passed.                                                                                                                                                                                                   
-    int subgraph_nodes = nodes.size();
-    A_Network* subgraph = &output;
+    // Set up output for new subgraph.                                                                                                                                                                                                   
     output.clear();
 
     // Create needed objects for function.                                                                                                                                                                                                   
-    vector<int> nodei;
-    nodei.push_back(0);
-    vector<int> neighbor_list;
-
-    // Variables for storing ADJ information                  
+    int subgraph_nodes = nodes.size();
+    vector<int_double> neighbor_list;
     ADJ_Bundle temp_bundle;
     int_double temp_edge;
 
     // Check the neighbors of the subgraph nodes to determine where edges need to be.                                                                                                                                                        
     for (int i = 0; i < subgraph_nodes; i++) {
 
-      nodei[0] = network[nodes[i]].Row;
-      get_neighbors(nodei, network, &neighbor_list);
+      // Find which node in the network corresponds to nodes[i] and store it's neighbors.
+      bool node_found = false;
+      int graph_count = 0;
+      while (!node_found) {
+	if (network[graph_count].Row == nodes[i]) {
+	  node_found = true;
+	  neighbor_list = network[graph_count].ListW;
+	}
+	graph_count += 1;
+      }
 
       // Ensure subgraph contains next node.              
-      temp_bundle.Row = i;
+      temp_bundle.Row = nodes[i];
       output.push_back(temp_bundle);
 
+      // Check which of the nodes[j] correspond to neighbors of nodes[i].
       for (int j = 0; j < subgraph_nodes; j++) {
-
-        // Retrieve edge weight for potential edge                
-        for (int k = 0; k < network[nodes[i]].ListW.size(); k++) {
-          if (network[nodes[i]].ListW[k].first == network[nodes[j]].Row) {
-            temp_edge.first = j;
-            temp_edge.second = network[nodes[i]].ListW[k].second;
-          }
-        }
-
-        // Determine if j is a neighbor of i by looping through the neighbors of i                
-        for (int k = 0; k < neighbor_list.size(); k++) {
-          if (neighbor_list[k] == network[nodes[j]].Row) {
-            output[i].ListW.push_back(temp_edge);
-          }
-        }
-
+	for (int k = 0; k < neighbor_list.size(); k++) {
+	  if (neighbor_list[k].first == nodes[j]) {
+	    temp_edge.first = nodes[j];
+	    temp_edge.second = neighbor_list[k].second;
+	    output[i].ListW.push_back(temp_edge);
+	  }
+	}
       }
 
     }
@@ -90,14 +86,19 @@ public:
   {
     A_Network spanning_tree;
     vector<int> visited_nodes;
-    a_network_bfs(network, visited_nodes);
-    
-    // Make connectedness check
-    if (visited_nodes.size() == network.size()) {
-      isConnected = true;
-    }
-    else {
-      isConnected = false;
+
+    if (!network.empty()) {
+      a_network_bfs(network, visited_nodes);
+      
+      // Make connectedness check
+      if (visited_nodes.size() == network.size()) {
+	isConnected = true;
+      }
+      else {
+	isConnected = false;
+      }
+    } else {
+      cout << "Error in function isConnected: input variable network is empty." << endl;
     }
 
     return;
@@ -113,18 +114,27 @@ public:
   // Calculate degree signature for network
   void degree_signature(A_Network network, vector<int> &deg_sig)
   {
-    deg_sig.clear();
-    for (int i = 0; i < network.size(); i++) {
-      deg_sig.push_back(network[i].ListW.size());
+    if (!network.empty()) {
+      deg_sig.clear();
+      for (int i = 0; i < network.size(); i++) {
+	deg_sig.push_back(network[i].ListW.size());
+      }
+    } else {
+      cout << "Error in function degree_signature: input variable network is empty." << endl;
     }
+
     return;
   }
 
   // Calculate distance signature for network
   void distance_signature(int node, A_Network network, vector<int> &dist_sig)
   {
-    dist_sig.clear();
-    bfs_shortest_paths(node, network, dist_sig);
+    if (!network.empty()) {
+	dist_sig.clear();
+	bfs_shortest_paths(node, network, dist_sig);
+    } else {
+      cout << "Error in function distance_signature: input variable network is empty." << endl;
+    }
     return;
   }
 
