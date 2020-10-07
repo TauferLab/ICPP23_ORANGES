@@ -127,7 +127,7 @@ public:
   }
 
   // Calculate distance signature for network
-  void distance_signature(int node, A_Network network, vector<int> &dist_sig, int graphlet_size)
+  void distance_signature(int node, A_Network network, vector<int> &dist_sig)
   {
     if (!network.empty()) {
 
@@ -137,7 +137,7 @@ public:
 	
       // Then use the shortest paths to calculate the distance signature.
       dist_sig.clear();
-      dist_sig.resize(graphlet_size, 0);
+      dist_sig.resize(6, 0);
       for (int i = 0; i < shortest_paths.size(); i++) {
 	dist_sig[shortest_paths[i]] += 1;
       }
