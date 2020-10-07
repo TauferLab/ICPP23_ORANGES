@@ -127,11 +127,21 @@ public:
   }
 
   // Calculate distance signature for network
-  void distance_signature(int node, A_Network network, vector<int> &dist_sig)
+  void distance_signature(int node, A_Network network, vector<int> &dist_sig, int graphlet_size)
   {
     if (!network.empty()) {
-	dist_sig.clear();
-	bfs_shortest_paths(node, network, dist_sig);
+
+      // Start by calculating shortest paths in graph.
+      vector<int> shortest_paths;
+      bfs_shortest_paths(node, network, shortest_paths);
+	
+      // Then use the shortest paths to calculate the distance signature.
+      dist_sig.clear();
+      dist_sig.resize(graphlet_size, 0);
+      for (int i = 0; i < shortest_paths.size(); i++) {
+	dist_sig[shortest_paths[i]] += 1;
+      }
+
     } else {
       cout << "Error in function distance_signature: input variable network is empty." << endl;
     }

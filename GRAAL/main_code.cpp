@@ -63,7 +63,8 @@ int main(int argc, char *argv[]) {
 
   // Objects for testing distance signature
   //vector<int> distance_sig;
-  //test_gdvf.distance_signature(2, X, distance_sig);
+  //int subgraph_size = 6;
+  //test_gdvf.distance_signature(2, X, distance_sig, subgraph_size);
   //print_vector(distance_sig);
   // for (int i:X)
   // {
