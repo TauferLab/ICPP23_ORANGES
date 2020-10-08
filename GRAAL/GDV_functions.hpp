@@ -148,6 +148,67 @@ public:
     return;
   }
 
+  vector<OrbitMetric> orbit_filter( vector<OrbitMetric>& orbits, int nodes, vector<OrbitMetric>& filtered_orbits)
+  {
+     switch(nodes) {
+      case 2 :
+          filtered_orbits.push_back(orbits[0]);
+          break;
+      case 3 :
+          filtered_orbits.push_back(orbits[1]);
+          filtered_orbits.push_back(orbits[2]);
+          filtered_orbits.push_back(orbits[3]);
+         break;
+      case 4 :
+            filtered_orbits.push_back(orbits[4]);
+            filtered_orbits.push_back(orbits[5]);
+            filtered_orbits.push_back(orbits[6]);
+            filtered_orbits.push_back(orbits[7]);
+            filtered_orbits.push_back(orbits[8]);
+            filtered_orbits.push_back(orbits[9]);
+            filtered_orbits.push_back(orbits[10]);
+            filtered_orbits.push_back(orbits[11]);
+            filtered_orbits.push_back(orbits[12]);
+            filtered_orbits.push_back(orbits[13]);
+            filtered_orbits.push_back(orbits[14]);
+         break;
+      case 5 :
+            filtered_orbits.push_back(orbits[15]);
+            filtered_orbits.push_back(orbits[16]);
+            filtered_orbits.push_back(orbits[17]);
+            filtered_orbits.push_back(orbits[18]);
+            filtered_orbits.push_back(orbits[19]);
+            filtered_orbits.push_back(orbits[20]);
+            filtered_orbits.push_back(orbits[21]);
+         break;
+      default :
+            filtered_orbits.push_back(orbits[0]);
+            filtered_orbits.push_back(orbits[1]);
+            filtered_orbits.push_back(orbits[2]);
+            filtered_orbits.push_back(orbits[3]);
+            filtered_orbits.push_back(orbits[4]);
+            filtered_orbits.push_back(orbits[5]);
+            filtered_orbits.push_back(orbits[6]);
+            filtered_orbits.push_back(orbits[7]);
+            filtered_orbits.push_back(orbits[8]);
+            filtered_orbits.push_back(orbits[9]);
+            filtered_orbits.push_back(orbits[10]);
+            filtered_orbits.push_back(orbits[11]);
+            filtered_orbits.push_back(orbits[12]);
+            filtered_orbits.push_back(orbits[13]);
+            filtered_orbits.push_back(orbits[14]);
+            filtered_orbits.push_back(orbits[15]);
+            filtered_orbits.push_back(orbits[16]);
+            filtered_orbits.push_back(orbits[17]);
+            filtered_orbits.push_back(orbits[18]);
+            filtered_orbits.push_back(orbits[19]);
+            filtered_orbits.push_back(orbits[20]);
+            filtered_orbits.push_back(orbits[21]);
+          break;
+   }
+    return filtered_orbits;
+  }
+
 };
 
 
