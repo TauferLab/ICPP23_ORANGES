@@ -6,8 +6,6 @@
 :::24
 :::24
 :::24
-:::24
-:::24
 gdv for node 9
 ...
 1
@@ -32,12 +30,15 @@ gdv for node 9
 0
 0
 0
+---
+Time taken: 0.04s
+:::24
+:::24
 gdv for node 5
 ...
 1
 1
 0
----
 0
 2
 0
@@ -47,7 +48,6 @@ gdv for node 5
 0
 0
 0
-Time taken: 0.03s
 0
 0
 0
@@ -59,7 +59,7 @@ Time taken: 0.03s
 0
 0
 ---
-Time taken: 0.02s
+Time taken: 0.03s
 gdv for node 0
 ...
 1
@@ -83,32 +83,6 @@ gdv for node 0
 1
 0
 0
-0
----
-Time taken: 0.04s
-gdv for node 10
-...
-2
-2
-1
-0
-2
-2
-1
-0
-0
-0
-0
-0
-0
-0
-0
-2
-2
-0
-1
-2
-1
 0
 ---
 Time taken: 0.04s
@@ -137,7 +111,7 @@ gdv for node 6
 1
 0
 ---
-Time taken: 0.02s
+Time taken: 0.04s
 gdv for node 8
 ...
 1
@@ -161,6 +135,32 @@ gdv for node 8
 1
 3
 0
+0
+---
+Time taken: 0.03s
+gdv for node 10
+...
+2
+2
+1
+0
+2
+2
+1
+0
+0
+0
+0
+0
+0
+0
+0
+2
+2
+0
+1
+2
+1
 0
 ---
 Time taken: 0.03s
@@ -214,7 +214,7 @@ gdv for node 11
 2
 3
 ---
-Time taken: 0.04s
+Time taken: 0.08s
 gdv for node 7
 ...
 3
@@ -240,7 +240,7 @@ gdv for node 7
 2
 3
 ---
-Time taken: 0.04s
+Time taken: 0.07s
 gdv for node 3
 ...
 3
@@ -266,32 +266,6 @@ gdv for node 3
 4
 4
 ---
-gdv for node 2
-...
-3
-5
-3
-0
-3
-10
-2
-1
-0
-0
-0
-0
-0
-0
-0
-1
-6
-8
-1
-3
-4
-5
----
-Time taken: 0.06s
 gdv for node 4
 ...
 1
@@ -317,4 +291,30 @@ gdv for node 4
 0
 0
 ---
-Time taken: 0.05s
+Time taken: 0.11s
+gdv for node 2
+...
+3
+5
+3
+0
+3
+10
+2
+1
+0
+0
+0
+0
+0
+0
+0
+1
+6
+8
+1
+3
+4
+5
+---
+Time taken: 0.11s
