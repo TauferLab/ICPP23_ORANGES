@@ -88,7 +88,7 @@ public:
     vector<int> visited_nodes;
 
     if (!network.empty()) {
-      a_network_bfs(network, visited_nodes);
+      a_network_dir_dfs(network, visited_nodes);
       
       // Make connectedness check
       if (visited_nodes.size() == network.size()) {
@@ -133,7 +133,7 @@ public:
 
       // Start by calculating shortest paths in graph.
       vector<int> shortest_paths;
-      bfs_shortest_paths(node, network, shortest_paths);
+      dir_dfs_shortest_paths(node, network, shortest_paths);
 	
       // Then use the shortest paths to calculate the distance signature.
       dist_sig.clear();

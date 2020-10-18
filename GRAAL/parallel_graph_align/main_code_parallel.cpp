@@ -5,10 +5,10 @@
 #include "printout_others.hpp"
 #include "printout_network.hpp"
 #include "ADJ/find_Xneighbors.hpp"
-#include "GDV_functions.hpp"
-#include "class_definitions.hpp"
-#include "print_disconnected_graph.hpp"
+#include "/home/pnbell/Src_GraphAlignment/GRAAL/GDV_functions.hpp"
+#include "/home/pnbell/Src_GraphAlignment/GRAAL/class_definitions.hpp"
 #include <time.h>
+#include <mpi.h>
 
 void Calculate_GDV(int ,A_Network ,vector<OrbitMetric>&, GDVMetric&);
 void readin_orbits(  ifstream* ,vector<OrbitMetric>* );
@@ -16,6 +16,7 @@ void convert_string_vector_int(string* , vector<int>* ,string );
 using namespace std;
 
 int main(int argc, char *argv[]) {
+
   clock_t tStart = clock();
   clock_t q, q1, q2,t;
   GDV_functions gdvf;
@@ -38,6 +39,14 @@ int main(int argc, char *argv[]) {
   // Objects for testing orbit creation 
   // print_vector(orbits[1].orbitDegree);
   // vector<OrbitMetric> filter_o = gdvf.orbit_filter(&orbits,3);
+
+  int numtasks, rank, dest, source, rc, count, tag=0;
+  MPI_Status Stat;   // required variable for receive routines                                                                                                                                                                          
+
+  MPI_Init(&argc,&argv);
+  MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
   /* Read in Network: Reads the file and converts it into a network of type A_Network*/
   A_Network X;
   readin_network(&X,argv[1],0,-1);  
@@ -63,7 +72,11 @@ int main(int argc, char *argv[]) {
   // Objects for testing connectedness function
   //bool is_connected = false;
   //gdvf.isConnected(subgraph, is_connected);
-  //cout << is_connected << endl;
+  //if (is_connected) {
+  //  cout << "subgraph connected" << endl;
+  //} else {
+  //  cout << "subgraph disconnected" << endl;
+  //}
 
   // Objects for testing degree signature
   //vector<int> degree_sig;
@@ -74,23 +87,62 @@ int main(int argc, char *argv[]) {
   //vector<int> distance_sig;
   //test_gdvf.distance_signature(2, X, distance_sig);
   //print_vector(distance_sig);
+  
   // for (int i:X)
   // {
   //   // Calculate_GDV(i,X);
   // }
 
+  //for (ADJ_Bundle node:X) {
 
-    for (ADJ_Bundle node:X)
-  {
+  // Set up parallelization
+  int comm_size;
+  MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+  int nodes_per_proc = int(X.size())/comm_size;
+  int assigned = nodes_per_proc * comm_size;
+  int remain = X.size() - (nodes_per_proc * comm_size);
+  
+  // Define Number of nodes to send to each rank
+  // 
+  // int assigned_node_count = nodes_per_proc;
+  // int remain_node_count = nodes_per_proc - 1;
+  // define vector of needed count per process so each process as nodes_per_proc
+  // add one to each of first remain entries of vector
+  // have each process do number of nodes in vector entry of corresponding index
+
+  // Assign count of nodes for each process
+  vector<int> per_proc(comm_size, nodes_per_proc);
+  int starting_node = 0;
+  //per_proc.push_back(nodes_per_proc + 1);
+  for (int i = 1; i < remain; i++) {
+    per_proc[i] += 1;
+  }
+  for (int i = 0; i < rank; i++) {
+    starting_node += per_proc[i];
+  }
+
+  // Have process run the number of nodes for itself
+  int node = starting_node;
+  for (int i = 0; i < per_proc[rank]; i++) { 
     vector<int> GDV_1;
-    GDVMetric gdvMetric(node.Row,GDV_1);
-    Calculate_GDV(node.Row,X,orbits,gdvMetric);
-    cout<<"gdv for node "<<node.Row<<endl;
+    GDVMetric gdvMetric(node,GDV_1);
+    Calculate_GDV(node,X,orbits,gdvMetric);
+    cout<<"gdv for node "<<node<<endl;
     print_vector(gdvMetric.GDV);
+    node += 1;
   }
   
- printf("Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
+  if (rank == 0) {
+    // MPI_Gather from each relevant rank to make final calculations
+  }
+
+  printf("Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
+  
+  //delete send_buff;
+  //delete rec_buff;
+  MPI_Finalize(); 
   return 0;
+
 }
 
 void Calculate_GDV(int node,A_Network Graph,vector<OrbitMetric> &orbits, GDVMetric &gdvMetric)
@@ -100,7 +152,7 @@ void Calculate_GDV(int node,A_Network Graph,vector<OrbitMetric> &orbits, GDVMetr
     // printf("calculating GDV for node %d\n",node);
     vector<int> neighbours;
     gdvf.find_neighbours(node,Graph,4,&neighbours);
-    print_vector(neighbours);
+    //print_vector(neighbours);
     int set[neighbours.size()]; 
     std::copy( neighbours.begin(), neighbours.end(), set );
     int numElements = *(&set + 1) - set;

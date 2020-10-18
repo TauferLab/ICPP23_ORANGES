@@ -7,7 +7,6 @@
 #include "ADJ/find_Xneighbors.hpp"
 #include "GDV_functions.hpp"
 #include "class_definitions.hpp"
-#include "print_disconnected_graph.hpp"
 #include <time.h>
 
 void Calculate_GDV(int ,A_Network ,vector<OrbitMetric>&, GDVMetric&);
@@ -16,6 +15,7 @@ void convert_string_vector_int(string* , vector<int>* ,string );
 using namespace std;
 
 int main(int argc, char *argv[]) {
+
   clock_t tStart = clock();
   clock_t q, q1, q2,t;
   GDV_functions gdvf;
@@ -38,6 +38,14 @@ int main(int argc, char *argv[]) {
   // Objects for testing orbit creation 
   // print_vector(orbits[1].orbitDegree);
   // vector<OrbitMetric> filter_o = gdvf.orbit_filter(&orbits,3);
+
+  int numtasks, rank, dest, source, rc, count, tag=0;
+  MPI_Status Stat;   // required variable for receive routines                                                                                                                                                                          
+
+  MPI_Init(&argc,&argv);
+  MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
+  MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
   /* Read in Network: Reads the file and converts it into a network of type A_Network*/
   A_Network X;
   readin_network(&X,argv[1],0,-1);  
@@ -49,20 +57,20 @@ int main(int argc, char *argv[]) {
   // print_vector(filtered_orbits[1].orbitDistance);
 
   // Objects for testing GDV induced subgraph function
-  //A_Network subgraph;
-  //vector<int> subgraph_nodes;
-  //subgraph_nodes.push_back(0);
-  //subgraph_nodes.push_back(1);
-  //subgraph_nodes.push_back(2);
-  //subgraph_nodes.push_back(7);
-  //gdvf.inducedSubgraph(X, subgraph_nodes, subgraph);
-  //print_disconnected_network(subgraph);
+  // A_Network subgraph;
+  // vector<int> subgraph_nodes;
+  // subgraph_nodes.push_back(0);
+  // subgraph_nodes.push_back(1);
+  // subgraph_nodes.push_back(2);
+  // subgraph_nodes.push_back(6);
+  // gdvf.inducedSubgraph(X, subgraph_nodes, subgraph);
+  // gdvf.print_disconnected_network(subgraph);
   // cout<<"subgraph for 0,1,2,6"<<endl;
   // print_network(subgraph);
 
   // Objects for testing connectedness function
-  //bool is_connected = false;
-  //gdvf.isConnected(subgraph, is_connected);
+  // bool is_connected = false;
+  // gdvf.isConnected(subgraph, is_connected);
   //cout << is_connected << endl;
 
   // Objects for testing degree signature
@@ -79,18 +87,45 @@ int main(int argc, char *argv[]) {
   //   // Calculate_GDV(i,X);
   // }
 
+  //for (ADJ_Bundle node:X) {
+  //int comm_size, root;
+  //A_Network *send_buff = new A_Network;
+  //A_Network *rec_buff = new A_Network;
+  //MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+  //MPI_Scatter();
 
-    for (ADJ_Bundle node:X)
-  {
-    vector<int> GDV_1;
-    GDVMetric gdvMetric(node.Row,GDV_1);
-    Calculate_GDV(node.Row,X,orbits,gdvMetric);
-    cout<<"gdv for node "<<node.Row<<endl;
-    print_vector(gdvMetric.GDV);
-  }
+  // Set up parallelization
+  int comm_size;
+  MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
+  int nodes_per_proc = int(X.size())/comm_size;
+  int assigned = nodes_per_proc * comm_size;
+  int remain = X.size() - (nodes_per_proc * comm_size);
   
- printf("Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
+  // Define Number of nodes to send to each rank
+  // 
+  // int assigned_node_count = nodes_per_proc;
+  // int remain_node_count = nodes_per_proc - 1;
+  // MPI_Scatter nodes to assigned
+  // MPI_Scatter nodes to remain
+
+  vector<int> GDV_1;
+  GDVMetric gdvMetric(node,GDV_1);
+  Calculate_GDV(node,X,orbits,gdvMetric);
+  cout<<"gdv for node "<<node<<endl;
+  print_vector(gdvMetric.GDV);
+    //}
+  
+  if (rank == 0) {
+    // MPI_Gather from each relevant rank to make final calculations
+  }
+
+  printf("Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
+  
+  delete send_buff;
+  delete rec_buff;
+  MPI_Finalize(); 
   return 0;
+
 }
 
 void Calculate_GDV(int node,A_Network Graph,vector<OrbitMetric> &orbits, GDVMetric &gdvMetric)
