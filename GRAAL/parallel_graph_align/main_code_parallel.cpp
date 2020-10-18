@@ -58,21 +58,25 @@ int main(int argc, char *argv[]) {
   // print_vector(filtered_orbits[1].orbitDistance);
 
   // Objects for testing GDV induced subgraph function
-  // A_Network subgraph;
-  // vector<int> subgraph_nodes;
-  // subgraph_nodes.push_back(0);
-  // subgraph_nodes.push_back(1);
-  // subgraph_nodes.push_back(2);
-  // subgraph_nodes.push_back(6);
-  // gdvf.inducedSubgraph(X, subgraph_nodes, subgraph);
-  // gdvf.print_disconnected_network(subgraph);
+  //A_Network subgraph;
+  //vector<int> subgraph_nodes;
+  //subgraph_nodes.push_back(0);
+  //subgraph_nodes.push_back(1);
+  //subgraph_nodes.push_back(2);
+  //subgraph_nodes.push_back(7);
+  //gdvf.inducedSubgraph(X, subgraph_nodes, subgraph);
+  //print_disconnected_network(subgraph);
   // cout<<"subgraph for 0,1,2,6"<<endl;
   // print_network(subgraph);
 
   // Objects for testing connectedness function
-  // bool is_connected = false;
-  // gdvf.isConnected(subgraph, is_connected);
-  //cout << is_connected << endl;
+  //bool is_connected = false;
+  //gdvf.isConnected(subgraph, is_connected);
+  //if (is_connected) {
+  //  cout << "subgraph connected" << endl;
+  //} else {
+  //  cout << "subgraph disconnected" << endl;
+  //}
 
   // Objects for testing degree signature
   //vector<int> degree_sig;
@@ -83,6 +87,7 @@ int main(int argc, char *argv[]) {
   //vector<int> distance_sig;
   //test_gdvf.distance_signature(2, X, distance_sig);
   //print_vector(distance_sig);
+  
   // for (int i:X)
   // {
   //   // Calculate_GDV(i,X);

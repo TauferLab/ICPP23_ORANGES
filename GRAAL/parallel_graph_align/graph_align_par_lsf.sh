@@ -19,6 +19,7 @@ std_out=${root_path}/debugging/graph_align_output.txt
 std_err=${root_path}/debugging/graph_align_error.txt
 
 # Clean and Compile for New Run
+cd ${root_path}/parallel_graph_align
 make clean
 make all
 
