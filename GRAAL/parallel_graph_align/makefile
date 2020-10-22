@@ -57,7 +57,7 @@ BASIC_ANALYSIS=$(ESSENS)/Basic_Analysis
 BASIC_ANALYSIS_INC=-I$(BASIC_ANALYSIS)/Level0
 
 ESSENS_PATHS=$(BASIC_IO_INC) $(BASIC_SETOP_INC) $(BASIC_TRAVERSAL_INC) $(BASIC_CHANGE_INC) $(BASIC_ANALYSIS_INC)
-HEADER_PATHS=$(root_path)
+HEADER_PATHS=$(root_path)/headers
 
 all:    main_code_parallel.cpp $(HEADER_PATHS)/GDV_functions.hpp $(HEADER_PATHS)/bfs.hpp $(HEADER_PATHS)/print_disconnected_graph.hpp
 	echo $(ESSENS_PATHS)

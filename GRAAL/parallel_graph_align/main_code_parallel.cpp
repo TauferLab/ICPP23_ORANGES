@@ -5,8 +5,8 @@
 #include "printout_others.hpp"
 #include "printout_network.hpp"
 #include "ADJ/find_Xneighbors.hpp"
-#include "/home/pnbell/Src_GraphAlignment/GRAAL/GDV_functions.hpp"
-#include "/home/pnbell/Src_GraphAlignment/GRAAL/class_definitions.hpp"
+#include "/home/pnbell/Src_GraphAlignment/GRAAL/headers/GDV_functions.hpp"
+#include "/home/pnbell/Src_GraphAlignment/GRAAL/headers/class_definitions.hpp"
 #include <time.h>
 #include <mpi.h>
 
