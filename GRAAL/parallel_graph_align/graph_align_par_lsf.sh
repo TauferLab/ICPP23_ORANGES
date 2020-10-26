@@ -7,7 +7,8 @@ n_procs=$1
 input_graph=$2
 #graph_alignment_bin=$2
 
-root_path=$HOME/Src_GraphAlignment/GRAAL
+root_path=/mnt/c/users/lohit/desktop/RA/Src_GraphAlignment/GRAAL
+#:root_path=$HOME/Src_GraphAlignment/GRAAL
 
 # Define Paths for Input Files
 #input_graph=${root_path}/test_graphs/graphn1.txt

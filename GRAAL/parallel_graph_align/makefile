@@ -1,7 +1,8 @@
 #Change thos line to a different location if needed
-#ESSENS =/mnt/c/users/lohit/desktop/RA/Src_GraphAlignment/ESSENS-master
-root_path=/home/pnbell/Src_GraphAlignment/GRAAL
-ESSENS=/home/pnbell/Src_GraphAlignment/ESSENS-master
+ESSENS =/mnt/c/users/lohit/desktop/RA/Src_GraphAlignment/ESSENS-master
+root_path=/mnt/c/users/lohit/desktop/RA/Src_GraphAlignment/GRAAL
+#root_path=/home/pnbell/Src_GraphAlignment/GRAAL
+#ESSENS=/home/pnbell/Src_GraphAlignment/ESSENS-master
 #ESSENS= ./ESSENS
 
 #Use this to run on Linux
