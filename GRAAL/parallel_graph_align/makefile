@@ -1,7 +1,8 @@
 #Change thos line to a different location if needed
-#ESSENS =/mnt/c/users/lohit/desktop/RA/Src_GraphAlignment/ESSENS-master
-root_path=/home/pnbell/Src_GraphAlignment/GRAAL
-ESSENS=/home/pnbell/Src_GraphAlignment/ESSENS-master
+ESSENS =/mnt/c/users/lohit/desktop/RA/Src_GraphAlignment/ESSENS-master
+root_path=/mnt/c/users/lohit/desktop/RA/Src_GraphAlignment/GRAAL
+#root_path=/home/pnbell/Src_GraphAlignment/GRAAL
+#ESSENS=/home/pnbell/Src_GraphAlignment/ESSENS-master
 #ESSENS= ./ESSENS
 
 #Use this to run on Linux
@@ -57,7 +58,7 @@ BASIC_ANALYSIS=$(ESSENS)/Basic_Analysis
 BASIC_ANALYSIS_INC=-I$(BASIC_ANALYSIS)/Level0
 
 ESSENS_PATHS=$(BASIC_IO_INC) $(BASIC_SETOP_INC) $(BASIC_TRAVERSAL_INC) $(BASIC_CHANGE_INC) $(BASIC_ANALYSIS_INC)
-HEADER_PATHS=$(root_path)/headers
+HEADER_PATHS=$(root_path)
 
 all:    main_code_parallel.cpp $(HEADER_PATHS)/GDV_functions.hpp $(HEADER_PATHS)/bfs.hpp $(HEADER_PATHS)/print_disconnected_graph.hpp
 	echo $(ESSENS_PATHS)
