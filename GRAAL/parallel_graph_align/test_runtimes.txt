@@ -1,0 +1,12 @@
+Resulting Runtimes of tests
+
+
+pnbell:
+
+10/22/20
+
+Procs    Graph		Runtime (s)
+4	 graph_slice3 	707
+8	 graph_slice3	429
+16	 graph_slice3	216
+32	 graph_slice3	114
