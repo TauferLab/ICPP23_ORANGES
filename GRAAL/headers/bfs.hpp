@@ -109,7 +109,6 @@ void a_network_dir_dfs(A_Network network, vector<int> &visited)
   vector<int> queue;
   queue.push_back(0);
   int head;
-  //vector<int> visited_check(network.size(), 0);
 
   // Make variables for containing checks
   bool bfs_visited;
@@ -161,7 +160,6 @@ void a_network_dir_dfs(A_Network network, vector<int> &visited)
 	}
 
 	// If neighbor is not already visited, add neighbor to queue
-	//if (visited_check[i] == 0) {
 	if (!bfs_visited) {
 	  queue.push_back(i);
 	}
@@ -169,7 +167,6 @@ void a_network_dir_dfs(A_Network network, vector<int> &visited)
       }
     }
     visited.push_back(network[head].Row);
-    //visited_check[head] = 1;
   }
   return;
 
