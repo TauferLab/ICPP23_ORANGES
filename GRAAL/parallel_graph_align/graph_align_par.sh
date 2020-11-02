@@ -23,4 +23,7 @@ cd ${root_path}/parallel_graph_align
 make clean
 make all
 
-mpirun -np ${n_procs} ./graph_alignment ${graph_folder}/${input_graph} ${orbit_file} > ${std_out} 2> ${std_err}
+echo "======================================================================"
+echo "Starting run of ${input_graph} on ${n_procs} processes"
+mpirun --oversubscribe -np ${n_procs} ./graph_alignment ${graph_folder}/${input_graph} ${orbit_file} -o ${std_out} -e ${std_err}
+echo "======================================================================"
