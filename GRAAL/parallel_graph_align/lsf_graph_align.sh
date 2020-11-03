@@ -1,8 +1,8 @@
 #!/usr/bin/env bash 
 
-#n_procs=$1
+n_procs=$1
 #input_graph=$1
-n_runs=$1
+n_runs=$2
 
 # Define Paths
 root_path=$HOME/Src_GraphAlignment/GRAAL

@@ -23,23 +23,28 @@ std_err=${root_path}/debugging/graph_align_error.txt
 cd ${root_path}/parallel_graph_align
 make clean
 make all
+echo "Made executable"
 
 # Configure Inputs                     
-run_scales=(4 8 16 32 64)
-input_graphs=(graph_slice3.txt)
+#run_scales=(4 8 16 32 64)
+run_scales=(2)
+input_graphs=(graphn1.txt)
+#input_graphs=(graph_slice3.txt)
 run_idx_low=1
 run_idx_high=${n_runs}
 
- 
-for input_graph in ${input_graph[@]};
+echo "Set up Configuration Options" 
+for input_graph in ${input_graphs[@]};
 do
+    #echo "For Input Graph ${input_graph}"
     for n_procs in ${run_scales[@]};
     do
+	#echo "For ${n_procs} Processes"
         for run_idx in `seq -f "%03g" ${run_idx_low} ${run_idx_high}`;
         do
 	    echo "======================================================================"
 	    echo "Starting run ${run_idx} of ${input_graph} on ${n_procs} processes"
-	    mpirun --oversubscribe -np ${n_procs} ./graph_alignment ${graph_folder}/${input_graph} ${orbit_file} -o ${std_out} -e ${std_err}
+	    mpirun --oversubscribe -np ${n_procs} > ${std_out} 2> ${std_err} ./graph_alignment ${graph_folder}/${input_graph} ${orbit_file}
 	    echo "======================================================================"
 	done
     done

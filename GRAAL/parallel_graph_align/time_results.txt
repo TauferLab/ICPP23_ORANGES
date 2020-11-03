@@ -1,0 +1,3 @@
+Date		N_Procs	Graph Name	Graph Size	Runtime
+11/3/2020	2	graphn1.txt	13		0.09 
+11/3/2020	2	graphn1.txt	13		0.09 

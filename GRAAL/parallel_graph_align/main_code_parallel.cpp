@@ -8,7 +8,9 @@
 #include "/home/pnbell/Src_GraphAlignment/GRAAL/headers/GDV_functions.hpp"
 #include "/home/pnbell/Src_GraphAlignment/GRAAL/headers/class_definitions.hpp"
 #include <time.h>
+#include <ctime>
 #include <mpi.h>
+#include <fstream>
 
 void Calculate_GDV(int ,A_Network ,vector<OrbitMetric>&, GDVMetric&);
 void readin_orbits(  ifstream* ,vector<OrbitMetric>* );
@@ -17,6 +19,10 @@ using namespace std;
 
 int main(int argc, char *argv[]) {
 
+  //  if (rank == 0) {
+  clock_t out_tStart = clock();
+  time_t now = time(0);
+    //}
   clock_t tStart = clock();
   clock_t q, q1, q2,t;
   GDV_functions gdvf;
@@ -133,11 +139,43 @@ int main(int argc, char *argv[]) {
   }
   
   if (rank == 0) {
+    
     // MPI_Gather from each relevant rank to make final calculations
+    
+    // Get runtime and date of run
+    double total_time_taken = (double)(clock() - out_tStart)/CLOCKS_PER_SEC;
+    tm *ltm = localtime(&now);
+    int year = 1900 + ltm->tm_year;
+    int month = 1 + ltm->tm_mon;
+    int day = ltm->tm_mday;
+    string delimiter = "/";
+    string graph_name = argv[1];
+
+    size_t pos = 0;
+    string token;
+    while ((pos = graph_name.find(delimiter)) != string::npos) {
+      token = graph_name.substr(0, pos);
+      //cout << token << endl;
+      graph_name.erase(0, pos + delimiter.length());
+    }
+
+    // File IO to Record Run Data
+    // Date \t n_procs \t graph_name \t n_nodes \t runtime(s) 
+    ofstream myfile;
+    myfile.open("time_results.txt", ios_base::app);
+    if (myfile.is_open()) {
+      myfile << month << "/" << day << "/" << year << "\t" << comm_size << "\t" << graph_name << "\t" << X.size() << "\t\t" << total_time_taken << " \n";
+      myfile.close();
+    }
+    else { 
+      cout << "Out File Did Not Open";
+    }
+
   }
 
   printf("Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
-  
+
+  //double total_time_taken = (double)(clock() - out_tStart)/CLOCKS_PER_SEC;
   //delete send_buff;
   //delete rec_buff;
   MPI_Finalize(); 
