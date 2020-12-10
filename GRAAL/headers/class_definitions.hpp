@@ -21,14 +21,19 @@ class OrbitMetric
 };
 
 class GDVMetric{
-  public: 
-    vector<int> GDV;
-    int node;
-    GDVMetric(int cNode, vector<int> cGDV)
-    {
-      GDV = cGDV;
-      node = cNode;
-    }
+public: 
+  vector<int> GDV;
+  int node;
+  GDVMetric() {};
+  GDVMetric(int cNode, vector<int> cGDV)
+  {
+    GDV = cGDV;
+    node = cNode;
+  };
+  GDVMetric(const GDVMetric &old_metric) {
+    node = old_metric.node;
+    GDV = old_metric.GDV;
+  }
 };
 
 #endif
