@@ -122,14 +122,17 @@ void a_network_dir_dfs(A_Network network, vector<int> &visited)
     //queue.erase(queue.begin());                                                                                               
     head = queue.back();
     queue.pop_back();
-    for (int i = 0; i < network.size(); i++) {
-            
+    int found_neighbor = -1;
+
+    // Search through possible neighbors of the head
+    for (int i = 0; i < network.size(); i++) {       
       // Check if network[i] corresponds to an in or out neighbor of network[head]
       is_neighbor = false;
       neighbor_counter = 0;
       while (!is_neighbor && (neighbor_counter < network[i].ListW.size())) {
 	if (network[i].ListW[neighbor_counter].first == network[head].Row) {
 	  is_neighbor = true;
+	  found_neighbor = i;
 	}
 	neighbor_counter += 1;
       }
@@ -137,9 +140,11 @@ void a_network_dir_dfs(A_Network network, vector<int> &visited)
       while (!is_neighbor && (neighbor_counter < network[head].ListW.size())) {
 	if (network[head].ListW[neighbor_counter].first == network[i].Row) {
 	  is_neighbor = true;
+	  found_neighbor = i;
 	}
 	neighbor_counter += 1;
       }
+    }
 
       //if (is_neighbor) {
       //	cout << network[i].Row << " is a neighbor of " << network[head].Row << endl;
@@ -147,27 +152,26 @@ void a_network_dir_dfs(A_Network network, vector<int> &visited)
       //	cout << network[i].Row << " is not a neighbor of " << network[head].Row << endl;
       //}
 
-      if (is_neighbor) {
+    if (is_neighbor) {
 
 	// Determine if neighbor is already visited                                                                       
-	bfs_visited = false;
-	visited_counter = 0;
-	while (!bfs_visited && (visited_counter < visited.size())) {
-	  if (network[i].Row == visited[visited_counter]) {
-	    bfs_visited = true;
-	  }
-	  visited_counter += 1;
+      bfs_visited = false;
+      visited_counter = 0;
+      while (!bfs_visited && (visited_counter < visited.size())) {
+	if (network[found_neighbor].Row == visited[visited_counter]) {
+	  bfs_visited = true;
 	}
-
-	// If neighbor is not already visited, add neighbor to queue
-	if (!bfs_visited) {
-	  queue.push_back(i);
-	}
-	
+	visited_counter += 1;
       }
+      
+      // If neighbor is not already visited, add neighbor to queue
+      if (!bfs_visited) {
+	queue.push_back(found_neighbor);
+      }
+      
     }
-    visited.push_back(network[head].Row);
   }
+  visited.push_back(network[head].Row);
   return;
 
 }
