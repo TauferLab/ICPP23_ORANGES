@@ -13,5 +13,5 @@ cd ${project_root}/GRAAL/strong_scaling
 # Convert each graphml to txt in the file director
 for file in ${file_dir}/*.graphml; do
     echo ${file}
-    python3 ${project_root}/Pre-Processing/Event_graph_dataset_preprocessing.py ${file}
+    python3 ${project_root}/Pre-Processing/graph_to_txt.py ${file}
 done
