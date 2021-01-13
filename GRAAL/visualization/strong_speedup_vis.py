@@ -34,13 +34,14 @@ def main( filename):
                     count += 1;
             count_name += 1
 
+
+    # Gather average sets of data
     rows, cols = (7, 8)
     times_per_proc = []*rows
     for power in range(rows):
         times_per_power = [];
         for i in range(len(n_procs)):
-            if (pow(2,power) == n_procs[i]):
-            #if (8*(2+power) == n_procs[i]):
+            if (8*(2+power) == n_procs[i]):
                 times_per_power.append(runtimes[i]);
         times_per_proc.append(times_per_power);
     times = np.array(times_per_proc);
@@ -48,30 +49,37 @@ def main( filename):
     procs = np.array([1, 2, 4, 8, 16, 32, 64]);
     #high_procs = np.array([16, 24, 32, 40, 48, 56, 64]);
 
+
     # Perform analysis to average runs
     # Start printing array forms of stored lists above with mpl
     print(n_procs);
     print(runtimes);
-    #print(times_per_proc);
+    print(times_per_proc);
     print(avg_times)
+
 
     # Prep variables for plotting
     x = np.array(n_procs);
     y = np.array(runtimes);
 
+
     # Create figure and plot data and linear regression to it
     plt.figure(figsize=(4, 3))
     ax = plt.axes()
-    plt.plot(procs, avg_times, c='b', marker='o');
-    plt.boxplot(np.transpose(times), positions=procs, widths=1);
+    #print(avg_times[0]/avg_times)
+    #print(avg_times[0])
+    plt.plot(procs, avg_times[0]/avg_times, marker='o');
+    plt.plot(procs, procs, c='b');
+
 
     # Add details to figure
     plt.xlabel("Number of Processes");
-    plt.ylabel("Runtime (s)");
+    plt.ylabel("Speedup t1/tN");
     #plt.axis([-5, 70, 0, 16000]);
-    plt.title('Runtimes of fido on N Processes');
+    plt.title('Speedups of fido on N Processes over 1 Process');
     ax.axis('tight');
-    plt.savefig( "fido_runtime_per_nprocs.png",
+    plt.legend(['Actual Speedup', 'Ideal Speedup']);
+    plt.savefig( "fido_speedup_per_nprocs.png",
                  bbox_inches="tight",
                  pad_inches=0.25
                );
