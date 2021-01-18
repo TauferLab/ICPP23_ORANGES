@@ -16,17 +16,19 @@
 void Calculate_GDV(int ,A_Network ,vector<OrbitMetric>&, GDVMetric&);
 void readin_orbits(  ifstream* ,vector<OrbitMetric>* );
 void convert_string_vector_int(string* , vector<int>* ,string );
-void Similarity_Metric_calculation_for_two_graphs(A_Network, A_Network,vector<OrbitMetric>);
+void Similarity_Metric_calculation_for_two_graphs(A_Network, A_Network,vector<OrbitMetric>, string, string);
 double GDV_distance_calculation(GDVMetric, GDVMetric);
 void metric_formula(GDVMetric, double*);
 void GDV_vector_calculation(A_Network,vector<GDVMetric>*,  vector<OrbitMetric>, const char*);
+
+double total_time_taken;
 
 using namespace std;
 
 int main(int argc, char *argv[]) {
 
   //  if (rank == 0) {
-  clock_t out_tStart = clock();
+  //clock_t out_tStart = clock();
   time_t now = time(0);
     //}
   clock_t tStart = clock();
@@ -51,11 +53,24 @@ int main(int argc, char *argv[]) {
     cout<<"INPUT ERROR:: Could not open the orbit file\n";
   }
 
+  //ifstream the_file3 ( argv[4] + "time_results.txt" );
+  //if (!the_file3.is_open() ) {
+  //  cout << "INPUT ERROR:: Could not open the time recording file\n";
+  //}
+
   vector<OrbitMetric> orbits;
   readin_orbits(&the_file2,&orbits);
   // Objects for testing orbit creation 
   // print_vector(orbits[1].orbitDegree);
   // vector<OrbitMetric> filter_o = gdvf.orbit_filter(&orbits,3);
+
+  A_Network X;
+  A_Network Y;
+  readin_network(&X,argv[1],0,-1);
+  readin_network(&Y,argv[2],0,-1);
+  GDV_functions test_gdvf;
+
+  //clock_t out_tStart = clock();
 
   int numtasks, rank, dest, source, rc, count, tag=0;
   MPI_Status Stat;   // required variable for receive routines                                                                                                                                                                          
@@ -66,11 +81,15 @@ int main(int argc, char *argv[]) {
   cout << "MPI Setup" << endl;
 
   /* Read in Network: Reads the file and converts it into a network of type A_Network*/
-  A_Network X;
-  A_Network Y;
-  readin_network(&X,argv[1],0,-1);  
-  readin_network(&Y,argv[2],0,-1);
-  GDV_functions test_gdvf;
+  //A_Network X;
+  //A_Network Y;
+  //readin_network(&X,argv[1],0,-1);  
+  //readin_network(&Y,argv[2],0,-1);
+  //GDV_functions test_gdvf;
+  //if (rank == 0) {
+  //print_disconnected_network(X);
+  //print_disconnected_network(Y);
+  //}
 
   // objects for testing orbit list
   // vector<OrbitMetric> filtered_orbits ;
@@ -113,76 +132,50 @@ int main(int argc, char *argv[]) {
   //   // Calculate_GDV(i,X);
   // }
 
-  //for (ADJ_Bundle node:X) {
 
-  // Set up parallelization
-  //int comm_size;
-  //MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
-  //int nodes_per_proc = int(X.size())/comm_size;
-  //int assigned = nodes_per_proc * comm_size;
-  //int remain = X.size() - (nodes_per_proc * comm_size);
+  // Get data on graph names
+  string delimiter = "/";
+  string graph_name1 = argv[1];
+  string graph_name2 = argv[2];
   
-  // Define Number of nodes to send to each rank
-  // 
-  // int assigned_node_count = nodes_per_proc;
-  // int remain_node_count = nodes_per_proc - 1;
-  // define vector of needed count per process so each process as nodes_per_proc
-  // add one to each of first remain entries of vector
-  // have each process do number of nodes in vector entry of corresponding index
-
-  // Assign count of nodes for each process
-  //vector<int> per_proc(comm_size, nodes_per_proc);
-  //int starting_node = 0;
-  ////per_proc.push_back(nodes_per_proc + 1);
-  //for (int i = 1; i < remain; i++) {
-  //  per_proc[i] += 1;
-  //}
-  //for (int i = 0; i < rank; i++) {
-  //  starting_node += per_proc[i];
-  //}
-
-  // Have process run the number of nodes for itself
-  //int node = starting_node;
-  //for (int i = 0; i < per_proc[rank]; i++) { 
-    //vector<int> GDV_1;
-    //GDVMetric gdvMetric(node,GDV_1);
-    //Calculate_GDV(node,X,orbits,gdvMetric);
-    //cout<<"gdv for node "<<node<<endl;
-    //print_vector(gdvMetric.GDV);
-    //node += 1;
-    //}
+  size_t pos1 = 0;
+  string token1;
+  while ((pos1 = graph_name1.find(delimiter)) != string::npos) {
+    token1 = graph_name1.substr(0, pos1);
+    //cout << token << endl;
+    graph_name1.erase(0, pos1 + delimiter.length());
+  }
   
-  //if (rank == 0) {
-  Similarity_Metric_calculation_for_two_graphs(X,Y,orbits);
-  //}
+  size_t pos2 = 0;
+  string token2;
+  while ((pos2 = graph_name2.find(delimiter)) != string::npos) {
+    token2 = graph_name2.substr(0, pos2);
+    graph_name2.erase(0, pos2 + delimiter.length());
+  }
+
+
+  // Perform Similarity Calculations
+  Similarity_Metric_calculation_for_two_graphs(X,Y,orbits, graph_name1, graph_name2);
+
 
   if (rank == 0) {
     
-    // MPI_Gather from each relevant rank to make final calculations
-    
-    // Get runtime and date of run
-    double total_time_taken = (double)(clock() - out_tStart)/CLOCKS_PER_SEC;
+    // Get date of run
     tm *ltm = localtime(&now);
     int year = 1900 + ltm->tm_year;
     int month = 1 + ltm->tm_mon;
     int day = ltm->tm_mday;
-    string delimiter = "/";
-    string graph_name = argv[1];
-
-    size_t pos = 0;
-    string token;
-    while ((pos = graph_name.find(delimiter)) != string::npos) {
-      token = graph_name.substr(0, pos);
-      //cout << token << endl;
-      graph_name.erase(0, pos + delimiter.length());
-    }
 
     // File IO to Record Run Data
-    // Date \t n_procs \t graph_name \t n_nodes \t runtime(s) 
+    // Date \t n_procs \t graph_name1 \t graph_name2 \t n_nodes \t runtime(s) 
     ofstream myfile;
-    myfile.open("time_results.txt", ios_base::app);
+    myfile.open(argv[4], ios_base::app);
+    if (!myfile.is_open() ) {
+      cout << "INPUT ERROR:: Could not open the time recording file\n";   
+    }
+  
     if (myfile.is_open()) {
-      myfile << month << "/" << day << "/" << year << "\t" << numtasks << "\t" << graph_name << "\t" << X.size() << "\t\t" << total_time_taken << " \n";
+      myfile << month << "/" << day << "/" << year << "\t" << numtasks << "\t" << graph_name1 << "\t" << graph_name2 << "\t" << X.size() << "\t\t" << total_time_taken << " \n";
       myfile.close();
     }
     else { 
@@ -192,17 +185,16 @@ int main(int argc, char *argv[]) {
   }
 
   printf("Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
-
-  //double total_time_taken = (double)(clock() - out_tStart)/CLOCKS_PER_SEC;
-  //delete send_buff;
-  //delete rec_buff;
   MPI_Finalize(); 
   return 0;
 
 }
 
-void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network graph2,vector<OrbitMetric> orbits )
+void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network graph2,vector<OrbitMetric> orbits, string graph_tag1, string graph_tag2)
 {
+
+  clock_t out_tStart = clock();
+
   vector<GDVMetric> graph1_GDV;
   vector<GDVMetric> graph2_GDV;
   int rankm;
@@ -213,13 +205,20 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
   GDV_vector_calculation(graph2, &graph2_GDV, orbits, "graph2"); 
   //cout << "Finished Vector Calculations" << endl;
 
-  // vector<vector<int>> similarity_matrix( graph1_GDV.size() , vector<int> (graph2_GDV.size(), 0));
+  //for (int i = 0; i < graph1_GDV.size(); i++) {
+  //for (int j = 0; j< graph1_GDV[i].GDV.size(); j++) {
+  //cout << graph1_GDV[i].GDV[j] << " ";
+  //}
+  //cout << endl;
+  //}
+
   if (rankm == 0) {
     int m = (int)graph1_GDV.size();
     cout << "Printed m: " << m << endl;
     int n = (int)graph2_GDV.size();
     cout << "Printed n: " << n << endl;
     
+    // Calculate Similarities in GDVs
     double sim_mat[m][n];
     for (GDVMetric gdvm1: graph1_GDV)
       {
@@ -228,22 +227,47 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
 	    sim_mat[gdvm1.node][gdvm2.node]= GDV_distance_calculation(gdvm1,gdvm2);
 	  }
       }
-    
+
+    total_time_taken = (double)(clock() - out_tStart)/CLOCKS_PER_SEC;
+    cout << "Total time taken is: " << total_time_taken << endl;
+
+
+    // Perform File I/O for Output Data
     ofstream myfile;
     string filename; 
     filename = "out_similarity_matrix.txt";
     myfile.open(filename);
     
-    for(int i=1; i<m;i++)
-      {
-	for(int j=1;j<n;j++)
-	  {
-	    myfile<<" { "<<sim_mat[i][j]<<" } ";
-	  }
-	myfile<<"||"<<endl;
+    for(int i=1; i<m;i++) {
+      for(int j=1;j<n;j++) {
+	myfile<<" { "<<sim_mat[i][j]<<" } ";
       }
+      myfile<<"||"<<endl;
+    }
     myfile.close();
-    
+    //cout << "Outputed similarity matrix" << endl;
+
+    string gdv_file1 = "out_gdv_1_" + graph_tag1 + ".txt";
+    string gdv_file2 = "out_gdv_2_" + graph_tag2 + ".txt";
+
+    myfile.open(gdv_file1, ofstream::trunc);
+    for (int i = 0; i < graph1_GDV.size(); i++) {
+      for (int j = 0; j< graph1_GDV[i].GDV.size(); j++) {
+	myfile << graph1_GDV[i].GDV[j] << " ";
+      }
+      myfile << endl;
+    }
+    myfile.close();
+
+    myfile.open(gdv_file2, ofstream::trunc);
+    for (int i = 0; i < graph2_GDV.size(); i++) {
+      for (int j = 0; j< graph2_GDV[i].GDV.size(); j++) {
+        myfile << graph2_GDV[i].GDV[j] << " ";
+      }
+      myfile << endl;
+    }
+    myfile.close();
+
   }
 }
 
@@ -333,11 +357,15 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
   // Set up the nodes and gdv data to send using an array for gatherv
   int send_gdvs[per * gdv_length];
   int send_nodes[per];
+  //cout << "On Proc: " << rankn << endl;
   for (int i = 0; i < temp_gdvs.size(); i++) {
     send_nodes[i] = temp_gdvs[i].node;
+    //cout << send_nodes[i] << ": ";
     for (int j = 0; j < gdv_length; j++) {
       send_gdvs[i*gdv_length+j] = temp_gdvs[i].GDV[j];
+      //cout << temp_gdvs[i].GDV[j];
     }
+    //cout << endl;
   }
 
   // Declare and allocate space for receive buffers for gather
@@ -359,6 +387,15 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
 
   // Post processing of MPI gather
   if (rankn == 0) {
+    
+    //for (int i = 0; i < graph_size; i++) {
+    //cout << nodes[i] << ": ";
+    //for (int j = 0; j < gdv_length; j++) {
+    //cout << gdvs[i*gdv_length + j];
+    //}
+    //cout << endl;
+    //} 
+
     // Get data from receive buffers into output GDV list
     vector<int> gdv();
     for (int i = 0; i < graph.size(); i++) {
@@ -369,13 +406,13 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
 
     // Print operation output for validation and debugging purposes
     cout << "Gathered GDVs length is: " << graph_GDV->size() << " for " << graph_name << endl;
-    for (int i = 0; i < graph_size; i++) {
-      cout << (*graph_GDV)[i].node << ": ";
-      for (int j = 0; j < gdv_length; j++) {
-	cout << (*graph_GDV)[i].GDV[j];
-      }
-      cout << endl;
-    }
+    //for (int i = 0; i < graph_size; i++) {
+    //cout << (*graph_GDV)[i].node << ": ";
+    //for (int j = 0; j < gdv_length; j++) {
+    //	cout << (*graph_GDV)[i].GDV[j];
+    //}
+    //cout << endl;
+    //}
     
     // Free dynamically allocated recieve buffers
     if (gdvs == NULL) {
@@ -417,7 +454,9 @@ void Calculate_GDV(int node,A_Network Graph,vector<OrbitMetric> &orbits, GDVMetr
         bool is_connected = false;
         combination.push_back(node);
         gdvf.inducedSubgraph(Graph, combination, induced_sgraph);
+	//cout << "Made subgraph" << endl;
         gdvf.isConnected(induced_sgraph, is_connected);
+	//cout << "Finished connectedness check" << endl;
         if(is_connected)
         {
             gdvf.degree_signature(induced_sgraph,subgraph_degree_signature);

@@ -14,7 +14,7 @@ ESSENS=/home/pnbell/Src_GraphAlignment/ESSENS-master
 # LDFLAGS = -L/usr/local/opt/llvm/lib
 
 CXX=mpicxx
-CXXFLAGS=-openmp -g
+CXXFLAGS=-openmp -g -pg -O3
 
 #Including BASIC_IO
 BASIC_IO= $(ESSENS)/Core/Basic_IO
