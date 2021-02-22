@@ -69,28 +69,41 @@ def main( filename):
     ax = plt.axes()
     #print(avg_times[0]/avg_times)
     #print(avg_times[0])
-    #plt.hlines();
-    #plt.plot(procs, avg_times[0]/avg_times, c='b', marker='o');
-    plt.plot(procs, procs, c='k', marker='x');
-    plt.plot(procs, avg_times[0]/avg_times, c='b', marker='o');
+    #plt.plot(procs, avg_times[0]/avg_times,  marker='o');
+    #plt.plot(procs, procs, c='b'r);
+    bar1 = plt.bar(procs, 100*np.subtract(procs,avg_times[0]/avg_times)/procs, color='b', width=np.array([0.25, 0.5, 1, 2, 4, 8]));
 
 
     # Add details to figure
+    params = {'mathtext.default': 'regular' }          
+    plt.rcParams.update(params)
     plt.xlabel("Number of Processes");
-    plt.ylabel("Speedup t1/tN");
-    plt.xticks(procs);
-    #plt.axis([-5, 70, 0, 16000]);
-    plt.title('Speedups of fido on N Processes over 1 Process');
+    plt.ylabel("Speedup Loss ($S_i$ - $S_m$)/$S_i$");
+    #plt.axis([0, 64, 0, 100]);
+    ax.set_xscale('log');
+    ax.set_xticks(procs);
+    ax.set_xticklabels(['1', '2', '4', '8', '16', '32']);
+    plt.title('Fido Speedup Loss as a Percent of the Ideal');
     ax.axis('tight');
-    plt.legend(['Ideal Speedup', 'Actual Speedup']);
-    plt.savefig( "png_files/fido_speedup_per_nprocs.png",
+    ax.set_ylim(0, 100);
+    ax.set_xlim(0, 64);
+    #plt.legend(['Actual Speedup', 'Ideal Speedup']);
+
+    #proc_count = 0;
+    for box in bar1:
+        height = box.get_height();
+        #num_deg = num_degs[proc_count];
+        plt.text(box.get_x() + box.get_width()/2.0, height, '%d' % int(height), ha='center', va='bottom');
+        #proc_count += 1;
+
+    plt.savefig( "png_files/fido_loss_per_nprocs.png",
                  bbox_inches="tight",
                  pad_inches=0.25
                );
 
 
 if __name__ == "__main__":
-    desc = "Generates figure showing runtime data"
+    desc = "Generates figure showing speedup loss data"
     parser = argparse.ArgumentParser(description=desc)
     parser.add_argument("filename", 
                         help="Path to file storing runtime data")
