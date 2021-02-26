@@ -14,7 +14,7 @@
 #include <fstream>
 
 #define MAX_COMM_SIZE 32
-#define DEBUG
+//#define DEBUG
 
 void Calculate_GDV(int ,A_Network ,vector<OrbitMetric>&, GDVMetric&);
 void readin_orbits(  ifstream* ,vector<OrbitMetric>* );
@@ -182,6 +182,7 @@ int main(int argc, char *argv[]) {
   if (rank == 0) {
     time_buff = (double *)malloc(numtasks*num_times*sizeof(double));
   }
+  //cout << "Rank " << rank << " made it to last gather." << endl;
   MPI_Gather(send_times, num_times, MPI_DOUBLE, time_buff, num_times, MPI_DOUBLE, 0, MPI_COMM_WORLD);
 
   #ifdef DEBUG
@@ -229,7 +230,8 @@ int main(int argc, char *argv[]) {
 
 
   //printf("Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
-  cout << "Time taken on rank " << rank << " = " << (double)(clock() - tStart)/CLOCKS_PER_SEC << endl;;
+  cout << "Time taken on rank " << rank << " = " << (double)(clock() - tStart)/CLOCKS_PER_SEC << endl;
+  //MPI_Barrier( MPI_COMM_WORLD );
   MPI_Finalize(); 
   return 0;
 
@@ -239,6 +241,7 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
 {
 
   //clock_t out_tStart = clock();
+  MPI_Barrier( MPI_COMM_WORLD );
   double out_tStart = MPI_Wtime();
 
   vector<GDVMetric> graph1_GDV;
@@ -418,6 +421,9 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
 
   // Prepare for and implement gatherv to get gdvs from each rank
   vec_calc_prior_gather = MPI_Wtime() - vec_calc_start + vec_calc_prior_gather;
+  //if (rankn == 0) {
+  //  cout << "Rank 0 made it to gdv gathers." << endl;
+  //}
   MPI_Gatherv(send_nodes, per, MPI_INT, nodes, rcv_sizes, per_displ, MPI_INT, 0, MPI_COMM_WORLD);
   for (int i = 0; i < comm_size; i++) {
     per_displ[i] = per_displ[i] * gdv_length;
@@ -444,12 +450,12 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
     if (gdvs == NULL) {
       cout << "gdvs is null" << endl;
     } else {
-      free(gdvs);
+    free(gdvs);
     } 
     if (nodes == NULL) {
       cout << "nodes is null" << endl;
     } else {
-      free(nodes);
+    free(nodes);
     }
   }
 
