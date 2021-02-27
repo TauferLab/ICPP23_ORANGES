@@ -10,14 +10,15 @@
 #include "headers/print_disconnected_graph.hpp"
 #include <time.h>
 #include <math.h>
+#include <omp.h>
 
 void Calculate_GDV(int ,A_Network ,vector<OrbitMetric>&, GDVMetric&);
 void readin_orbits(  ifstream* ,vector<OrbitMetric>* );
 void convert_string_vector_int(string* , vector<int>* ,string );
-void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vector<OrbitMetric> orbits);
+void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vector<OrbitMetric> orbits,int p);
 void metric_formula(GDVMetric gdvm, double* gdv_score);
 double GDV_distance_calculation(GDVMetric gdvm1, GDVMetric gdvm2);
-void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network graph2,vector<OrbitMetric> orbits);
+void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network graph2,vector<OrbitMetric> orbits,int p);
 using namespace std;
 
 int main(int argc, char *argv[]) {
@@ -42,7 +43,7 @@ int main(int argc, char *argv[]) {
   if (!the_file3.is_open() ) { 
     cout<<"INPUT ERROR:: Could not open the orbit file\n";
   }
-  
+      int p = atoi(argv[4]);
   vector<OrbitMetric> orbits;
   readin_orbits(&the_file3,&orbits);
   // Objects for testing orbit creation 
@@ -51,6 +52,7 @@ int main(int argc, char *argv[]) {
   /* Read in Network: Reads the file and converts it into a network of type A_Network*/
   A_Network X;
   readin_network(&X,argv[1],0,-1);  
+
 
   A_Network Y;
   readin_network(&Y,argv[2],0,-1);  
@@ -92,18 +94,18 @@ int main(int argc, char *argv[]) {
   //   // Calculate_GDV(i,X);
   // }
 
- Similarity_Metric_calculation_for_two_graphs(X,Y,orbits);
+ Similarity_Metric_calculation_for_two_graphs(X,Y,orbits,p);
  printf("Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
   return 0;
 }
 
-void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network graph2,vector<OrbitMetric> orbits )
+void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network graph2,vector<OrbitMetric> orbits ,int p)
 {
   vector<GDVMetric> graph1_GDV;
   vector<GDVMetric> graph2_GDV;
 
-  GDV_vector_calculation(graph1, &graph1_GDV, orbits); 
-  GDV_vector_calculation(graph2, &graph2_GDV,orbits); 
+  GDV_vector_calculation(graph1, &graph1_GDV, orbits,p); 
+  GDV_vector_calculation(graph2, &graph2_GDV,orbits,p); 
   
   // vector<vector<int>> similarity_matrix( graph1_GDV.size() , vector<int> (graph2_GDV.size(), 0));
   int m = (int)graph1_GDV.size();
@@ -161,16 +163,28 @@ void metric_formula(GDVMetric gdvm, double* gdv_score)
     *gdv_score = sqrt(sum);
 }
 
-void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vector<OrbitMetric> orbits)
+void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vector<OrbitMetric> orbits,int p)
 {
-   for (ADJ_Bundle node:graph)
-  {
-    vector<int> GDV_1;
-    GDVMetric gdvMetric(node.Row,GDV_1);
-    Calculate_GDV(node.Row,graph,orbits,gdvMetric);
-    // cout<<"gdv for node "<<node.Row<<endl;
-    graph_GDV->push_back(gdvMetric);
-  }
+	
+omp_set_num_threads(p);
+#pragma omp parallel for num_threads(p) schedule(static)
+for(int i=0;i<graph.size();i++)
+{
+	ADJ_Bundle node = graph[i];
+	vector<int> GDV_1;
+     GDVMetric gdvMetric(node.Row,GDV_1);
+     Calculate_GDV(node.Row,graph,orbits,gdvMetric);
+     // cout<<"gdv for node "<<node.Row<<endl;
+     graph_GDV->push_back(gdvMetric);
+}
+// for (ADJ_Bundle node:graph)
+  // {
+    // vector<int> GDV_1;
+    // GDVMetric gdvMetric(node.Row,GDV_1);
+    // Calculate_GDV(node.Row,graph,orbits,gdvMetric);
+    // // cout<<"gdv for node "<<node.Row<<endl;
+    // graph_GDV->push_back(gdvMetric);
+  // }
 }
 void Calculate_GDV(int node,A_Network Graph,vector<OrbitMetric> &orbits, GDVMetric &gdvMetric)
 {
