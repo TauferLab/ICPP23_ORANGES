@@ -5,7 +5,7 @@ ESSENS=/home/pnbell/Src_GraphAlignment/ESSENS-master
 
 #Use this to run on Linux
 CXX=g++
-CXXFLAGS=-g -fopenmp 
+CXXFLAGS=-g -fopenmp -O3
 
 #Changed CXX flags to run on MAC
 #CXX = /usr/local/opt/llvm/bin/clang++
