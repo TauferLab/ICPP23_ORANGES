@@ -103,7 +103,7 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
 {
   vector<GDVMetric> graph1_GDV;
   vector<GDVMetric> graph2_GDV;
-
+ double start = omp_get_wtime();
   GDV_vector_calculation(graph1, &graph1_GDV, orbits,p); 
   GDV_vector_calculation(graph2, &graph2_GDV,orbits,p); 
   
@@ -119,7 +119,8 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
       sim_mat[gdvm1.node][gdvm2.node]= GDV_distance_calculation(gdvm1,gdvm2);
     }
   }
-
+double end = omp_get_wtime();
+cout<<"Omp time taken is " <<end - start<<endl;
   ofstream myfile;
   string filename; 
   filename = "out_similarity_matrix.txt";
