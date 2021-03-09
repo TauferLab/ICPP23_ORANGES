@@ -35,7 +35,7 @@ public:
 
   // Create a graph output using nodes from network.                                                                                                                             
   // Vector nodes should correspond to actual node labels, not node indices.
-  void inducedSubgraph(A_Network network, vector<int> nodes, A_Network& output)
+  void inducedSubgraph(A_Network network, const vector<int> &nodes, A_Network& output)
   {
 
     // Set up output for new subgraph.                                                                                                                                                                                                   
