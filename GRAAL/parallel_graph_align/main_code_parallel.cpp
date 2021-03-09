@@ -457,6 +457,8 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
     } else {
     free(nodes);
     }
+
+    //cout << "Rank 0 made it to gdv gathers." << endl;
   }
 
   vec_calc_post_gather = MPI_Wtime() - vec_calc_start + vec_calc_post_gather;

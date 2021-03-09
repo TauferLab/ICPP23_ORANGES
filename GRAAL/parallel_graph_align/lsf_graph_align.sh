@@ -16,9 +16,9 @@ output_file=${root_path}/debugging/lsf_output.txt
 error_file=${root_path}/debugging/lsf_error.txt
 
 # Clean and Compile for New Run  
-rm ${output_file}
-rm ${error_file}
-rm -r ${results_path}/*
+#rm ${output_file}
+#rm ${error_file}
+#rm -r ${results_path}/*
 
 cd ${root_path}/parallel_graph_align
 make clean
@@ -35,8 +35,8 @@ echo "Made executable"
 #run_scales=(24 40 48 56)
 #run_scales=(1 8 16)
 #run_scales=(1 2 4 8 16 32)
-run_scales=(16)
-#run_scales=(1 2)
+run_scales=(16 32)
+#run_scales=(1)
 
 sim_jobs=(1)
 #sim_jobs=(16)
@@ -77,8 +77,8 @@ for n_procs in ${run_scales[@]}; do
 			#for iters in `seq -f "%03g" 1 32`; do
 			echo ${results_path}
 			unq_job=$(date +%s)
-		    	bsub -o ${output_file} -e ${error_file} -n ${n_procs} -m "tellico-compute1" -J "fidojobs_${unq_job}[1-${sims}]" ${graph_align_job_script} ${n_runs} ${n_procs} ${runs1} ${runs2} ${slices} ${comm_procs} ${comm_iters} ${comm_size} ${comm_type} ${msg_size} ${sims} ${results_path} -f input.\$LSB_JOBINDEX
-			bsub -n $((32-${n_procs}*${sims})) -m "tellico-compute1" -J "fidobuff" sleep 400000 
+		    	bsub -o ${output_file} -e ${error_file} -n ${n_procs} -m "tellico-compute0" -J "fidojobs_${unq_job}[1-${sims}]" ${graph_align_job_script} ${n_runs} ${n_procs} ${runs1} ${runs2} ${slices} ${comm_procs} ${comm_iters} ${comm_size} ${comm_type} ${msg_size} ${sims} ${results_path} -f input.\$LSB_JOBINDEX
+			bsub -n $((32-${n_procs}*${sims})) -m "tellico-compute0" -J "fidobuff" sleep 400000 
 			bwait -w "done(fidojobs_${unq_job})"
 			bkill -J "fidobuff"
 		    	    #job_sub_id=$( echo ${job_sub} | sed 's/[^0-9]*//g' )
