@@ -33,7 +33,7 @@ def main( filename):
     plt.ylabel('Average Graphlet Degree')
     plt.axis([0, 23, 0, 20]);
     plt.title('Average Graphlet Degree for each Orbit');
-    plt.savefig( "avg_gdv_bar.png", bbox_inches="tight", pad_inches=0.25);
+    plt.savefig( "png_files/avg_gdv_bar.png", bbox_inches="tight", pad_inches=0.25);
 
 if __name__ == "__main__":
     desc = "Generates figure showing runtime data"
