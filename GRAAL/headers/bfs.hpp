@@ -122,10 +122,12 @@ void a_network_dir_dfs(A_Network network, vector<int> &visited)
     //queue.erase(queue.begin());                                                                                               
     head = queue.back();
     queue.pop_back();
+    //visited.push_back(network[head].Row);
     int found_neighbor = -1;
 
     // Search through possible neighbors of the head
     for (int i = 0; i < network.size(); i++) {       
+
       // Check if network[i] corresponds to an in or out neighbor of network[head]
       is_neighbor = false;
       neighbor_counter = 0;
@@ -167,11 +169,12 @@ void a_network_dir_dfs(A_Network network, vector<int> &visited)
 	// If neighbor is not already visited, add neighbor to queue
 	if (!bfs_visited) {
 	  queue.push_back(i);
+	  visited.push_back(network[i].Row);
 	}
       }
     }
     //  }
-  visited.push_back(network[head].Row);
+  //visited.push_back(network[head].Row);
   }
   return;
 

@@ -57,6 +57,11 @@ public:
 	if (network[graph_count].Row == nodes[i]) {
 	  node_found = true;
 	  neighbor_list = network[graph_count].ListW;
+	  cout << nodes[i] << ": ";
+	  for (int j = 0; j < neighbor_list.size(); j++) {
+	    cout << neighbor_list[j].first << ", ";
+	  }
+	  cout << endl;
 	}
 	graph_count += 1;
       }

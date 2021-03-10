@@ -102,6 +102,25 @@ int main(int argc, char *argv[]) {
   //print_disconnected_network(Y);
   //}
 
+  for (int i = 0; i < X.size(); i++) {
+    for (int j = 0; j < X[i].ListW.size(); j++) {
+      for (int k = 0; k < j; k++) {
+	if (X[i].ListW[j].first == X[i].ListW[k].first) {
+	  X[i].ListW.erase(X[i].ListW.begin() + j);
+	}
+      }
+    }
+  }
+  for (int i = 0; i < Y.size(); i++) {
+    for (int j = 0; j < Y[i].ListW.size(); j++) {
+      for (int k = 0; k < j; k++) {
+        if (Y[i].ListW[j].first == Y[i].ListW[k].first) {
+          Y[i].ListW.erase(Y[i].ListW.begin() + j);
+        }
+      }
+    }
+  }
+
   // objects for testing orbit list
   // vector<OrbitMetric> filtered_orbits ;
   // gdvf.orbit_filter(orbits,3,filtered_orbits);
@@ -164,6 +183,9 @@ int main(int argc, char *argv[]) {
     graph_name2.erase(0, pos2 + delimiter.length());
   }
 
+  #ifdef DEBUG
+    cout << "Starting Similarity Metric Calculation on Rank: " << rank << endl;
+  #endif
 
   // Perform Similarity Calculations
   Similarity_Metric_calculation_for_two_graphs(X,Y,orbits, graph_name1, graph_name2);
@@ -343,6 +365,11 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
 
   double vec_calc_start = MPI_Wtime();
 
+  //GDV_functions gdvfunc;
+  //bool connected = false;
+  //gdvfunc.isConnected(graph, connected);
+  //cout << "graph connectedness: " << connected << endl;
+
   // Set up parallelization               
   int comm_size, rankn;
   MPI_Comm_rank(MPI_COMM_WORLD, &rankn);
@@ -363,6 +390,9 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
     starting_node += per_proc[i];
   }
 
+  #ifdef DEBUG
+    cout << "Assigned Nodes for GDV Calculation on Rank: " << rankn << endl;
+  #endif
  
   // Have process run the number of nodes for itself     
   int node = starting_node;
@@ -378,6 +408,9 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
     node += 1;
   }
 
+  #ifdef DEBUG
+    cout << "Finished GDV Calculation on Rank: " << rankn << endl;
+  #endif
 
   // Set up displacement array for gatherv
   int per_displ[comm_size];
