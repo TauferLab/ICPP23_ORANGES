@@ -20,8 +20,8 @@ void Calculate_GDV(int ,A_Network ,vector<OrbitMetric>&, GDVMetric&);
 void readin_orbits(  ifstream* ,vector<OrbitMetric>* );
 void convert_string_vector_int(string* , vector<int>* ,string );
 void Similarity_Metric_calculation_for_two_graphs(A_Network, A_Network,vector<OrbitMetric>, string, string);
-double GDV_distance_calculation(GDVMetric, GDVMetric);
-void metric_formula(GDVMetric, double*);
+double GDV_distance_calculation(GDVMetric&, GDVMetric&);
+void metric_formula(GDVMetric&, double*);
 void GDV_vector_calculation(A_Network,vector<GDVMetric>*,  vector<OrbitMetric>, const char*);
 
 // Define variables for keeping track of time for load imbalancing tests.
@@ -281,8 +281,8 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
   int m = (int)graph1_GDV.size();
   int n = (int)graph2_GDV.size();
   double sim_mat[m][n];
-  for (GDVMetric gdvm1: graph1_GDV) {
-    for(GDVMetric gdvm2: graph2_GDV) {
+  for (GDVMetric &gdvm1: graph1_GDV) {
+    for(GDVMetric &gdvm2: graph2_GDV) {
       sim_mat[gdvm1.node][gdvm2.node]= GDV_distance_calculation(gdvm1,gdvm2);
     }
   }
@@ -334,7 +334,7 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
   }
 }
 
-double GDV_distance_calculation(GDVMetric gdvm1, GDVMetric gdvm2)
+double GDV_distance_calculation(GDVMetric &gdvm1, GDVMetric &gdvm2)
 {   
   double gdv1_score;
   double gdv2_score;
@@ -346,7 +346,7 @@ double GDV_distance_calculation(GDVMetric gdvm1, GDVMetric gdvm2)
   return similarity_score;
 }
 
-void metric_formula(GDVMetric gdvm, double* gdv_score)
+void metric_formula(GDVMetric &gdvm, double* gdv_score)
 {
   int sum=0;
   //  Formula used here is the vector norm 2 or the l2 norm. 
