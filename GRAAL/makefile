@@ -1,7 +1,6 @@
 #Change thos line to a different location if needed
-#ESSENS =/mnt/c/users/lohit/desktop/RA/Src_GraphAlignment/ESSENS-master
-ESSENS=/home/pnbell/Src_GraphAlignment/ESSENS-master
-#ESSENS= ./ESSENS
+
+ESSENS=../ESSENS-master
 
 #Use this to run on Linux
 CXX=g++
