@@ -1,0 +1,3 @@
+[submodule "RAJA"]
+	path = RAJA
+	url = https://github.com/LLNL/RAJA.git
