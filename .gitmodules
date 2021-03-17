@@ -1,3 +1,0 @@
-[submodule "stdgpu"]
-	path = stdgpu
-	url = https://github.com/stotko/stdgpu.git
