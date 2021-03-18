@@ -4,8 +4,10 @@ project(FIDO)
 
 set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "")
 
+
 include(GNUInstallDirs)
 
+add_subdirectory(external)
 add_subdirectory(ESSENS-master)
 add_subdirectory(GRAAL)
 

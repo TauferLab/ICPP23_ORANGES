@@ -17,7 +17,8 @@ target_include_directories(fido PUBLIC
 )
 target_link_libraries(fido PUBLIC ESSENS)
 target_link_libraries(fido PUBLIC OpenMP::OpenMP_CXX)
-target_link_libraries(fido PUBLIC stdgpu)
+target_link_libraries(fido PUBLIC RAJA)
+
 set_target_properties(fido PROPERTIES
     CXX_STANDARD 11
     CXX_STANDARD_REQUIRED YES
