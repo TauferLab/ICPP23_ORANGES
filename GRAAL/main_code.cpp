@@ -10,7 +10,7 @@
 #include "headers/print_disconnected_graph.hpp"
 #include <time.h>
 #include <math.h>
-#include <omp.h>
+#include "RAJA/RAJA.hpp"
 
 void Calculate_GDV(int ,A_Network ,vector<OrbitMetric>&, GDVMetric&);
 void readin_orbits(  ifstream* ,vector<OrbitMetric>* );
@@ -20,6 +20,7 @@ void metric_formula(GDVMetric gdvm, double* gdv_score);
 double GDV_distance_calculation(GDVMetric gdvm1, GDVMetric gdvm2);
 void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network graph2,vector<OrbitMetric> orbits,int p);
 using namespace std;
+using exec_policy=RAJA::omp_parallel_for_exec;
 
 int main(int argc, char *argv[]) {
   clock_t tStart = clock();
@@ -103,7 +104,7 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
 {
   vector<GDVMetric> graph1_GDV;
   vector<GDVMetric> graph2_GDV;
- double start = omp_get_wtime();
+ //double start = omp_get_wtime();
   GDV_vector_calculation(graph1, &graph1_GDV, orbits,p); 
   GDV_vector_calculation(graph2, &graph2_GDV,orbits,p); 
   
@@ -119,8 +120,8 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
       sim_mat[gdvm1.node][gdvm2.node]= GDV_distance_calculation(gdvm1,gdvm2);
     }
   }
-double end = omp_get_wtime();
-cout<<"Omp time taken is " <<end - start<<endl;
+//double end = omp_get_wtime();
+//cout<<"Omp time taken is " <<end - start<<endl;
   ofstream myfile;
   string filename; 
   filename = "out_similarity_matrix.txt";
@@ -167,17 +168,17 @@ void metric_formula(GDVMetric gdvm, double* gdv_score)
 void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vector<OrbitMetric> orbits,int p)
 {
 	
-omp_set_num_threads(p);
-#pragma omp parallel for num_threads(p) schedule(static)
-for(int i=0;i<graph.size();i++)
-{
-	ADJ_Bundle node = graph[i];
-	vector<int> GDV_1;
+//omp_set_num_threads(p);
+//#pragma omp parallel for num_threads(p) schedule(static)
+RAJA::forall<exec_policy>(RAJA::RangeSegment(0,graph.size()),[&] (int i) {
+
+     ADJ_Bundle node = graph[i];
+     vector<int> GDV_1;
      GDVMetric gdvMetric(node.Row,GDV_1);
      Calculate_GDV(node.Row,graph,orbits,gdvMetric);
      // cout<<"gdv for node "<<node.Row<<endl;
      graph_GDV->push_back(gdvMetric);
-}
+});
 // for (ADJ_Bundle node:graph)
   // {
     // vector<int> GDV_1;
