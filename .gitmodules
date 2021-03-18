@@ -1,0 +1,3 @@
+[submodule "external/RAJA"]
+	path = external/RAJA
+	url = https://github.com/LLNL/RAJA.git
