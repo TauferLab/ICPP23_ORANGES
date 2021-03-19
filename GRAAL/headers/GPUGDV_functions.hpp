@@ -137,65 +137,122 @@ public:
     return;
   }
 
-  vector<OrbitMetric> orbit_filter( vector<OrbitMetric>& orbits, int nodes, vector<OrbitMetric>& filtered_orbits)
+  void orbit_filter_2(orbvec& orbits, orbvec& filtered_orbits) {
+      //filtered_orbits.push_back(orbits[0]);
+      pushback_orbvec(filtered_orbits, orbits.vec[0]);
+  }
+
+  void orbit_filter_3(orbvec& orbits, orbvec& filtered_orbits) {
+      //filtered_orbits.push_back(orbits[1]);
+      pushback_orbvec(filtered_orbits, orbits.vec[1]);
+      //filtered_orbits.push_back(orbits[2]);
+      pushback_orbvec(filtered_orbits, orbits.vec[2]);
+      //filtered_orbits.push_back(orbits[3]);
+      pushback_orbvec(filtered_orbits, orbits.vec[3]);
+  }
+
+  void orbit_filter_4(orbvec& orbits, orbvec& filtered_orbits) {
+      //filtered_orbits.push_back(orbits[4]);
+      pushback_orbvec(filtered_orbits, orbits.vec[4]);
+      //filtered_orbits.push_back(orbits[5]);
+      pushback_orbvec(filtered_orbits, orbits.vec[5]);
+      //filtered_orbits.push_back(orbits[6]);
+      pushback_orbvec(filtered_orbits, orbits.vec[6]);
+      //filtered_orbits.push_back(orbits[7]);
+      pushback_orbvec(filtered_orbits, orbits.vec[7]);
+      //filtered_orbits.push_back(orbits[8]);
+      pushback_orbvec(filtered_orbits, orbits.vec[8]);
+      //filtered_orbits.push_back(orbits[9]);
+      pushback_orbvec(filtered_orbits, orbits.vec[9]);
+      //filtered_orbits.push_back(orbits[10]);
+      pushback_orbvec(filtered_orbits, orbits.vec[10]);
+      //filtered_orbits.push_back(orbits[11]);
+      pushback_orbvec(filtered_orbits, orbits.vec[11]);
+      //filtered_orbits.push_back(orbits[12]);
+      pushback_orbvec(filtered_orbits, orbits.vec[12]);
+      //filtered_orbits.push_back(orbits[13]);
+      pushback_orbvec(filtered_orbits, orbits.vec[13]);
+      //filtered_orbits.push_back(orbits[14]);
+      pushback_orbvec(filtered_orbits, orbits.vec[14]);
+  }
+
+  void orbit_filter_5(orbvec& orbits, orbvec& filtered_orbits) {
+      //filtered_orbits.push_back(orbits[15]);
+      pushback_orbvec(filtered_orbits, orbits.vec[15]);
+      //filtered_orbits.push_back(orbits[16]);
+      pushback_orbvec(filtered_orbits, orbits.vec[16]);
+      //filtered_orbits.push_back(orbits[17]);
+      pushback_orbvec(filtered_orbits, orbits.vec[17]);
+      //filtered_orbits.push_back(orbits[18]);
+      pushback_orbvec(filtered_orbits, orbits.vec[18]);
+      //filtered_orbits.push_back(orbits[19]);
+      pushback_orbvec(filtered_orbits, orbits.vec[19]);
+      //filtered_orbits.push_back(orbits[20]);
+      pushback_orbvec(filtered_orbits, orbits.vec[20]);
+      //filtered_orbits.push_back(orbits[21]);
+      pushback_orbvec(filtered_orbits, orbits.vec[21]);
+  }
+
+  void orbit_filter_default(orbvec& orbits, orbvec& filtered_orbits) {
+      //filtered_orbits.push_back(orbits[0]);
+      pushback_orbvec(filtered_orbits, orbits.vec[0]);
+      //filtered_orbits.push_back(orbits[1]);
+      pushback_orbvec(filtered_orbits, orbits.vec[1]);
+      //filtered_orbits.push_back(orbits[2]);
+      pushback_orbvec(filtered_orbits, orbits.vec[2]);
+      //filtered_orbits.push_back(orbits[3]);
+      pushback_orbvec(filtered_orbits, orbits.vec[3]);
+      //filtered_orbits.push_back(orbits[4]);
+      pushback_orbvec(filtered_orbits, orbits.vec[4]);
+      //filtered_orbits.push_back(orbits[5]);
+      pushback_orbvec(filtered_orbits, orbits.vec[5]);
+      //filtered_orbits.push_back(orbits[6]);
+      pushback_orbvec(filtered_orbits, orbits.vec[6]);
+      //filtered_orbits.push_back(orbits[7]);
+      pushback_orbvec(filtered_orbits, orbits.vec[7]);
+      //filtered_orbits.push_back(orbits[8]);
+      pushback_orbvec(filtered_orbits, orbits.vec[8]);
+      //filtered_orbits.push_back(orbits[9]);
+      pushback_orbvec(filtered_orbits, orbits.vec[9]);
+      //filtered_orbits.push_back(orbits[10]);
+      pushback_orbvec(filtered_orbits, orbits.vec[10]);
+      //filtered_orbits.push_back(orbits[11]);
+      pushback_orbvec(filtered_orbits, orbits.vec[11]);
+      //filtered_orbits.push_back(orbits[12]);
+      pushback_orbvec(filtered_orbits, orbits.vec[12]);
+      //filtered_orbits.push_back(orbits[13]);
+      pushback_orbvec(filtered_orbits, orbits.vec[13]);
+      //filtered_orbits.push_back(orbits[14]);
+      pushback_orbvec(filtered_orbits, orbits.vec[14]);
+      //filtered_orbits.push_back(orbits[15]);
+      pushback_orbvec(filtered_orbits, orbits.vec[15]);
+      //filtered_orbits.push_back(orbits[16]);
+      pushback_orbvec(filtered_orbits, orbits.vec[16]);
+      //filtered_orbits.push_back(orbits[17]);
+      pushback_orbvec(filtered_orbits, orbits.vec[17]);
+      //filtered_orbits.push_back(orbits[18]);
+      pushback_orbvec(filtered_orbits, orbits.vec[18]);
+      //filtered_orbits.push_back(orbits[19]);
+      pushback_orbvec(filtered_orbits, orbits.vec[19]);
+      //filtered_orbits.push_back(orbits[20]);
+      pushback_orbvec(filtered_orbits, orbits.vec[20]);
+      //filtered_orbits.push_back(orbits[21]);
+      pushback_orbvec(filtered_orbits, orbits.vec[21]);
+  }
+
+  void orbit_filter(orbvec& orbits, int nodes, orbvec& filtered_orbits)
   {
-     switch(nodes) {
-      case 2 :
-          filtered_orbits.push_back(orbits[0]);
-          break;
-      case 3 :
-          filtered_orbits.push_back(orbits[1]);
-          filtered_orbits.push_back(orbits[2]);
-          filtered_orbits.push_back(orbits[3]);
-         break;
-      case 4 :
-            filtered_orbits.push_back(orbits[4]);
-            filtered_orbits.push_back(orbits[5]);
-            filtered_orbits.push_back(orbits[6]);
-            filtered_orbits.push_back(orbits[7]);
-            filtered_orbits.push_back(orbits[8]);
-            filtered_orbits.push_back(orbits[9]);
-            filtered_orbits.push_back(orbits[10]);
-            filtered_orbits.push_back(orbits[11]);
-            filtered_orbits.push_back(orbits[12]);
-            filtered_orbits.push_back(orbits[13]);
-            filtered_orbits.push_back(orbits[14]);
-         break;
-      case 5 :
-            filtered_orbits.push_back(orbits[15]);
-            filtered_orbits.push_back(orbits[16]);
-            filtered_orbits.push_back(orbits[17]);
-            filtered_orbits.push_back(orbits[18]);
-            filtered_orbits.push_back(orbits[19]);
-            filtered_orbits.push_back(orbits[20]);
-            filtered_orbits.push_back(orbits[21]);
-         break;
-      default :
-            filtered_orbits.push_back(orbits[0]);
-            filtered_orbits.push_back(orbits[1]);
-            filtered_orbits.push_back(orbits[2]);
-            filtered_orbits.push_back(orbits[3]);
-            filtered_orbits.push_back(orbits[4]);
-            filtered_orbits.push_back(orbits[5]);
-            filtered_orbits.push_back(orbits[6]);
-            filtered_orbits.push_back(orbits[7]);
-            filtered_orbits.push_back(orbits[8]);
-            filtered_orbits.push_back(orbits[9]);
-            filtered_orbits.push_back(orbits[10]);
-            filtered_orbits.push_back(orbits[11]);
-            filtered_orbits.push_back(orbits[12]);
-            filtered_orbits.push_back(orbits[13]);
-            filtered_orbits.push_back(orbits[14]);
-            filtered_orbits.push_back(orbits[15]);
-            filtered_orbits.push_back(orbits[16]);
-            filtered_orbits.push_back(orbits[17]);
-            filtered_orbits.push_back(orbits[18]);
-            filtered_orbits.push_back(orbits[19]);
-            filtered_orbits.push_back(orbits[20]);
-            filtered_orbits.push_back(orbits[21]);
-          break;
-   }
-    return filtered_orbits;
+      void (*subfunc_ptrs[6]) (orbvec&, orbvec&);
+      subfunc_ptrs[0] = NULL;
+      subfunc_ptrs[1] = orbit_filter_default;
+      subfunc_ptrs[2] = orbit_filter_2;
+      subfunc_ptrs[3] = orbit_filter_3;
+      subfunc_ptrs[4] = orbit_filter_4;
+      subfunc_ptrs[5] = orbit_filter_5;
+      if (nodes < 2 || nodes > 5) {
+          nodes = 1;
+      }
+      (*subfunc_ptrs[nodes])(orbits, filtered_orbits);
   }
 
 };
