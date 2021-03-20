@@ -6,10 +6,14 @@ find_package(RAJA REQUIRED)
 
 set(FIDO_HEADERS
     headers/GDV_functions.hpp
+    headers/GPUGDV_functions.hpp
     headers/bfs.hpp
+    headers/gpubfs.hpp
     headers/class_definitions.hpp
     headers/combinations.hpp
+    headers/combinations_raw.hpp
     headers/print_disconnected_graph.hpp
+    headers/raw_vecs.hpp
 )
 
 add_executable(fido main_code.cpp ${FIDO_HEADERS})
