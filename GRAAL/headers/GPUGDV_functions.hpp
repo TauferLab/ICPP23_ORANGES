@@ -89,7 +89,7 @@ public:
     intvec visited_nodes = new_intvec(network.nodes_len);
 
     if (network.nodes_len != 0) {
-      a_network_dir_dfs(network, visited_nodes);
+      a_network_dir_dfs_raw(network, visited_nodes);
       
       // Make connectedness check
       if (visited_nodes.veclen == network.nodes_len) {
@@ -132,7 +132,7 @@ public:
       intvec shortest_paths = new_intvec(network.nodes_len);      
 
       //vector<int> shortest_paths;
-      dir_dfs_shortest_paths(node, network, shortest_paths);
+      dir_dfs_shortest_paths_raw(node, network, shortest_paths);
 	
       // Then use the shortest paths to calculate the distance signature.
       clear_intvec(dist_sig);
