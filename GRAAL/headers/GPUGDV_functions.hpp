@@ -172,13 +172,13 @@ class GPUGDV_functions
         return;
     }
 
-    FIDO_HOST_DEVICE void orbit_filter_2(orbvec& orbits, orbvec& filtered_orbits) const
+    FIDO_HOST_DEVICE void orbit_filter_2(const orbvec& orbits, orbvec& filtered_orbits) const
     {
         // filtered_orbits.push_back(orbits[0]);
         pushback_orbvec(filtered_orbits, orbits.vec[0]);
     }
 
-    FIDO_HOST_DEVICE void orbit_filter_3(orbvec& orbits, orbvec& filtered_orbits) const
+    FIDO_HOST_DEVICE void orbit_filter_3(const orbvec& orbits, orbvec& filtered_orbits) const
     {
         // filtered_orbits.push_back(orbits[1]);
         pushback_orbvec(filtered_orbits, orbits.vec[1]);
@@ -188,7 +188,7 @@ class GPUGDV_functions
         pushback_orbvec(filtered_orbits, orbits.vec[3]);
     }
 
-    FIDO_HOST_DEVICE void orbit_filter_4(orbvec& orbits, orbvec& filtered_orbits) const
+    FIDO_HOST_DEVICE void orbit_filter_4(const orbvec& orbits, orbvec& filtered_orbits) const
     {
         // filtered_orbits.push_back(orbits[4]);
         pushback_orbvec(filtered_orbits, orbits.vec[4]);
@@ -214,7 +214,7 @@ class GPUGDV_functions
         pushback_orbvec(filtered_orbits, orbits.vec[14]);
     }
 
-    FIDO_HOST_DEVICE void orbit_filter_5(orbvec& orbits, orbvec& filtered_orbits) const
+    FIDO_HOST_DEVICE void orbit_filter_5(const orbvec& orbits, orbvec& filtered_orbits) const
     {
         // filtered_orbits.push_back(orbits[15]);
         pushback_orbvec(filtered_orbits, orbits.vec[15]);
@@ -232,7 +232,7 @@ class GPUGDV_functions
         pushback_orbvec(filtered_orbits, orbits.vec[21]);
     }
 
-    FIDO_HOST_DEVICE void orbit_filter_default(orbvec& orbits, orbvec& filtered_orbits) const
+    FIDO_HOST_DEVICE void orbit_filter_default(const orbvec& orbits, orbvec& filtered_orbits) const
     {
         // filtered_orbits.push_back(orbits[0]);
         pushback_orbvec(filtered_orbits, orbits.vec[0]);
@@ -287,7 +287,8 @@ class GPUGDV_functions
 
     FIDO_HOST_DEVICE void orbit_filter_raw(const orbvec& orbits, int nodes, orbvec& filtered_orbits) const
     {
-        void(*subfunc_ptrs[5])(orbvec&,orbvec&) = {
+        typedef void (GPUGDV_functions::*GPUGDV_func_ptr)(const orbvec&, orbvec&);
+        GPUGDV_func_ptr subfunc_ptrs[] = {
             &GPUGDV_functions::orbit_filter_default, &GPUGDV_functions::orbit_filter_2, 
             &GPUGDV_functions::orbit_filter_3, &GPUGDV_functions::orbit_filter_4, &GPUGDV_functions::orbit_filter_5
         };
