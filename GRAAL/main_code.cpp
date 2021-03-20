@@ -23,7 +23,8 @@ double GDV_distance_calculation(GDVMetric gdvm1, GDVMetric gdvm2);
 void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network graph2,
                                                   vector<OrbitMetric> orbits, int p);
 using namespace std;
-using exec_policy = RAJA::omp_parallel_for_exec;
+using inner_policy = RAJA::cuda_exec<256>;
+using outer_policy = RAJA::seq_exec;
 
 int main(int argc, char* argv[])
 {
@@ -178,7 +179,7 @@ void GDV_vector_calculation(A_Network graph, vector<GDVMetric>* graph_GDV,
 {
     // omp_set_num_threads(p);
     //#pragma omp parallel for num_threads(p) schedule(static)
-    RAJA::forall<exec_policy>(RAJA::RangeSegment(0, graph.size()), [&](int i) {
+    RAJA::forall<outer_exec>(RAJA::RangeSegment(0, graph.size()), [&](int i) {
         ADJ_Bundle node = graph[i];
         vector<int> GDV_1;
         GDVMetric gdvMetric(node.Row, GDV_1);
@@ -209,7 +210,7 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
     stdnet_to_rawnet(Graph, raw_Graph, halloc);
     stdorb_to_raworb(orbits, raw_orbits, halloc);
     //vector<int> gdv(orbits.size(),0);
-    intvec gdv = new_intvec_umpire(orbits.size(), halloc);
+    intvec gdv = new_intvec_umpire(orbits.size(), dalloc);
     res.memset(gdv.vec, 0, orbits.size());
     // printf("calculating GDV for node %d\n",node);
     vector<int> neighbours;
@@ -227,7 +228,7 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
     combinationsList = new_intvecvec_umpire(combinations_size, halloc);
     for (int node_count = 1; node_count < 5; node_count++)
     {
-        ggdvf.find_combinations(set, numElements, node_count, &combinationsList);
+        ggdvf.find_combinations_raw(set, numElements, node_count, &combinationsList);
     }
   
     for(int i = 0; i < combinations_size; i++){
@@ -241,43 +242,61 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
     }
     raw_Graph.vec = res.move(raw_Graph.vec, dalloc);
 
-    for(int i = 0; i < orbvec.veclen; i++){
-       orbvec.vec[i].orbitDegree.vec = res.move(orbvec.vec[i].orbitDegree.vec, dalloc);       
-       orbvec.vec[i].orbitDistance.vec = res.move(orbvec.vec[i].orbitDistance.vec, dalloc);
+    for(int i = 0; i < raw_orbits.veclen; i++){
+       raw_orbits.vec[i].orbitDegree.vec = res.move(raw_orbits.vec[i].orbitDegree.vec, dalloc);       
+       raw_orbits.vec[i].orbitDistance.vec = res.move(raw_orbits.vec[i].orbitDistance.vec, dalloc);
     }
-    orbvec.vec = res.move(orbvec.vec, dalloc);
+    raw_orbits.vec = res.move(raw_orbits.vec, dalloc);
 
     // cout<<"Node count is "<<node_count<<endl;
     // cout<<"total combinations are : "<<combinationsList.size()<<endl;
-    for (vector<int> combination : combinationsList)
-    {
-        A_Network induced_sgraph;
-        vector<int> subgraph_degree_signature;
-        vector<int> subgraph_distance_signature;
+    //for (vector<int> combination : combinationsList)
+    	    
+    RAJA::forall<inner_exec>(RAJA::RangeSegment(0,combinations_size),[node, raw_orbits, raw_Graph, combinationsList, gdv, ggdvf](int i){
+        A_Network_raw induced_sgraph = new_network(6);
+
+        //vector<int> subgraph_degree_signature;
+        //vector<int> subgraph_distance_signature;
+	intvec subgraph_degree_signature = new_intvec(6);
+	intvec subgraph_distance_signature = new_intvec(6);
         bool is_connected = false;
-        combination.push_back(node);
-        gdvf.inducedSubgraph(Graph, combination, induced_sgraph);
-        gdvf.isConnected(induced_sgraph, is_connected);
+        //combination.push_back(node);
+	pushback_intvec(combinationsList.vec[i], node);
+        ggdvf.inducedSubgraph_raw(Graph, combinationsList.vec[i], induced_sgraph);
+        ggdvf.isConnected_raw(induced_sgraph, is_connected);
         if (is_connected)
         {
-            gdvf.degree_signature(induced_sgraph, subgraph_degree_signature);
-            gdvf.distance_signature(node, induced_sgraph, subgraph_distance_signature);
-            vector<OrbitMetric> filter_orbits;
-            gdvf.orbit_filter(orbits, node_count + 1, filter_orbits);
-            for (OrbitMetric orbit : filter_orbits)
+            ggdvf.degree_signature_raw(induced_sgraph, subgraph_degree_signature);
+            ggdvf.distance_signature_raw(node, induced_sgraph, subgraph_distance_signature);
+            //vector<OrbitMetric> filter_orbits;
+	    orbvec filter_orbits = new_orbvec(22);
+            ggdvf.orbit_filter_raw(raw_orbits, node_count + 1, filter_orbits);
+            //for (OrbitMetric orbit : filter_orbits)
+	    for(int i = 0; i < filter_orbits.veclen; i++) 
             {
-                sort(orbit.orbitDegree.begin(), orbit.orbitDegree.end());
-                sort(subgraph_degree_signature.begin(), subgraph_degree_signature.end());
-                if (orbit.orbitDistance == subgraph_distance_signature &&
-                    orbit.orbitDegree == subgraph_degree_signature)
+		OrbitMetric_raw orbit = filter_orbits.vec[i];
+                //sort(orbit.orbitDegree.begin(), orbit.orbitDegree.end());
+                RAJA::sort<exec_policy>(orbit.OrbitDegree.vec, orbit.OrbitDegree.vec+orbit.OrbitDegree.veclen);
+                //sort(subgraph_degree_signature.begin(), subgraph_degree_signature.end());
+		RAJA::sort<exec_policy>(subgraph_degree_signature.vec, subgraph_degree_signature.vec+subgraph_degree_signature.veclen);
+                if (eq_intvec(orbit.orbitDistance, subgraph_distance_signature) &&
+                    eq_intvec(orbit.orbitDegree, subgraph_degree_signature))
                 {
-                    gdv[orbit.orbitNumber] += 1;
+                    gdv.vec[orbit.orbitNumber] += 1;
                     break;
                 }
             }
+	    delete_orbvec(filter_orbits);
         }
-    }
-
+	delete_intvec(subgraph_degree_signature);
+	delete_intvec(subgraph_distance_signature);
+        for(int i = 0; i < induced_sgraph.nodes_len; i++){
+             delete_adjlist(induced_sgraph.vec[i]);
+	}
+	delete_network(induced_sgraph);
+    });
+    gdv.vec = res.move(gdv.vec, halloc);
+    std::copy(gdv.vec, gdv.vec+gdv.veclen, gdvMetric.GDV.begin());
     gdvMetric.GDV  = gdv;
     gdvMetric.node = node;
 }
