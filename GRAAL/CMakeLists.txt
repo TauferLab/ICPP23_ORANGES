@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.15)
 
 # find_package(OpenMP REQUIRED)
+find_package(umpire REQUIRED)
+find_package(RAJA REQUIRED)
 
 set(FIDO_HEADERS
     headers/GDV_functions.hpp
