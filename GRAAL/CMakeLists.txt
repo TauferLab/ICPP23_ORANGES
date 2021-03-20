@@ -1,5 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
+find_package(Threads REQUIRED)
 find_package(OpenMP REQUIRED)
 find_package(umpire REQUIRED)
 find_package(RAJA REQUIRED)
@@ -21,6 +22,7 @@ target_include_directories(fido PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/headers>
     $<INSTALL_INTERFACE:headers>
 )
+target_link_libraries(fido PRIVATE Threads::Threads)
 target_link_libraries(fido PUBLIC ESSENS)
 target_link_libraries(fido PUBLIC OpenMP::OpenMP_CXX)
 target_link_libraries(fido PUBLIC RAJA)
