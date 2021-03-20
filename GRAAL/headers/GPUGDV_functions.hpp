@@ -15,7 +15,7 @@
 //#include "ADJ/traversal.hpp"
 //#include <iostream>
 #include "stdio.h"
-#include "bfs.hpp"
+//#include "bfs.hpp"
 #include "print_disconnected_graph.hpp"
 #include "raw_vecs.hpp"
 #include "gpubfs.hpp"
@@ -31,7 +31,7 @@ class GPUGDV_functions{
 public:
                                                                                                                    
   // Vector nodes should correspond to actual node labels, not node indices.
-  void inducedSubgraph_raw(A_Network_raw &network, intvec nodes, A_Network_raw& output)
+  FIDO_HOST_DEVICE void inducedSubgraph_raw(A_Network_raw &network, intvec nodes, A_Network_raw& output)
   {
 
     // Set up output for new subgraph. 
@@ -84,7 +84,7 @@ public:
   };
 
   // Evaluate whether network is a connected graph.  Store result in isConnected.                  
-  void isConnected_raw(A_Network_raw &network, bool& isConnected)
+  FIDO_HOST_DEVICE void isConnected_raw(A_Network_raw &network, bool& isConnected)
   {
     intvec visited_nodes = new_intvec(network.nodes_len);
 
@@ -107,7 +107,7 @@ public:
 
 
   // Calculate degree signature for network
-  void degree_signature_raw(A_Network_raw &network, intvec &deg_sig)
+  FIDO_HOST_DEVICE void degree_signature_raw(A_Network_raw &network, intvec &deg_sig)
   {
     if (network.nodes_len != 0) {
       clear_intvec(deg_sig);
@@ -122,7 +122,7 @@ public:
   }
 
   // Calculate distance signature for network
-  void distance_signature_raw(int node, A_Network_raw &network, intvec &dist_sig)
+  FIDO_HOST_DEVICE void distance_signature_raw(int node, A_Network_raw &network, intvec &dist_sig)
   {
     if (network.nodes_len != 0) {
 
@@ -149,12 +149,12 @@ public:
     return;
   }
 
-  void orbit_filter_2(orbvec& orbits, orbvec& filtered_orbits) {
+  FIDO_HOST_DEVICE void orbit_filter_2(orbvec& orbits, orbvec& filtered_orbits) {
       //filtered_orbits.push_back(orbits[0]);
       pushback_orbvec(filtered_orbits, orbits.vec[0]);
   }
 
-  void orbit_filter_3(orbvec& orbits, orbvec& filtered_orbits) {
+  FIDO_HOST_DEVICE void orbit_filter_3(orbvec& orbits, orbvec& filtered_orbits) {
       //filtered_orbits.push_back(orbits[1]);
       pushback_orbvec(filtered_orbits, orbits.vec[1]);
       //filtered_orbits.push_back(orbits[2]);
@@ -163,7 +163,7 @@ public:
       pushback_orbvec(filtered_orbits, orbits.vec[3]);
   }
 
-  void orbit_filter_4(orbvec& orbits, orbvec& filtered_orbits) {
+  FIDO_HOST_DEVICE void orbit_filter_4(orbvec& orbits, orbvec& filtered_orbits) {
       //filtered_orbits.push_back(orbits[4]);
       pushback_orbvec(filtered_orbits, orbits.vec[4]);
       //filtered_orbits.push_back(orbits[5]);
@@ -188,7 +188,7 @@ public:
       pushback_orbvec(filtered_orbits, orbits.vec[14]);
   }
 
-  void orbit_filter_5(orbvec& orbits, orbvec& filtered_orbits) {
+  FIDO_HOST_DEVICE void orbit_filter_5(orbvec& orbits, orbvec& filtered_orbits) {
       //filtered_orbits.push_back(orbits[15]);
       pushback_orbvec(filtered_orbits, orbits.vec[15]);
       //filtered_orbits.push_back(orbits[16]);
@@ -205,7 +205,7 @@ public:
       pushback_orbvec(filtered_orbits, orbits.vec[21]);
   }
 
-  void orbit_filter_default(orbvec& orbits, orbvec& filtered_orbits) {
+  FIDO_HOST_DEVICE void orbit_filter_default(orbvec& orbits, orbvec& filtered_orbits) {
       //filtered_orbits.push_back(orbits[0]);
       pushback_orbvec(filtered_orbits, orbits.vec[0]);
       //filtered_orbits.push_back(orbits[1]);
@@ -252,7 +252,7 @@ public:
       pushback_orbvec(filtered_orbits, orbits.vec[21]);
   }
 
-  void orbit_filter_raw(orbvec& orbits, int nodes, orbvec& filtered_orbits)
+  FIDO_HOST_DEVICE void orbit_filter_raw(orbvec& orbits, int nodes, orbvec& filtered_orbits)
   {
       void (*subfunc_ptrs[6]) (orbvec&, orbvec&);
       subfunc_ptrs[0] = NULL;

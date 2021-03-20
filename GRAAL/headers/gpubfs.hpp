@@ -7,9 +7,21 @@
 
 using namespace std;
 
+#if defined(__CUDACC__) || defined(__HIPCC__)
+#define FIDO_HOST_DEVICE __host__ __device__
+#define FIDO_DEVICE __device__
+#define FIDO_HOST __host__
+#define FIDO_CONSTANT __constant__
+#else
+#define FIDO_HOST_DEVICE
+#define FIDO_DEVICE
+#define FIDO_HOST
+#define FIDO_CONSTANT
+#endif
+
 
 // DFS algorithm for A_Network that returns list of visited nodes.                                                                                     
-void a_network_dir_dfs_raw(A_Network_raw& network, intvec& visited)
+FIDO_HOST_DEVICE void a_network_dir_dfs_raw(A_Network_raw& network, intvec& visited)
 {
 
   // Set up BFS                                                                                                                         
@@ -103,7 +115,7 @@ void a_network_dir_dfs_raw(A_Network_raw& network, intvec& visited)
 
 
 // Returns the shortest path length to node from every node in network. Path lengths are stored in distance and indexed by the index of network.                      
-void dir_dfs_shortest_paths_raw(int node, A_Network_raw& network, intvec& distance)
+FIDO_HOST_DEVICE void dir_dfs_shortest_paths_raw(int node, A_Network_raw& network, intvec& distance)
 {
 
   // Set up distance vector                                                                                                        
