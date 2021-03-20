@@ -198,29 +198,54 @@ void GDV_vector_calculation(A_Network graph, vector<GDVMetric>* graph_GDV,
 void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMetric& gdvMetric)
 {
     umpire::ResourceManager& res = umpire::ResourceManager::getInstance();
+    umpire::Allocator halloc = res.getAllocator("HOST");
+    umpire::Allocator dalloc = res.getAllocator("DEVICE");
     GDV_functions gdvf;
     GPUGDV_functions ggdvf;
     intvecvec combinationsList;
+    A_Network_raw raw_Graph;
+    orbvec raw_orbits;
+
+    stdnet_to_rawnet(Graph, raw_Graph, halloc);
+    stdorb_to_raworb(orbits, raw_orbits, halloc);
     //vector<int> gdv(orbits.size(),0);
-    intvec gdv = new_intvec_umpire(orbits.size(), res.getAllocator("HOST"));
+    intvec gdv = new_intvec_umpire(orbits.size(), halloc);
     res.memset(gdv.vec, 0, orbits.size());
     // printf("calculating GDV for node %d\n",node);
     vector<int> neighbours;
+
     gdvf.find_neighbours(node, Graph, 4, &neighbours);
     // print_vector(neighbours);
     int set[neighbours.size()];
     std::copy(neighbours.begin(), neighbours.end(), set);
     int numElements       = *(&set + 1) - set;
+
     int combinations_size = 0;
     for (int node_count = 1; node_count < 5; node_count++){
 	combinations_size += ((fact(neighbours.size()))/(node_count*fact(neighbours.size()-node_count)));
     }
-    combinationsList = new_intvecvec_umpire(combinations_size, res.getAllocator("HOST"));
+    combinationsList = new_intvecvec_umpire(combinations_size, halloc);
     for (int node_count = 1; node_count < 5; node_count++)
     {
         ggdvf.find_combinations(set, numElements, node_count, &combinationsList);
     }
+  
+    for(int i = 0; i < combinations_size; i++){
+        combinationsList.vec[i].vec = res.move(combinationsList.vec[i].vec, dalloc);
+    }
+    combinationsList.vec = res.move(combinationsList.vec, dalloc);
 
+    for(int i = 0; i < raw_Graph.nodes_len; i++){
+        raw_Graph.vec[i].ListW.vec = res.move(raw_Graph.vec[i].ListW.vec, dalloc);
+	raw_Graph.vec[i].Ops.vec = res.move(raw_Graph.vec[i].Ops.vec, dalloc);
+    }
+    raw_Graph.vec = res.move(raw_Graph.vec, dalloc);
+
+    for(int i = 0; i < orbvec.veclen; i++){
+       orbvec.vec[i].orbitDegree.vec = res.move(orbvec.vec[i].orbitDegree.vec, dalloc);       
+       orbvec.vec[i].orbitDistance.vec = res.move(orbvec.vec[i].orbitDistance.vec, dalloc);
+    }
+    orbvec.vec = res.move(orbvec.vec, dalloc);
 
     // cout<<"Node count is "<<node_count<<endl;
     // cout<<"total combinations are : "<<combinationsList.size()<<endl;
