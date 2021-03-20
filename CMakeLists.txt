@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(FIDO)
+project(FIDO LANGUAGES CUDA CXX)
 
 set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "")
 

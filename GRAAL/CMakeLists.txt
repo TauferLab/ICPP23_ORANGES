@@ -17,6 +17,9 @@ set(FIDO_HEADERS
     headers/raw_vecs.hpp
 )
 
+set(CMAKE_CUDA_STANDARD 11)
+set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+
 add_executable(fido main_code.cpp ${FIDO_HEADERS})
 target_include_directories(fido PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/headers>
@@ -36,6 +39,7 @@ set_target_properties(fido PROPERTIES
 set_target_properties(fido PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
 )
+set_target_properties(fido PROPERTIES CUDA_SEPARABLE_COMPILATION ON)
 
 install(TARGETS fido
     EXPORT FidoExport

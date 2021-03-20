@@ -234,21 +234,21 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
     }
 
     for(int i = 0; i < combinations_size; i++){
-        combinationsList.vec[i].vec = res.move(combinationsList.vec[i].vec, dalloc);
+        combinationsList.vec[i].vec = (int*) res.move(combinationsList.vec[i].vec, dalloc);
     }
-    combinationsList.vec = res.move(combinationsList.vec, dalloc);
+    combinationsList.vec = (intvec*) res.move(combinationsList.vec, dalloc);
 
     for(int i = 0; i < raw_Graph.nodes_len; i++){
-        raw_Graph.vec[i].ListW.vec = res.move(raw_Graph.vec[i].ListW.vec, dalloc);
-        raw_Graph.vec[i].Ops.vec = res.move(raw_Graph.vec[i].Ops.vec, dalloc);
+        raw_Graph.vec[i].ListW.vec = (Edge_raw*) res.move(raw_Graph.vec[i].ListW.vec, dalloc);
+        raw_Graph.vec[i].Ops.vec = (int*) res.move(raw_Graph.vec[i].Ops.vec, dalloc);
     }
-    raw_Graph.vec = res.move(raw_Graph.vec, dalloc);
+    raw_Graph.vec = (Adjlist*) res.move(raw_Graph.vec, dalloc);
 
     for(int i = 0; i < raw_orbits.veclen; i++){
-        raw_orbits.vec[i].orbitDegree.vec = res.move(raw_orbits.vec[i].orbitDegree.vec, dalloc);       
-        raw_orbits.vec[i].orbitDistance.vec = res.move(raw_orbits.vec[i].orbitDistance.vec, dalloc);
+        raw_orbits.vec[i].orbitDegree.vec = (int*) res.move(raw_orbits.vec[i].orbitDegree.vec, dalloc);       
+        raw_orbits.vec[i].orbitDistance.vec = (int*) res.move(raw_orbits.vec[i].orbitDistance.vec, dalloc);
     }
-    raw_orbits.vec = res.move(raw_orbits.vec, dalloc);
+    raw_orbits.vec = (OrbitMetric_raw*) res.move(raw_orbits.vec, dalloc);
 
     // cout<<"Node count is "<<node_count<<endl;
     // cout<<"total combinations are : "<<combinationsList.size()<<endl;
