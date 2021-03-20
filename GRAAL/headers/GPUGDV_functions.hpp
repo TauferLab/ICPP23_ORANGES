@@ -29,7 +29,16 @@ using namespace std;
 class GPUGDV_functions{
 
 public:
-                                                                                                                   
+       
+  int fact(int n){
+    return (n==0) || (n==1) ? 1 : n*fact(n-1);
+  }
+
+  void find_combinations(int set[], int n, int size, intvecvec& output){
+     Combinations_raw c;
+     c.getCombination(set, n, size, output);
+  }
+
   // Vector nodes should correspond to actual node labels, not node indices.
   FIDO_HOST_DEVICE void inducedSubgraph_raw(A_Network_raw &network, intvec nodes, A_Network_raw& output)
   {

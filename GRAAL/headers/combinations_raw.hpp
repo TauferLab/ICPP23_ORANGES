@@ -1,5 +1,5 @@
-#ifndef COMBINATIONS_HPP
-#define COMBINATIONS_HPP
+#ifndef COMBINATIONS_RAW_HPP
+#define COMBINATIONS_RAW_HPP
 
 #include "structure_defs.hpp"
 #include "input_to_network.hpp"
@@ -8,7 +8,7 @@
 #include "ADJ/find_Xneighbors.hpp"
 using namespace std;
 
-class Combinations
+class Combinations_raw
 {
     public:
         // The main function that prints all 
@@ -16,7 +16,7 @@ class Combinations
         // of size n. This function mainly 
         // uses combinationUtil() 
         // output -> 
-        void getCombination(int arr[], int n, int r, vector<vector<int>>* output)
+        void getCombination(int arr[], int n, int r, intvecvec& output)
         {
             // A temporary array to store 
             // all combination one by one 
@@ -37,18 +37,20 @@ class Combinations
         data[] ---> Temporary array to store current combination
         i ---> index of current element in arr[] */
         void combinationUtil(int arr[], int n, int r,
-            int index, int data[], int i, vector<vector<int>>* combilist)
+            int index, int data[], int i, intvecvec& combilist)
         {
             // Current cobination is ready, print it 
             if (index == r)
             {
-                vector<int> vec;
+                intvec vec = new_intvec(r);
                 for (int j = 0; j < r; j++)
                 {
                     //cout << data[j] << " ";
-                    vec.push_back(data[j]);
+                    //vec.push_back(data[j])
+		    pushback_intvec(vec, data[j]);
                 }
-                combilist->push_back(vec);
+                //combilist->push_back(vec);
+		pushback_intvecvec(combilist, vec);
                 return ;
             }
 

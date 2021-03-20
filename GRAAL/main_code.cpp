@@ -6,6 +6,7 @@
 #include "printout_network.hpp"
 #include "ADJ/find_Xneighbors.hpp"
 #include "headers/GDV_functions.hpp"
+#include "headers/GPUGDV_functions.hpp"
 #include "headers/class_definitions.hpp"
 #include "headers/print_disconnected_graph.hpp"
 #include <time.h>
@@ -190,8 +191,13 @@ RAJA::forall<exec_policy>(RAJA::RangeSegment(0,graph.size()),[&] (int i) {
 }
 void Calculate_GDV(int node,A_Network Graph,vector<OrbitMetric> &orbits, GDVMetric &gdvMetric)
 {
+    umpire::ResourceManager &res = umpire::ResourceManager::getInstance();	
     GDV_functions gdvf;
-    vector<int> gdv(orbits.size(),0);
+    GPUGDV_functions ggdvf;
+    intvecvec combinationsList;
+    //vector<int> gdv(orbits.size(),0);
+    intvec gdv = new_intvec(orbits.size());
+    res.memset(gdv.vec, 0, orbits.size());
     // printf("calculating GDV for node %d\n",node);
     vector<int> neighbours;
     gdvf.find_neighbours(node,Graph,4,&neighbours);
@@ -199,41 +205,46 @@ void Calculate_GDV(int node,A_Network Graph,vector<OrbitMetric> &orbits, GDVMetr
     int set[neighbours.size()]; 
     std::copy( neighbours.begin(), neighbours.end(), set );
     int numElements = *(&set + 1) - set;
+    int combinations_size = 0;
+    for (int node_count = 1; node_count < 5; node_count++){
+	combinations_size += ((fact(neighbours.size()))/(node_count*fact(neighbours.size()-node_count)))+
+    }
+    combinataionsList = new_intvecvec(combinations_size);
     for (int node_count = 1; node_count < 5; node_count++)
     {
-      vector<vector<int>> combinationsList;
-      gdvf.find_combinations(set, numElements,node_count,&combinationsList);
-      // cout<<"Node count is "<<node_count<<endl;
-      // cout<<"total combinations are : "<<combinationsList.size()<<endl;
-      for (vector<int> combination : combinationsList)
+      ggdvf.find_combinations(set, numElements,node_count,&combinationsList);
+    }
+    // cout<<"Node count is "<<node_count<<endl;
+    // cout<<"total combinations are : "<<combinationsList.size()<<endl;
+    for (vector<int> combination : combinationsList)
+    {
+      A_Network induced_sgraph;
+      vector<int> subgraph_degree_signature;
+      vector<int> subgraph_distance_signature;
+      bool is_connected = false;
+      combination.push_back(node);
+      gdvf.inducedSubgraph(Graph, combination, induced_sgraph);
+      gdvf.isConnected(induced_sgraph, is_connected);
+      if(is_connected)
       {
-        A_Network induced_sgraph;
-        vector<int> subgraph_degree_signature;
-        vector<int> subgraph_distance_signature;
-        bool is_connected = false;
-        combination.push_back(node);
-        gdvf.inducedSubgraph(Graph, combination, induced_sgraph);
-        gdvf.isConnected(induced_sgraph, is_connected);
-        if(is_connected)
-        {
-            gdvf.degree_signature(induced_sgraph,subgraph_degree_signature);
-            gdvf.distance_signature(node,induced_sgraph,subgraph_distance_signature);
-            vector<OrbitMetric> filter_orbits;
-            gdvf.orbit_filter(orbits,node_count+1,filter_orbits);
-            for(OrbitMetric orbit: filter_orbits)
+          gdvf.degree_signature(induced_sgraph,subgraph_degree_signature);
+          gdvf.distance_signature(node,induced_sgraph,subgraph_distance_signature);
+          vector<OrbitMetric> filter_orbits;
+          gdvf.orbit_filter(orbits,node_count+1,filter_orbits);
+          for(OrbitMetric orbit: filter_orbits)
+          {
+            sort(orbit.orbitDegree.begin(),orbit.orbitDegree.end());
+            sort(subgraph_degree_signature.begin(),subgraph_degree_signature.end());
+            if( orbit.orbitDistance == subgraph_distance_signature && 
+                orbit.orbitDegree == subgraph_degree_signature)
             {
-              sort(orbit.orbitDegree.begin(),orbit.orbitDegree.end());
-              sort(subgraph_degree_signature.begin(),subgraph_degree_signature.end());
-              if( orbit.orbitDistance == subgraph_distance_signature && 
-                  orbit.orbitDegree == subgraph_degree_signature)
-              {
-                gdv[orbit.orbitNumber] +=1;
-                break;
-              }
+              gdv[orbit.orbitNumber] +=1;
+              break;
             }
-        }
+          }
       }
     }
+     
     gdvMetric.GDV = gdv;
     gdvMetric.node = node;
 }
