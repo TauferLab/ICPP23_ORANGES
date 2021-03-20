@@ -7,19 +7,6 @@
 
 using namespace std;
 
-#if defined(__CUDACC__) || defined(__HIPCC__)
-#define FIDO_HOST_DEVICE __host__ __device__
-#define FIDO_DEVICE __device__
-#define FIDO_HOST __host__
-#define FIDO_CONSTANT __constant__
-#else
-#define FIDO_HOST_DEVICE
-#define FIDO_DEVICE
-#define FIDO_HOST
-#define FIDO_CONSTANT
-#endif
-
-
 // DFS algorithm for A_Network that returns list of visited nodes.                                                                                     
 FIDO_HOST_DEVICE void a_network_dir_dfs_raw(A_Network_raw& network, intvec& visited)
 {
