@@ -1,3 +1,6 @@
 [submodule "external/RAJA"]
 	path = external/RAJA
 	url = https://github.com/LLNL/RAJA.git
+[submodule "external/Umpire"]
+	path = external/Umpire
+	url = https://github.com/LLNL/Umpire.git
