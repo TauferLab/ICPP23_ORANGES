@@ -403,6 +403,22 @@ FIDO_HOST_DEVICE void copy_edgevec(edgevec& src, edgevec& dst)
     dst.veclen = src.veclen;
 }
 
+FIDO_HOST_DEVICE bool eq_intvec(intvec& lhs, intvec& rhs) 
+{
+    if (lhs.veclen != rhs.veclen)
+    {
+        return false;
+    }
+    for (int i = 0; i < lhs.veclen; i++)
+    {
+        if (lhs.vec[i] != rhs.vec[i])
+        {
+            return false;
+        }
+    }
+    return true;
+}
+
 void stdnet_to_rawnet(A_Network& stdnet, A_Network_raw& rawnet, umpire::Allocator& alloc)
 {
     rawnet = new_network_umpire(stdnet.size(), alloc);
