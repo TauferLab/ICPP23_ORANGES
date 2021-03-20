@@ -6,6 +6,7 @@
 #include "printout_others.hpp"
 #include "printout_network.hpp"
 #include "ADJ/find_Xneighbors.hpp"
+#include "raw_vecs.hpp"
 using namespace std;
 
 class Combinations_raw
@@ -16,7 +17,7 @@ class Combinations_raw
         // of size n. This function mainly 
         // uses combinationUtil() 
         // output -> 
-        void getCombination(int arr[], int n, int r, intvecvec& output)
+        void getCombination(int arr[], int n, int r, intvecvec& output, umpire::Allocator &alloc)
         {
             // A temporary array to store 
             // all combination one by one 
@@ -24,7 +25,7 @@ class Combinations_raw
 
             // Print all combination using 
             // temprary array 'data[]' 
-            combinationUtil(arr, n, r, 0, data, 0, output);
+            combinationUtil(arr, n, r, 0, data, 0, output, alloc);
 
             delete[] data;
             
@@ -37,12 +38,12 @@ class Combinations_raw
         data[] ---> Temporary array to store current combination
         i ---> index of current element in arr[] */
         void combinationUtil(int arr[], int n, int r,
-            int index, int data[], int i, intvecvec& combilist)
+            int index, int data[], int i, intvecvec& combilist, umpire::Allocator &alloc)
         {
             // Current cobination is ready, print it 
             if (index == r)
             {
-                intvec vec = new_intvec(r);
+                intvec vec = new_intvec_umpire(r, alloc);
                 for (int j = 0; j < r; j++)
                 {
                     //cout << data[j] << " ";
@@ -59,10 +60,10 @@ class Combinations_raw
                 return;
             // current is included, put next at next location 
             data[index] = arr[i];
-            combinationUtil(arr, n, r, index + 1, data, i + 1, combilist);
+            combinationUtil(arr, n, r, index + 1, data, i + 1, combilist, alloc);
             // current is excluded, replace it with next (Note that 
             // i+1 is passed, but index is not changed) 
-            combinationUtil(arr, n, r, index, data, i + 1, combilist);
+            combinationUtil(arr, n, r, index, data, i + 1, combilist, alloc);
         }
 
 

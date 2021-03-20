@@ -10,7 +10,7 @@
 #include "ADJ/find_Xneighbors.hpp"
 #include "ADJ/network_defs.hpp"
 #include "ADJ/create_network.hpp"
-#include "combinations.hpp"
+#include "combinations_raw.hpp"
 #include "class_definitions.hpp"
 //#include "ADJ/traversal.hpp"
 //#include <iostream>
@@ -34,7 +34,7 @@ public:
     return (n==0) || (n==1) ? 1 : n*fact(n-1);
   }
 
-  void find_combinations(int set[], int n, int size, intvecvec& output){
+  void find_combinations(int set[], int n, int size, intvecvec& output, umpire::Allocator &alloc){
      Combinations_raw c;
      c.getCombination(set, n, size, output);
   }
