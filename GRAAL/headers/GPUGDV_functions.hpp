@@ -30,17 +30,20 @@ class GDV_functions{
 public:
                                                                                                                    
   // Vector nodes should correspond to actual node labels, not node indices.
-  void inducedSubgraph(A_Network network, vector<int> nodes, A_Network& output)
+  void inducedSubgraph(A_Network_raw &network, intvec nodes, A_Network_raw& output)
   {
 
-    // Set up output for new subgraph.                                                                                                                                                                                                   
-    output.clear();
+    // Set up output for new subgraph. 
+
+    // The induced subgraph should probably be cleared outside of here,
+    // and its sublists freed up or recleared. For now, though, just clearing...
+    clear_adjlist(output);  
 
     // Create needed objects for function.                                                                                                                                                                                                   
-    int subgraph_nodes = nodes.size();
-    vector<int_double> neighbor_list;
-    ADJ_Bundle temp_bundle;
-    int_double temp_edge;
+    int subgraph_nodes = nodes.veclen;
+    edgevec neighbor_list;
+    Adjlist temp_bundle;
+    Edge temp_edge;
 
     // Check the neighbors of the subgraph nodes to determine where edges need to be.                                                                                                                                                        
     for (int i = 0; i < subgraph_nodes; i++) {
@@ -49,24 +52,27 @@ public:
       bool node_found = false;
       int graph_count = 0;
       while (!node_found) {
-	if (network[graph_count].Row == nodes[i]) {
+	if (network.vec[graph_count].Row == nodes.vec[i]) {
 	  node_found = true;
-	  neighbor_list = network[graph_count].ListW;
+	  neighbor_list.vec = network.vec[graph_count].ListW;
 	}
 	graph_count += 1;
       }
 
       // Ensure subgraph contains next node.              
-      temp_bundle.Row = nodes[i];
-      output.push_back(temp_bundle);
+      //temp_bundle.Row = nodes.vec[i];
+      pushback_adjlist(output, new_adjlist(subgraph_nodes, 0));
+      output.vec[output.veclen-1].Row=nodes.vec[i];
+      
 
       // Check which of the nodes[j] correspond to neighbors of nodes[i].
       for (int j = 0; j < subgraph_nodes; j++) {
-	for (int k = 0; k < neighbor_list.size(); k++) {
-	  if (neighbor_list[k].first == nodes[j]) {
-	    temp_edge.first = nodes[j];
-	    temp_edge.second = neighbor_list[k].second;
-	    output[i].ListW.push_back(temp_edge);
+	for (int k = 0; k < neighbor_list.veclen; k++) {
+	  if (neighbor_list.vec[k].first == nodes.vec[j]) {
+	    temp_edge.first = nodes.vec[j];
+	    temp_edge.second = neighbor_list.vec[k].second;
+            pushback_edgevec(output.vec[i].ListW, temp_edge);
+	    //output[i].ListW.push_back(temp_edge);
 	  }
 	}
       }
@@ -77,16 +83,15 @@ public:
   };
 
   // Evaluate whether network is a connected graph.  Store result in isConnected.                  
-  void isConnected(A_Network network, bool& isConnected)
+  void isConnected(A_Network_raw &network, bool& isConnected)
   {
-    A_Network spanning_tree;
-    vector<int> visited_nodes;
+    intvec visited_nodes = new_intvec(network.nodes_len);
 
-    if (!network.empty()) {
+    if (network.nodes_len != 0) {
       a_network_dir_dfs(network, visited_nodes);
       
       // Make connectedness check
-      if (visited_nodes.size() == network.size()) {
+      if (visited_nodes.veclen == network.nodes_len) {
 	isConnected = true;
       }
       else {
@@ -95,18 +100,18 @@ public:
     } else {
       cout << "Error in function isConnected: input variable network is empty." << endl;
     }
-
+    delete_intvec(visited_nodes);
     return;
   };
 
 
   // Calculate degree signature for network
-  void degree_signature(A_Network_raw network, intvec deg_sig)
+  void degree_signature(A_Network_raw &network, intvec &deg_sig)
   {
-    if (!network.empty()) {
-      deg_sig.clear();
-      for (int i = 0; i < network.size; i++) {
-	deg_sig.push_back(network[i].ListW.size);
+    if (network.nodes_len != 0) {
+      clear_intvec(deg_sig);
+      for (int i = 0; i < network.nodes_len; i++) {
+        pushback_intvec(deg_sig, network[i].ListW.veclen);
       }
     } else {
       cout << "Error in function degree_signature: input variable network is empty." << endl;
@@ -116,20 +121,27 @@ public:
   }
 
   // Calculate distance signature for network
-  void distance_signature(int node, A_Network network, vector<int> &dist_sig)
+  void distance_signature(int node, A_Network_raw &network, intvec &dist_sig)
   {
-    if (!network.empty()) {
+    if (network.nodes_len != 0) {
 
       // Start by calculating shortest paths in graph.
-      vector<int> shortest_paths;
+      
+      // This could be externally allocated
+      intvec shortest_paths;
+      shortest_paths = new_intvec(network.nodes_len);      
+
+      //vector<int> shortest_paths;
       dir_dfs_shortest_paths(node, network, shortest_paths);
 	
       // Then use the shortest paths to calculate the distance signature.
-      dist_sig.clear();
-      dist_sig.resize(6, 0);
-      for (int i = 0; i < shortest_paths.size(); i++) {
-	dist_sig[shortest_paths[i]] += 1;
+      clear_intvec(dist_sig);
+      
+      for (int i = 0; i < shortest_paths.veclen; i++) {
+	dist_sig.vec[shortest_paths.vec[i]] += 1;
       }
+
+      delete_intvec(shortest_paths);      
 
     } else {
       cout << "Error in function distance_signature: input variable network is empty." << endl;
