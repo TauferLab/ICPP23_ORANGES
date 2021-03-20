@@ -297,7 +297,7 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
             }
             delete_network(induced_sgraph);
     });
-    gdv.vec = res.move(gdv.vec, halloc);
+    gdv.vec = (int*) res.move(gdv.vec, halloc);
     std::copy(gdv.vec, gdv.vec+gdv.veclen, gdvMetric.GDV.begin());
     //gdvMetric.GDV  = gdv;
     gdvMetric.node = node;

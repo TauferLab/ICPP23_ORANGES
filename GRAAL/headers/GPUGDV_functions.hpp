@@ -39,7 +39,7 @@ class GPUGDV_functions
     }
 
     // Vector nodes should correspond to actual node labels, not node indices.
-    FIDO_HOST_DEVICE void inducedSubgraph_raw(A_Network_raw& network, intvec nodes,
+    FIDO_HOST_DEVICE void inducedSubgraph_raw(const A_Network_raw& network, intvec nodes,
                                               A_Network_raw& output) const
     {
         // Set up output for new subgraph.
