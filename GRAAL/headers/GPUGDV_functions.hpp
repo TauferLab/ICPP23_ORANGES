@@ -252,19 +252,20 @@ public:
       pushback_orbvec(filtered_orbits, orbits.vec[21]);
   }
 
+  FIDO_CONSTANT void (*subfunc_ptrs[5]) = {
+      orbit_filter_default,
+      orbit_filter_2,
+      orbit_filter_3,
+      orbit_filter_4,
+      orbit_filter_5
+  };
+
   FIDO_HOST_DEVICE void orbit_filter_raw(orbvec& orbits, int nodes, orbvec& filtered_orbits)
   {
-      void (*subfunc_ptrs[6]) (orbvec&, orbvec&);
-      subfunc_ptrs[0] = NULL;
-      subfunc_ptrs[1] = orbit_filter_default;
-      subfunc_ptrs[2] = orbit_filter_2;
-      subfunc_ptrs[3] = orbit_filter_3;
-      subfunc_ptrs[4] = orbit_filter_4;
-      subfunc_ptrs[5] = orbit_filter_5;
       if (nodes < 2 || nodes > 5) {
           nodes = 1;
       }
-      (*subfunc_ptrs[nodes])(orbits, filtered_orbits);
+      (*subfunc_ptrs[nodes-1])(orbits, filtered_orbits);
   }
 
 };
