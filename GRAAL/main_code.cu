@@ -254,7 +254,7 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
     // cout<<"total combinations are : "<<combinationsList.size()<<endl;
     //for (vector<int> combination : combinationsList)
 
-    RAJA::forall<inner_policy>(RAJA::RangeSegment(0,combinations_size),[node, raw_orbits, raw_Graph, combinationsList, gdv, ggdvf](int i){
+    RAJA::forall<inner_policy>(RAJA::RangeSegment(0,combinations_size),__global__ [node, raw_orbits, raw_Graph, combinationsList, gdv, ggdvf](int i){
             A_Network_raw induced_sgraph = new_network(6);
 
             //vector<int> subgraph_degree_signature;
