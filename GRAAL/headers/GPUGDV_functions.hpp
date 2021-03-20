@@ -287,7 +287,7 @@ class GPUGDV_functions
 
     FIDO_HOST_DEVICE void orbit_filter_raw(const orbvec& orbits, int nodes, orbvec& filtered_orbits) const
     {
-        typedef void (GPUGDV_functions::*GPUGDV_func_ptr)(const orbvec&, orbvec&);
+        typedef void (GPUGDV_functions::*GPUGDV_func_ptr)(const orbvec&, orbvec&) const;
         GPUGDV_func_ptr subfunc_ptrs[] = {
             &GPUGDV_functions::orbit_filter_default, &GPUGDV_functions::orbit_filter_2, 
             &GPUGDV_functions::orbit_filter_3, &GPUGDV_functions::orbit_filter_4, &GPUGDV_functions::orbit_filter_5
