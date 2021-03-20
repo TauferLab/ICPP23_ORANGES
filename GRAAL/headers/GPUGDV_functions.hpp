@@ -31,7 +31,7 @@ class GDV_functions{
 public:
                                                                                                                    
   // Vector nodes should correspond to actual node labels, not node indices.
-  void inducedSubgraph(A_Network_raw &network, intvec nodes, A_Network_raw& output)
+  void inducedSubgraph_raw(A_Network_raw &network, intvec nodes, A_Network_raw& output)
   {
 
     // Set up output for new subgraph. 
@@ -84,7 +84,7 @@ public:
   };
 
   // Evaluate whether network is a connected graph.  Store result in isConnected.                  
-  void isConnected(A_Network_raw &network, bool& isConnected)
+  void isConnected_raw(A_Network_raw &network, bool& isConnected)
   {
     intvec visited_nodes = new_intvec(network.nodes_len);
 
@@ -107,7 +107,7 @@ public:
 
 
   // Calculate degree signature for network
-  void degree_signature(A_Network_raw &network, intvec &deg_sig)
+  void degree_signature_raw(A_Network_raw &network, intvec &deg_sig)
   {
     if (network.nodes_len != 0) {
       clear_intvec(deg_sig);
@@ -122,7 +122,7 @@ public:
   }
 
   // Calculate distance signature for network
-  void distance_signature(int node, A_Network_raw &network, intvec &dist_sig)
+  void distance_signature_raw(int node, A_Network_raw &network, intvec &dist_sig)
   {
     if (network.nodes_len != 0) {
 
@@ -252,7 +252,7 @@ public:
       pushback_orbvec(filtered_orbits, orbits.vec[21]);
   }
 
-  void orbit_filter(orbvec& orbits, int nodes, orbvec& filtered_orbits)
+  void orbit_filter_raw(orbvec& orbits, int nodes, orbvec& filtered_orbits)
   {
       void (*subfunc_ptrs[6]) (orbvec&, orbvec&);
       subfunc_ptrs[0] = NULL;
