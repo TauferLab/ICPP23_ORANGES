@@ -13,7 +13,8 @@
 #include "combinations.hpp"
 #include "class_definitions.hpp"
 //#include "ADJ/traversal.hpp"
-#include <iostream>
+//#include <iostream>
+#include "stdio.h"
 #include "bfs.hpp"
 #include "print_disconnected_graph.hpp"
 #include "raw_vecs.hpp"
@@ -98,7 +99,7 @@ public:
 	isConnected = false;
       }
     } else {
-      cout << "Error in function isConnected: input variable network is empty." << endl;
+      printf("Error in function isConnected: input variable network is empty.\n");
     }
     delete_intvec(visited_nodes);
     return;
@@ -114,7 +115,7 @@ public:
         pushback_intvec(deg_sig, network[i].ListW.veclen);
       }
     } else {
-      cout << "Error in function degree_signature: input variable network is empty." << endl;
+      printf("Error in function degree_signature: input variable network is empty.\n");
     }
 
     return;
@@ -128,8 +129,7 @@ public:
       // Start by calculating shortest paths in graph.
       
       // This could be externally allocated
-      intvec shortest_paths;
-      shortest_paths = new_intvec(network.nodes_len);      
+      intvec shortest_paths = new_intvec(network.nodes_len);      
 
       //vector<int> shortest_paths;
       dir_dfs_shortest_paths(node, network, shortest_paths);
@@ -144,7 +144,7 @@ public:
       delete_intvec(shortest_paths);      
 
     } else {
-      cout << "Error in function distance_signature: input variable network is empty." << endl;
+      printf("Error in function distance_signature: input variable network is empty.\n");
     }
     return;
   }

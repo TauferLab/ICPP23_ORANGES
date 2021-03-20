@@ -78,7 +78,7 @@ void a_network_dir_dfs_raw(A_Network_raw& network, intvec& visited)
 	visited_counter = 0;
 	//while (!bfs_visited && (visited_counter < visited.size())) {
 	while (!bfs_visited && (visited_counter < visited.veclen)) {
-	  if (network[i].Row == visited.vec[visited_counter]) {
+	  if (network.vec[i].Row == visited.vec[visited_counter]) {
 	    bfs_visited = true;
 	  }
 	  visited_counter += 1;

@@ -140,6 +140,12 @@ void delete_network(A_Network_raw& net) {
     net.nodes_len = 0;
 }
 
+void delete_orbitmetric(OrbitMetric_raw& orb) {
+    delete_intvec(orb.orbitDegree);
+    delete_intvec(orb.orbitDistance);
+    orb.orbitNumber = 0;
+}
+
 void delete_orbvec(orbvec& vec) {
     free(vec.vec);
     vec.vec = NULL;
@@ -175,14 +181,26 @@ void clear_intvec(intvec &vec){
 }
 
 void clear_adjlist(A_Network_raw &vec){
+  for (int i = 0; i < vec.nodes_len; i++)
+  {
+      delete_adjlist(vec.vec[i]);
+  }
   vec.nodes_len = 0;
 }
 
 void clear_intvecvec(intvecvec &vec){
+  for (int i = 0; i < vec.veclen; i++)
+  {
+      delete_intvec(vec.vec[i]);
+  }
   vec.veclen = 0;
 }
 
 void clear_orbvec(orbvec &vec){
+  for (int i = 0; i < vec.veclen; i++)
+  {
+      delete_orbitmetric(vec.vec[i]);
+  }
   vec.veclen = 0;
 }
 
@@ -211,6 +229,30 @@ void popback_orbvec(orbvec &vec){
   vec.vec[--vec.veclen].orbitNumber = 0;
   clear_intvec(vec.vec[vec.veclen].orbitDegree);
   clear_intvec(vec.vec[vec.veclen].orbitDistance);
+}
+
+void copy_intvec(intvec& src, intvec& dst) {
+    for (int i = 0; i < src.veclen; i++)
+    {
+        dst.vec[i] = src.vec[i];
+    }
+    dst.veclen = src.veclen;
+}
+
+void copy_intvecvec(intvecvec& src, intvecvec& dst) {
+    for (int i = 0; i < src.veclen; i++)
+    {
+        copy_intvec(src.vec[i], dst.vec[i]);
+    }
+    dst.veclen = src.veclen;
+}
+
+void copy_edgevec(edgevec& src, edgevec& dst) {
+    for (int i = 0; i < src.veclen; i++)
+    {
+        dst.vec[i] = src.vec[i];
+    }
+    dst.veclen = src.veclen;
 }
 
 #endif
