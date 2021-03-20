@@ -201,8 +201,8 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
     GDV_functions gdvf;
     GPUGDV_functions ggdvf;
     intvecvec combinationsList;
-    // vector<int> gdv(orbits.size(),0);
-    intvec gdv = new_intvec(orbits.size());
+    //vector<int> gdv(orbits.size(),0);
+    intvec gdv = new_intvec_umpire(orbits.size(), res.getAllocator("HOST"));
     res.memset(gdv.vec, 0, orbits.size());
     // printf("calculating GDV for node %d\n",node);
     vector<int> neighbours;
@@ -212,16 +212,16 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
     std::copy(neighbours.begin(), neighbours.end(), set);
     int numElements       = *(&set + 1) - set;
     int combinations_size = 0;
-    for (int node_count = 1; node_count < 5; node_count++)
-    {
-        combinations_size +=
-            ((fact(neighbours.size())) / (node_count * fact(neighbours.size() - node_count))) +
+    for (int node_count = 1; node_count < 5; node_count++){
+	combinations_size += ((fact(neighbours.size()))/(node_count*fact(neighbours.size()-node_count)));
     }
-    combinataionsList = new_intvecvec(combinations_size);
+    combinationsList = new_intvecvec_umpire(combinations_size, res.getAllocator("HOST"));
     for (int node_count = 1; node_count < 5; node_count++)
     {
         ggdvf.find_combinations(set, numElements, node_count, &combinationsList);
     }
+
+
     // cout<<"Node count is "<<node_count<<endl;
     // cout<<"total combinations are : "<<combinationsList.size()<<endl;
     for (vector<int> combination : combinationsList)
