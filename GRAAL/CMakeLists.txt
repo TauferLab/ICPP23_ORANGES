@@ -19,6 +19,7 @@ set(FIDO_HEADERS
 
 set(CMAKE_CUDA_STANDARD 11)
 set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+set(CMAKE_CUDA_FLAGS "${CMAKE_CUDA_FLAGS} --expt-extended-lambda")
 
 add_executable(fido main_code.cu ${FIDO_HEADERS})
 target_include_directories(fido PUBLIC
