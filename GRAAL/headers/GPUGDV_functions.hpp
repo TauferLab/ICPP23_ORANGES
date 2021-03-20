@@ -32,7 +32,7 @@ class GPUGDV_functions
     public:
     int fact(int n) { return (n == 0) || (n == 1) ? 1 : n * fact(n - 1); }
 
-    void find_combinations(int set[], int n, int size, intvecvec& output, umpire::Allocator& alloc)
+    void find_combinations_raw(int set[], int n, int size, intvecvec& output, umpire::Allocator& alloc)
     {
         Combinations_raw c;
         c.getCombination(set, n, size, output, alloc);
@@ -280,13 +280,17 @@ class GPUGDV_functions
         pushback_orbvec(filtered_orbits, orbits.vec[21]);
     }
 
-    FIDO_CONSTANT void(*subfunc_ptrs[5])(orbvec&, orbvec&) = {
-        orbit_filter_default, orbit_filter_2, orbit_filter_3,
-        orbit_filter_4, orbit_filter_5
-    };
+    //FIDO_CONSTANT void(*subfunc_ptrs[5])(orbvec&, orbvec&) = {
+    //    orbit_filter_default, orbit_filter_2, orbit_filter_3,
+    //    orbit_filter_4, orbit_filter_5
+    //};
 
     FIDO_HOST_DEVICE void orbit_filter_raw(orbvec& orbits, int nodes, orbvec& filtered_orbits)
     {
+        void(*subfunc_ptrs[5])(orbvec&,orbvec&) = {
+            orbit_filter_default, orbit_filter_2, orbit_filter_3,
+            orbit_filter_4, orbit_filter_5
+        };
         if (nodes < 2 || nodes > 5)
         {
             nodes = 1;
