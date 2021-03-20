@@ -95,6 +95,7 @@ void a_network_dir_dfs_raw(A_Network_raw& network, intvec& visited)
   //visited.push_back(network[head].Row);
   pushback_intvec(visited, network.vec[head].Row);
   }
+  delete_intvec(queue);
   return;
 
 }
@@ -174,6 +175,7 @@ void dir_dfs_shortest_paths_raw(int node, A_Network_raw& network, intvec& distan
     }
 
   }
+  delete_intvec(queue);
   return;
 
 }
