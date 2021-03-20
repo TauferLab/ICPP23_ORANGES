@@ -26,7 +26,7 @@ using namespace std;
 
 #pragma once
 
-class GDV_functions{
+class GPUGDV_functions{
 
 public:
                                                                                                                    
