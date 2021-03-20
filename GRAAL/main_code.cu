@@ -3,6 +3,7 @@
 #include "ADJ/find_Xneighbors.hpp"
 #include "RAJA/RAJA.hpp"
 #include "RAJA/policy/cuda/policy.hpp"
+#include "RAJA/util/sort.hpp"
 #include <umpire/ResourceManager.hpp>
 #include "headers/GDV_functions.hpp"
 #include "headers/GPUGDV_functions.hpp"
@@ -278,9 +279,13 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
             {
                 OrbitMetric_raw orbit = filter_orbits.vec[i];
                 //sort(orbit.orbitDegree.begin(), orbit.orbitDegree.end());
-                RAJA::sort<inner_policy>(orbit.orbitDegree.vec, orbit.orbitDegree.vec+orbit.orbitDegree.veclen);
+                //RAJA::sort<inner_policy>(orbit.orbitDegree.vec, orbit.orbitDegree.vec+orbit.orbitDegree.veclen);
+                RAJA::detail::intro_sort(orbit.orbitDegree.vec, orbit.orbitDegree.vec+orbit.orbitDegree.veclen, 
+                        [] FIDO_DEVICE (int a, int b){return a < b;}, 10);
                 //sort(subgraph_degree_signature.begin(), subgraph_degree_signature.end());
-                RAJA::sort<inner_policy>(subgraph_degree_signature.vec, subgraph_degree_signature.vec+subgraph_degree_signature.veclen);
+                //RAJA::sort<inner_policy>(subgraph_degree_signature.vec, subgraph_degree_signature.vec+subgraph_degree_signature.veclen);
+                RAJA::detail::intro_sort(subgraph_degree_signature.vec, subgraph_degree_signature.vec+subgraph_degree_signature.veclen,
+                        [] FIDO_DEVICE (int a, int b){return a < b;}, 10);
                 if (eq_intvec(orbit.orbitDistance, subgraph_distance_signature) &&
                         eq_intvec(orbit.orbitDegree, subgraph_degree_signature))
                 {
