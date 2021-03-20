@@ -60,7 +60,7 @@ FIDO_HOST_DEVICE void a_network_dir_dfs_raw(A_Network_raw& network, intvec& visi
             // while (!is_neighbor && (neighbor_counter < network[head].ListW.size())) {
             while (!is_neighbor && (neighbor_counter < network.vec[head].ListW.veclen))
             {
-                if (network.vec[head].ListW[neighbor_counter].first == network.vec[i].Row)
+                if (network.vec[head].ListW.vec[neighbor_counter].first == network.vec[i].Row)
                 {
                     is_neighbor = true;
                     // found_neighbor = i;

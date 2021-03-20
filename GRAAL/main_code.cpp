@@ -2,6 +2,7 @@
 
 #include "ADJ/find_Xneighbors.hpp"
 #include "RAJA/RAJA.hpp"
+#include <umpire/ResourceManager.hpp>
 #include "headers/GDV_functions.hpp"
 #include "headers/GPUGDV_functions.hpp"
 #include "headers/class_definitions.hpp"
@@ -23,7 +24,7 @@ double GDV_distance_calculation(GDVMetric gdvm1, GDVMetric gdvm2);
 void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network graph2,
         vector<OrbitMetric> orbits, int p);
 using namespace std;
-using inner_policy = RAJA::policy::cuda::cuda_exec<256>;
+using inner_policy = RAJA::cuda_exec<256>;
 using outer_policy = RAJA::seq_exec;
 
 int main(int argc, char* argv[])
@@ -223,12 +224,12 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
 
     int combinations_size = 0;
     for (int node_count = 1; node_count < 5; node_count++){
-        combinations_size += ((ggdv.fact(neighbours.size()))/(ggdv.fact(node_count)*ggdv.fact(neighbours.size()-node_count)));
+        combinations_size += ((ggdvf.fact(neighbours.size()))/(ggdvf.fact(node_count)*ggdvf.fact(neighbours.size()-node_count)));
     }
     combinationsList = new_intvecvec_umpire(combinations_size, halloc);
     for (int node_count = 1; node_count < 5; node_count++)
     {
-        ggdvf.find_combinations_raw(set, numElements, node_count, &combinationsList);
+        ggdvf.find_combinations_raw(&set[0], numElements, node_count, &combinationsList);
     }
 
     for(int i = 0; i < combinations_size; i++){

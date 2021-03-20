@@ -30,9 +30,9 @@ using namespace std;
 class GPUGDV_functions
 {
     public:
-    int fact(int n) { return (n == 0) || (n == 1) ? 1 : n * fact(n - 1); }
+    int fact(int n) const { return (n == 0) || (n == 1) ? 1 : n * fact(n - 1); }
 
-    void find_combinations_raw(int set[], int n, int size, intvecvec& output, umpire::Allocator& alloc)
+    void find_combinations_raw(int set[], int n, int size, intvecvec& output, umpire::Allocator& alloc) const
     {
         Combinations_raw c;
         c.getCombination(set, n, size, output, alloc);
@@ -40,7 +40,7 @@ class GPUGDV_functions
 
     // Vector nodes should correspond to actual node labels, not node indices.
     FIDO_HOST_DEVICE void inducedSubgraph_raw(A_Network_raw& network, intvec nodes,
-                                              A_Network_raw& output)
+                                              A_Network_raw& output) const
     {
         // Set up output for new subgraph.
 
@@ -52,7 +52,7 @@ class GPUGDV_functions
         int subgraph_nodes = nodes.veclen;
         edgevec neighbor_list;
         Adjlist temp_bundle;
-        Edge temp_edge;
+        Edge_raw temp_edge;
 
         // Check the neighbors of the subgraph nodes to determine where edges need to be.
         for (int i = 0; i < subgraph_nodes; i++)
@@ -96,7 +96,7 @@ class GPUGDV_functions
     };
 
     // Evaluate whether network is a connected graph.  Store result in isConnected.
-    FIDO_HOST_DEVICE void isConnected_raw(A_Network_raw& network, bool& isConnected)
+    FIDO_HOST_DEVICE void isConnected_raw(A_Network_raw& network, bool& isConnected) const
     {
         intvec visited_nodes = new_intvec(network.nodes_len);
 
@@ -124,7 +124,7 @@ class GPUGDV_functions
 
 
     // Calculate degree signature for network
-    FIDO_HOST_DEVICE void degree_signature_raw(A_Network_raw& network, intvec& deg_sig)
+    FIDO_HOST_DEVICE void degree_signature_raw(A_Network_raw& network, intvec& deg_sig) const
     {
         if (network.nodes_len != 0)
         {
@@ -143,7 +143,7 @@ class GPUGDV_functions
     }
 
     // Calculate distance signature for network
-    FIDO_HOST_DEVICE void distance_signature_raw(int node, A_Network_raw& network, intvec& dist_sig)
+    FIDO_HOST_DEVICE void distance_signature_raw(int node, A_Network_raw& network, intvec& dist_sig) const
     {
         if (network.nodes_len != 0)
         {
@@ -172,13 +172,13 @@ class GPUGDV_functions
         return;
     }
 
-    FIDO_HOST_DEVICE void orbit_filter_2(orbvec& orbits, orbvec& filtered_orbits)
+    FIDO_HOST_DEVICE void orbit_filter_2(orbvec& orbits, orbvec& filtered_orbits) const
     {
         // filtered_orbits.push_back(orbits[0]);
         pushback_orbvec(filtered_orbits, orbits.vec[0]);
     }
 
-    FIDO_HOST_DEVICE void orbit_filter_3(orbvec& orbits, orbvec& filtered_orbits)
+    FIDO_HOST_DEVICE void orbit_filter_3(orbvec& orbits, orbvec& filtered_orbits) const
     {
         // filtered_orbits.push_back(orbits[1]);
         pushback_orbvec(filtered_orbits, orbits.vec[1]);
@@ -188,7 +188,7 @@ class GPUGDV_functions
         pushback_orbvec(filtered_orbits, orbits.vec[3]);
     }
 
-    FIDO_HOST_DEVICE void orbit_filter_4(orbvec& orbits, orbvec& filtered_orbits)
+    FIDO_HOST_DEVICE void orbit_filter_4(orbvec& orbits, orbvec& filtered_orbits) const
     {
         // filtered_orbits.push_back(orbits[4]);
         pushback_orbvec(filtered_orbits, orbits.vec[4]);
@@ -214,7 +214,7 @@ class GPUGDV_functions
         pushback_orbvec(filtered_orbits, orbits.vec[14]);
     }
 
-    FIDO_HOST_DEVICE void orbit_filter_5(orbvec& orbits, orbvec& filtered_orbits)
+    FIDO_HOST_DEVICE void orbit_filter_5(orbvec& orbits, orbvec& filtered_orbits) const
     {
         // filtered_orbits.push_back(orbits[15]);
         pushback_orbvec(filtered_orbits, orbits.vec[15]);
@@ -232,7 +232,7 @@ class GPUGDV_functions
         pushback_orbvec(filtered_orbits, orbits.vec[21]);
     }
 
-    FIDO_HOST_DEVICE void orbit_filter_default(orbvec& orbits, orbvec& filtered_orbits)
+    FIDO_HOST_DEVICE void orbit_filter_default(orbvec& orbits, orbvec& filtered_orbits) const
     {
         // filtered_orbits.push_back(orbits[0]);
         pushback_orbvec(filtered_orbits, orbits.vec[0]);
@@ -285,17 +285,17 @@ class GPUGDV_functions
     //    orbit_filter_4, orbit_filter_5
     //};
 
-    FIDO_HOST_DEVICE void orbit_filter_raw(orbvec& orbits, int nodes, orbvec& filtered_orbits)
+    FIDO_HOST_DEVICE void orbit_filter_raw(const orbvec& orbits, int nodes, orbvec& filtered_orbits) const
     {
         void(*subfunc_ptrs[5])(orbvec&,orbvec&) = {
-            orbit_filter_default, orbit_filter_2, orbit_filter_3,
-            orbit_filter_4, orbit_filter_5
+            &GPUGDV_functions::orbit_filter_default, &GPUGDV_functions::orbit_filter_2, 
+            &GPUGDV_functions::orbit_filter_3, &GPUGDV_functions::orbit_filter_4, &GPUGDV_functions::orbit_filter_5
         };
         if (nodes < 2 || nodes > 5)
         {
             nodes = 1;
         }
-        (*subfunc_ptrs[nodes - 1])(orbits, filtered_orbits);
+        (this->*subfunc_ptrs[nodes - 1])(orbits, filtered_orbits);
     }
 };
 
