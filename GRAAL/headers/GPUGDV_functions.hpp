@@ -65,7 +65,7 @@ class GPUGDV_functions
                 if (network.vec[graph_count].Row == nodes.vec[i])
                 {
                     node_found        = true;
-                    neighbor_list.vec = network.vec[graph_count].ListW;
+                    neighbor_list.vec = network.vec[graph_count].ListW.vec;
                 }
                 graph_count += 1;
             }
@@ -73,7 +73,7 @@ class GPUGDV_functions
             // Ensure subgraph contains next node.
             // temp_bundle.Row = nodes.vec[i];
             pushback_adjlist(output, new_adjlist(subgraph_nodes, 0));
-            output.vec[output.veclen - 1].Row = nodes.vec[i];
+            output.vec[output.nodes_len - 1].Row = nodes.vec[i];
 
 
             // Check which of the nodes[j] correspond to neighbors of nodes[i].
@@ -131,7 +131,7 @@ class GPUGDV_functions
             clear_intvec(deg_sig);
             for (int i = 0; i < network.nodes_len; i++)
             {
-                pushback_intvec(deg_sig, network[i].ListW.veclen);
+                pushback_intvec(deg_sig, network.vec[i].ListW.veclen);
             }
         }
         else
@@ -280,8 +280,10 @@ class GPUGDV_functions
         pushback_orbvec(filtered_orbits, orbits.vec[21]);
     }
 
-    FIDO_CONSTANT void(*subfunc_ptrs[5]) = {orbit_filter_default, orbit_filter_2, orbit_filter_3,
-                                            orbit_filter_4, orbit_filter_5};
+    FIDO_CONSTANT void(*subfunc_ptrs[5])(orbvec&, orbvec&) = {
+        orbit_filter_default, orbit_filter_2, orbit_filter_3,
+        orbit_filter_4, orbit_filter_5
+    };
 
     FIDO_HOST_DEVICE void orbit_filter_raw(orbvec& orbits, int nodes, orbvec& filtered_orbits)
     {

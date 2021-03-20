@@ -23,7 +23,7 @@ double GDV_distance_calculation(GDVMetric gdvm1, GDVMetric gdvm2);
 void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network graph2,
                                                   vector<OrbitMetric> orbits, int p);
 using namespace std;
-using inner_policy = RAJA::cuda_exec<256>;
+using inner_policy = RAJA::policy::cuda::cuda_exec<256>;
 using outer_policy = RAJA::seq_exec;
 
 int main(int argc, char* argv[])
@@ -179,7 +179,7 @@ void GDV_vector_calculation(A_Network graph, vector<GDVMetric>* graph_GDV,
 {
     // omp_set_num_threads(p);
     //#pragma omp parallel for num_threads(p) schedule(static)
-    RAJA::forall<outer_exec>(RAJA::RangeSegment(0, graph.size()), [&](int i) {
+    RAJA::forall<outer_policy>(RAJA::RangeSegment(0, graph.size()), [&](int i) {
         ADJ_Bundle node = graph[i];
         vector<int> GDV_1;
         GDVMetric gdvMetric(node.Row, GDV_1);
@@ -252,7 +252,7 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
     // cout<<"total combinations are : "<<combinationsList.size()<<endl;
     //for (vector<int> combination : combinationsList)
     	    
-    RAJA::forall<inner_exec>(RAJA::RangeSegment(0,combinations_size),[node, raw_orbits, raw_Graph, combinationsList, gdv, ggdvf](int i){
+    RAJA::forall<inner_policy>(RAJA::RangeSegment(0,combinations_size),[node, raw_orbits, raw_Graph, combinationsList, gdv, ggdvf](int i){
         A_Network_raw induced_sgraph = new_network(6);
 
         //vector<int> subgraph_degree_signature;

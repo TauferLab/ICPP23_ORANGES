@@ -18,7 +18,7 @@
 #endif
 
 // int_double
-struct Edge
+struct Edge_raw
 {
     int first;
     double second;
@@ -34,7 +34,7 @@ struct intvec
 // vector<int_double>
 struct edgevec
 {
-    Edge* vec;
+    Edge_raw* vec;
     int veclen;
 };
 
@@ -96,7 +96,7 @@ intvec new_intvec_umpire(int cap, umpire::Allocator& alloc)
 FIDO_HOST_DEVICE edgevec new_edgevec(int cap)
 {
     edgevec new_vec;
-    new_vec.vec    = (Edge*) malloc(cap * sizeof(struct Edge));
+    new_vec.vec    = (Edge_raw*) malloc(cap * sizeof(struct Edge_raw));
     new_vec.veclen = 0;
     return new_vec;
 }
@@ -104,7 +104,7 @@ FIDO_HOST_DEVICE edgevec new_edgevec(int cap)
 edgevec new_edgevec_umpire(int cap, umpire::Allocator& alloc)
 {
     edgevec new_vec;
-    new_vec.vec    = static_cast<Edge*>(alloc.allocate(cap * sizeof(struct Edge)));
+    new_vec.vec    = static_cast<Edge_raw*>(alloc.allocate(cap * sizeof(struct Edge_raw)));
     new_vec.veclen = 0;
     return new_vec;
 }
@@ -282,7 +282,7 @@ void delete_orbvec_umpire(orbvec& vec, umpire::Allocator& alloc)
     vec.veclen = 0;
 }
 
-FIDO_HOST_DEVICE void pushback_edgevec(edgevec& vec, Edge in)
+FIDO_HOST_DEVICE void pushback_edgevec(edgevec& vec, Edge_raw in)
 {
     vec.vec[vec.veclen++] = in;
 }
@@ -426,8 +426,9 @@ void stdnet_to_rawnet(A_Network& stdnet, A_Network_raw& rawnet, umpire::Allocato
     {
         pushback_adjlist(rawnet, new_adjlist_umpire(node.ListW.size(), 0, alloc));
         rawnet.vec[rawnet.nodes_len - 1].Row = node.Row;
-        memcpy(rawnet.vec[rawnet.nodes_len - 1].ListW, node.ListW.data(),
-               node.ListW.size() * sizeof(Edge));
+        memcpy(rawnet.vec[rawnet.nodes_len - 1].ListW.vec, node.ListW.data(),
+               node.ListW.size() * sizeof(Edge_raw));
+        rawnet.vec[rawnet.nodes_len - 1].ListW.veclen = node.ListW.size();
     }
 }
 
@@ -440,9 +441,9 @@ void stdorb_to_raworb(vector<OrbitMetric>& stdorb, orbvec& raworb, umpire::Alloc
         tmp.orbitDegree   = new_intvec_umpire(node.orbitDegree.size(), alloc);
         tmp.orbitDistance = new_intvec_umpire(node.orbitDistance.size(), alloc);
         tmp.orbitNumber   = node.orbitNumber;
-        memcpy(tmp.orbitDegree.vec, node.OrbitDegree.data(), node.OrbitDegree.size() * sizeof(int));
-        memcpy(tmp.orbitDistance.vec, node.OrbitDistance.data(),
-               node.OrbitDistance.size() * sizeof(int));
+        memcpy(tmp.orbitDegree.vec, node.orbitDegree.data(), node.orbitDegree.size() * sizeof(int));
+        memcpy(tmp.orbitDistance.vec, node.orbitDistance.data(),
+               node.orbitDistance.size() * sizeof(int));
         pushback_orbvec(raworb, tmp);
     }
 }
