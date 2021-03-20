@@ -2,6 +2,7 @@
 
 #include "ADJ/find_Xneighbors.hpp"
 #include "RAJA/RAJA.hpp"
+#include "RAJA/policy/cuda/policy.hpp"
 #include <umpire/ResourceManager.hpp>
 #include "headers/GDV_functions.hpp"
 #include "headers/GPUGDV_functions.hpp"
@@ -24,7 +25,7 @@ double GDV_distance_calculation(GDVMetric gdvm1, GDVMetric gdvm2);
 void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network graph2,
         vector<OrbitMetric> orbits, int p);
 using namespace std;
-using inner_policy = RAJA::cuda_exec<256>;
+using inner_policy = RAJA::policy::cuda::cuda_exec<256>;
 using outer_policy = RAJA::seq_exec;
 
 int main(int argc, char* argv[])
