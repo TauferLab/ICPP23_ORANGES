@@ -36,7 +36,7 @@ public:
 
   void find_combinations(int set[], int n, int size, intvecvec& output, umpire::Allocator &alloc){
      Combinations_raw c;
-     c.getCombination(set, n, size, output);
+     c.getCombination(set, n, size, output, alloc);
   }
 
   // Vector nodes should correspond to actual node labels, not node indices.
