@@ -30,7 +30,7 @@ using namespace std;
 class GPUGDV_functions
 {
     public:
-    int fact(int n) const { return (n == 0) || (n == 1) ? 1 : n * fact(n - 1); }
+    int fact(int n) const { return (n > 1) ? n * fact(n - 1) : 1; }
 
     void find_combinations_raw(int set[], int n, int size, intvecvec& output, umpire::Allocator& alloc) const
     {
