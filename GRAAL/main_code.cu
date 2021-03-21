@@ -16,7 +16,7 @@
 #include <math.h>
 #include <time.h>
 
-void Calculate_GDV(int, A_Network, vector<OrbitMetric>&, GDVMetric&);
+void Calculate_GDV(int, A_Network, vector<OrbitMetric>&, GDVMetric&, umpire::ResourceManager&);
 void readin_orbits(ifstream*, vector<OrbitMetric>*);
 void convert_string_vector_int(string*, vector<int>*, string);
 void GDV_vector_calculation(A_Network graph, vector<GDVMetric>* graph_GDV,
@@ -180,6 +180,7 @@ void metric_formula(GDVMetric gdvm, double* gdv_score)
 void GDV_vector_calculation(A_Network graph, vector<GDVMetric>* graph_GDV,
         vector<OrbitMetric> orbits, int p)
 {
+    umpire::ResourceManager& res = umpire::ResourceManager::getInstance();
     // omp_set_num_threads(p);
     //#pragma omp parallel for num_threads(p) schedule(static)
     RAJA::forall<outer_policy>(RAJA::RangeSegment(0, graph.size()), [&](int i) {
@@ -199,9 +200,9 @@ void GDV_vector_calculation(A_Network graph, vector<GDVMetric>* graph_GDV,
     // graph_GDV->push_back(gdvMetric);
     // }
 }
-void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMetric& gdvMetric)
+void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMetric& gdvMetric, umpire::ResourceManager& res)
 {
-    auto& res = umpire::ResourceManager::getInstance();
+    //auto& res = umpire::ResourceManager::getInstance();
     umpire::Allocator halloc = res.getAllocator("HOST");
     umpire::Allocator dalloc = res.getAllocator("DEVICE");
     GDV_functions gdvf;
