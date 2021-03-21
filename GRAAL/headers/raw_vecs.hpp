@@ -424,7 +424,7 @@ void stdnet_to_rawnet(A_Network& stdnet, A_Network_raw& rawnet, umpire::Allocato
     rawnet = new_network_umpire(stdnet.size(), alloc);
     for (ADJ_Bundle& node : stdnet)
     {
-        pushback_adjlist(rawnet, new_adjlist_umpire(node.ListW.size(), 0, alloc));
+        pushback_adjlist(rawnet, new_adjlist_umpire(node.ListW.size(), 1, alloc));
         rawnet.vec[rawnet.nodes_len - 1].Row = node.Row;
         memcpy(rawnet.vec[rawnet.nodes_len - 1].ListW.vec, node.ListW.data(),
                node.ListW.size() * sizeof(Edge_raw));
