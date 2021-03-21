@@ -306,6 +306,20 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
     std::copy(gdv.vec, gdv.vec+gdv.veclen, gdvMetric.GDV.begin());
     //gdvMetric.GDV  = gdv;
     gdvMetric.node = node;
+    intvec gdv = delete_intvec_umpire(orbits.size(), dalloc);
+    for(int i = 0; i < combinations_size; i++){
+        delete_intvec_umpire(combinationsList.vec[i].vec, dalloc);
+    }
+    delete_intvecvec_umpire(combinationsList.vec, dalloc);
+    for(int i = 0; i < raw_Graph.nodes_len; i++){
+        delete_adjlist_umpire(raw_Graph.vec[i], dalloc);
+    }
+    delete_network_umpire(raw_Graph, dalloc);
+
+    for(int i = 0; i < raw_orbits.veclen; i++){
+        delete_orbitmetric_umpire(raw_orbits.vec[i], dalloc);
+    }
+    delete_orbvec_umpire(raw_orbits, dalloc);
 }
 
 // This method takes the file and converts it into orbits and saves in output
