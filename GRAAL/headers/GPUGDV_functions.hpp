@@ -32,6 +32,13 @@ class GPUGDV_functions
     public:
     int fact(int n) const { return (n > 1) ? n * fact(n - 1) : 1; }
 
+    int combination(int n, int r) const
+    {
+        int numerator = fact(n);
+        int denominator = fact(r) * fact(n - r);
+        return numerator / denominator;
+    }
+
     void find_combinations_raw(int set[], int n, int size, intvecvec& output, umpire::Allocator& alloc) const
     {
         Combinations_raw c;
