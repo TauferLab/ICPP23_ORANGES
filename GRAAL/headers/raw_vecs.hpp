@@ -302,6 +302,10 @@ FIDO_HOST_DEVICE void pushback_adjlist(A_Network_raw& vec, Adjlist in)
 FIDO_HOST_DEVICE void pushback_intvecvec(intvecvec& vec, intvec in)
 {
     vec.vec[vec.veclen++] = in;
+    printf("Input Ptr = %p\n", in.vec);
+    printf("Input Len = %d\n", in.veclen);
+    printf("Saved Ptr = %p\n", vec.vec[vec.veclen].vec);
+    printf("Saved Len = %d\n", vec.vec[vec.veclen].veclen);
 }
 
 FIDO_HOST_DEVICE void pushback_orbvec(orbvec& vec, OrbitMetric_raw in)
