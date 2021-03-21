@@ -21,9 +21,9 @@ FIDO_HOST_DEVICE void a_network_dir_dfs_raw(A_Network_raw& network, intvec& visi
 
     // Make variables for containing checks
     bool bfs_visited;
-    int visited_counter;
+    FIDO_SIZE_TYPE visited_counter;
     bool is_neighbor;
-    int neighbor_counter;
+    FIDO_SIZE_TYPE neighbor_counter;
 
     // Loop through rest of network
     // while (!queue.empty()) {
@@ -39,7 +39,7 @@ FIDO_HOST_DEVICE void a_network_dir_dfs_raw(A_Network_raw& network, intvec& visi
 
         // Search through possible neighbors of the head
         // for (int i = 0; i < network.size(); i++) {
-        for (int i = 0; i < network.nodes_len; i++)
+        for (FIDO_SIZE_TYPE i = 0; i < network.nodes_len; i++)
         {
             // Check if network[i] corresponds to an in or out neighbor of network[head]
             is_neighbor      = false;
@@ -112,10 +112,10 @@ FIDO_HOST_DEVICE void dir_dfs_shortest_paths_raw(int node, A_Network_raw& networ
 {
     // Set up distance vector
     // distance.clear();
-    int node_index;
+    FIDO_SIZE_TYPE node_index;
     // distance.resize(network.size());
     distance.veclen = network.nodes_len;
-    for (int i = 0; i < distance.veclen; i++)
+    for (FIDO_SIZE_TYPE i = 0; i < distance.veclen; i++)
     {
         distance.vec[i] = distance.veclen + 2;
         if (network.vec[i].Row == node)
@@ -134,7 +134,7 @@ FIDO_HOST_DEVICE void dir_dfs_shortest_paths_raw(int node, A_Network_raw& networ
     int neighbor_index;
 
     bool is_neighbor;
-    int neighbor_counter;
+    FIDO_SIZE_TYPE neighbor_counter;
 
     // Loop through rest of network
     // while (!queue.empty()) {
@@ -149,7 +149,7 @@ FIDO_HOST_DEVICE void dir_dfs_shortest_paths_raw(int node, A_Network_raw& networ
 
         // Update system if path to neighbor is longer than the distance to the current node + 1
         // for (int i = 0; i < network.size(); i++) {
-        for (int i = 0; i < network.nodes_len; i++)
+        for (FIDO_SIZE_TYPE i = 0; i < network.nodes_len; i++)
         {
             // Check if network[i] corresponds to an in or out neighbor of network[head]
             is_neighbor      = false;

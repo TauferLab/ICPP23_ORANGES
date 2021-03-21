@@ -224,7 +224,7 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
     std::copy(neighbours.begin(), neighbours.end(), set);
     int numElements       = *(&set + 1) - set;
 
-    int combinations_size = 0;
+    FIDO_SIZE_TYPE combinations_size = 0;
     for (int node_count = 1; node_count <= 5; node_count++){
        combinations_size += ggdvf.combination(neighbours.size(), node_count);
     }
@@ -235,18 +235,18 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
         ggdvf.find_combinations_raw(&set[0], numElements, node_count, combinationsList, halloc);
     }
 
-    for(int i = 0; i < combinationsList.veclen; i++){
+    for(FIDO_SIZE_TYPE i = 0; i < combinationsList.veclen; i++){
         combinationsList.vec[i].vec = (int*) res.move(combinationsList.vec[i].vec, dalloc);
     }
     combinationsList.vec = (intvec*) res.move(combinationsList.vec, dalloc);
 
-    for(int i = 0; i < raw_Graph.nodes_len; i++){
+    for(FIDO_SIZE_TYPE i = 0; i < raw_Graph.nodes_len; i++){
         raw_Graph.vec[i].ListW.vec = (Edge_raw*) res.move(raw_Graph.vec[i].ListW.vec, dalloc);
         raw_Graph.vec[i].Ops.vec = (int*) res.move(raw_Graph.vec[i].Ops.vec, dalloc);
     }
     raw_Graph.vec = (Adjlist*) res.move(raw_Graph.vec, dalloc);
 
-    for(int i = 0; i < raw_orbits.veclen; i++){
+    for(FIDO_SIZE_TYPE i = 0; i < raw_orbits.veclen; i++){
         raw_orbits.vec[i].orbitDegree.vec = (int*) res.move(raw_orbits.vec[i].orbitDegree.vec, dalloc);       
         raw_orbits.vec[i].orbitDistance.vec = (int*) res.move(raw_orbits.vec[i].orbitDistance.vec, dalloc);
     }
@@ -256,7 +256,7 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
     // cout<<"total combinations are : "<<combinationsList.size()<<endl;
     //for (vector<int> combination : combinationsList)
 
-    RAJA::forall<inner_policy>(RAJA::RangeSegment(0,combinations_size), [node, raw_orbits, raw_Graph, combinationsList, gdv, ggdvf] FIDO_DEVICE (int i){
+    RAJA::forall<inner_policy>(RAJA::RangeSegment(0,combinations_size), [node, raw_orbits, raw_Graph, combinationsList, gdv, ggdvf] FIDO_DEVICE (FIDO_SIZE_TYPE i){
             A_Network_raw induced_sgraph = new_network(6);
 
             //vector<int> subgraph_degree_signature;
@@ -276,9 +276,9 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
             orbvec filter_orbits = new_orbvec(22);
             ggdvf.orbit_filter_raw(raw_orbits, combinationsList.vec[i].veclen, filter_orbits);
             //for (OrbitMetric orbit : filter_orbits)
-            for(int i = 0; i < filter_orbits.veclen; i++) 
+            for(FIDO_SIZE_TYPE j = 0; j < filter_orbits.veclen; j++) 
             {
-                OrbitMetric_raw orbit = filter_orbits.vec[i];
+                OrbitMetric_raw orbit = filter_orbits.vec[j];
                 //sort(orbit.orbitDegree.begin(), orbit.orbitDegree.end());
                 //RAJA::sort<inner_policy>(orbit.orbitDegree.vec, orbit.orbitDegree.vec+orbit.orbitDegree.veclen);
                 RAJA::detail::intro_sort(orbit.orbitDegree.vec, orbit.orbitDegree.vec+orbit.orbitDegree.veclen, 
@@ -298,8 +298,8 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
             }
             delete_intvec(subgraph_degree_signature);
             delete_intvec(subgraph_distance_signature);
-            for(int i = 0; i < induced_sgraph.nodes_len; i++){
-                delete_adjlist(induced_sgraph.vec[i]);
+            for(FIDO_SIZE_TYPE k = 0; k < induced_sgraph.nodes_len; k++){
+                delete_adjlist(induced_sgraph.vec[k]);
             }
             delete_network(induced_sgraph);
     });

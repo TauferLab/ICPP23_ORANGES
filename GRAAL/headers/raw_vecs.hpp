@@ -19,6 +19,8 @@
 #endif
 #include <stdlib.h>
 
+#define FIDO_SIZE_TYPE size_t
+
 // int_double
 struct Edge_raw
 {
@@ -30,14 +32,14 @@ struct Edge_raw
 struct intvec
 {
     int* vec;
-    int veclen;
+    FIDO_SIZE_TYPE veclen;
 };
 
 // vector<int_double>
 struct edgevec
 {
     Edge_raw* vec;
-    int veclen;
+    FIDO_SIZE_TYPE veclen;
 };
 
 // ADJ_Bundle
@@ -46,22 +48,22 @@ struct Adjlist
     int Row;
     edgevec ListW;
     intvec Ops;
-    int list_len;
-    int ops_len;
+    FIDO_SIZE_TYPE list_len;
+    FIDO_SIZE_TYPE ops_len;
 };
 
 // vector<vector<int>>
 struct intvecvec
 {
     intvec* vec;
-    int veclen;
+    FIDO_SIZE_TYPE veclen;
 };
 
 // A_Network
 struct A_Network_raw
 {
     Adjlist* vec;
-    int nodes_len;
+    FIDO_SIZE_TYPE nodes_len;
 };
 
 // OrbitMetric
@@ -76,10 +78,10 @@ struct OrbitMetric_raw
 struct orbvec
 {
     OrbitMetric_raw* vec;
-    int veclen;
+    FIDO_SIZE_TYPE veclen;
 };
 
-FIDO_HOST_DEVICE intvec new_intvec(int cap)
+FIDO_HOST_DEVICE intvec new_intvec(FIDO_SIZE_TYPE cap)
 {
     intvec new_vec;
     new_vec.vec    = (int*) malloc(cap * sizeof(int));
@@ -87,7 +89,7 @@ FIDO_HOST_DEVICE intvec new_intvec(int cap)
     return new_vec;
 }
 
-intvec new_intvec_umpire(int cap, umpire::Allocator& alloc)
+intvec new_intvec_umpire(FIDO_SIZE_TYPE cap, umpire::Allocator& alloc)
 {
     intvec new_vec;
     new_vec.vec    = static_cast<int*>(alloc.allocate(cap * sizeof(int)));
@@ -95,7 +97,7 @@ intvec new_intvec_umpire(int cap, umpire::Allocator& alloc)
     return new_vec;
 }
 
-FIDO_HOST_DEVICE edgevec new_edgevec(int cap)
+FIDO_HOST_DEVICE edgevec new_edgevec(FIDO_SIZE_TYPE cap)
 {
     edgevec new_vec;
     new_vec.vec    = (Edge_raw*) malloc(cap * sizeof(struct Edge_raw));
@@ -103,7 +105,7 @@ FIDO_HOST_DEVICE edgevec new_edgevec(int cap)
     return new_vec;
 }
 
-edgevec new_edgevec_umpire(int cap, umpire::Allocator& alloc)
+edgevec new_edgevec_umpire(FIDO_SIZE_TYPE cap, umpire::Allocator& alloc)
 {
     edgevec new_vec;
     new_vec.vec    = static_cast<Edge_raw*>(alloc.allocate(cap * sizeof(struct Edge_raw)));
@@ -111,7 +113,7 @@ edgevec new_edgevec_umpire(int cap, umpire::Allocator& alloc)
     return new_vec;
 }
 
-FIDO_HOST_DEVICE Adjlist new_adjlist(int list_cap, int ops_cap)
+FIDO_HOST_DEVICE Adjlist new_adjlist(FIDO_SIZE_TYPE list_cap, FIDO_SIZE_TYPE ops_cap)
 {
     Adjlist new_adjlist;
     new_adjlist.Row      = 0;
@@ -122,7 +124,7 @@ FIDO_HOST_DEVICE Adjlist new_adjlist(int list_cap, int ops_cap)
     return new_adjlist;
 }
 
-Adjlist new_adjlist_umpire(int list_cap, int ops_cap, umpire::Allocator& alloc)
+Adjlist new_adjlist_umpire(FIDO_SIZE_TYPE list_cap, FIDO_SIZE_TYPE ops_cap, umpire::Allocator& alloc)
 {
     Adjlist new_adjlist;
     new_adjlist.Row      = 0;
@@ -133,7 +135,7 @@ Adjlist new_adjlist_umpire(int list_cap, int ops_cap, umpire::Allocator& alloc)
     return new_adjlist;
 }
 
-FIDO_HOST_DEVICE intvecvec new_intvecvec(int cap)
+FIDO_HOST_DEVICE intvecvec new_intvecvec(FIDO_SIZE_TYPE cap)
 {
     intvecvec new_vec;
     new_vec.vec    = (intvec*) malloc(cap * sizeof(struct intvec));
@@ -141,7 +143,7 @@ FIDO_HOST_DEVICE intvecvec new_intvecvec(int cap)
     return new_vec;
 }
 
-intvecvec new_intvecvec_umpire(int cap, umpire::Allocator& alloc)
+intvecvec new_intvecvec_umpire(FIDO_SIZE_TYPE cap, umpire::Allocator& alloc)
 {
     intvecvec new_vec;
     new_vec.vec    = static_cast<intvec*>(alloc.allocate(cap * sizeof(struct intvec)));
@@ -149,7 +151,7 @@ intvecvec new_intvecvec_umpire(int cap, umpire::Allocator& alloc)
     return new_vec;
 }
 
-FIDO_HOST_DEVICE A_Network_raw new_network(int cap)
+FIDO_HOST_DEVICE A_Network_raw new_network(FIDO_SIZE_TYPE cap)
 {
     A_Network_raw new_net;
     new_net.vec       = (Adjlist*) malloc(cap * sizeof(struct Adjlist));
@@ -157,7 +159,7 @@ FIDO_HOST_DEVICE A_Network_raw new_network(int cap)
     return new_net;
 }
 
-A_Network_raw new_network_umpire(int cap, umpire::Allocator& alloc)
+A_Network_raw new_network_umpire(FIDO_SIZE_TYPE cap, umpire::Allocator& alloc)
 {
     A_Network_raw new_net;
     new_net.vec       = static_cast<Adjlist*>(alloc.allocate(cap * sizeof(struct Adjlist)));
@@ -165,7 +167,7 @@ A_Network_raw new_network_umpire(int cap, umpire::Allocator& alloc)
     return new_net;
 }
 
-FIDO_HOST_DEVICE orbvec new_orbvec(int cap)
+FIDO_HOST_DEVICE orbvec new_orbvec(FIDO_SIZE_TYPE cap)
 {
     orbvec new_vec;
     new_vec.vec    = (OrbitMetric_raw*) malloc(cap * sizeof(struct OrbitMetric_raw));
@@ -173,7 +175,7 @@ FIDO_HOST_DEVICE orbvec new_orbvec(int cap)
     return new_vec;
 }
 
-orbvec new_orbvec_umpire(int cap, umpire::Allocator& alloc)
+orbvec new_orbvec_umpire(FIDO_SIZE_TYPE cap, umpire::Allocator& alloc)
 {
     orbvec new_vec;
     new_vec.vec =
@@ -333,7 +335,7 @@ FIDO_HOST_DEVICE void clear_intvec(intvec& vec)
 
 FIDO_HOST_DEVICE void clear_adjlist(A_Network_raw& vec)
 {
-    for (int i = 0; i < vec.nodes_len; i++)
+    for (FIDO_SIZE_TYPE i = 0; i < vec.nodes_len; i++)
     {
         delete_adjlist(vec.vec[i]);
     }
@@ -342,7 +344,7 @@ FIDO_HOST_DEVICE void clear_adjlist(A_Network_raw& vec)
 
 FIDO_HOST_DEVICE void clear_intvecvec(intvecvec& vec)
 {
-    for (int i = 0; i < vec.veclen; i++)
+    for (FIDO_SIZE_TYPE i = 0; i < vec.veclen; i++)
     {
         delete_intvec(vec.vec[i]);
     }
@@ -351,7 +353,7 @@ FIDO_HOST_DEVICE void clear_intvecvec(intvecvec& vec)
 
 FIDO_HOST_DEVICE void clear_orbvec(orbvec& vec)
 {
-    for (int i = 0; i < vec.veclen; i++)
+    for (FIDO_SIZE_TYPE i = 0; i < vec.veclen; i++)
     {
         delete_orbitmetric(vec.vec[i]);
     }
@@ -392,7 +394,7 @@ FIDO_HOST_DEVICE void popback_orbvec(orbvec& vec)
 
 FIDO_HOST_DEVICE void copy_intvec(intvec& src, intvec& dst)
 {
-    for (int i = 0; i < src.veclen; i++)
+    for (FIDO_SIZE_TYPE i = 0; i < src.veclen; i++)
     {
         dst.vec[i] = src.vec[i];
     }
@@ -401,7 +403,7 @@ FIDO_HOST_DEVICE void copy_intvec(intvec& src, intvec& dst)
 
 FIDO_HOST_DEVICE void copy_intvecvec(intvecvec& src, intvecvec& dst)
 {
-    for (int i = 0; i < src.veclen; i++)
+    for (FIDO_SIZE_TYPE i = 0; i < src.veclen; i++)
     {
         copy_intvec(src.vec[i], dst.vec[i]);
     }
@@ -410,7 +412,7 @@ FIDO_HOST_DEVICE void copy_intvecvec(intvecvec& src, intvecvec& dst)
 
 FIDO_HOST_DEVICE void copy_edgevec(edgevec& src, edgevec& dst)
 {
-    for (int i = 0; i < src.veclen; i++)
+    for (FIDO_SIZE_TYPE i = 0; i < src.veclen; i++)
     {
         dst.vec[i] = src.vec[i];
     }
@@ -423,7 +425,7 @@ FIDO_HOST_DEVICE bool eq_intvec(intvec& lhs, intvec& rhs)
     {
         return false;
     }
-    for (int i = 0; i < lhs.veclen; i++)
+    for (FIDO_SIZE_TYPE i = 0; i < lhs.veclen; i++)
     {
         if (lhs.vec[i] != rhs.vec[i])
         {
@@ -440,7 +442,7 @@ void stdnet_to_rawnet(A_Network& stdnet, A_Network_raw& rawnet, umpire::Allocato
     {
         pushback_adjlist(rawnet, new_adjlist_umpire(node.ListW.size(), 1, alloc));
         rawnet.vec[rawnet.nodes_len - 1].Row = node.Row;
-        for (int i = 0; i < node.ListW.size(); i++)
+        for (std::size_t i = 0; i < node.ListW.size(); i++)
         {
             rawnet.vec[rawnet.nodes_len-1].ListW.vec[i].first = node.ListW[i].first;
             rawnet.vec[rawnet.nodes_len-1].ListW.vec[i].second = node.ListW[i].second;

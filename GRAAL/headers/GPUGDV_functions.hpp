@@ -30,12 +30,12 @@ using namespace std;
 class GPUGDV_functions
 {
     public:
-    long fact(long n) const { return (n > 1) ? n * fact(n - 1) : 1; }
+    FIDO_SIZE_TYPE fact(FIDO_SIZE_TYPE n) const { return (n > 1) ? n * fact(n - 1) : 1; }
 
-    int combination(int n, int r) const
+    FIDO_SIZE_TYPE combination(FIDO_SIZE_TYPE n, FIDO_SIZE_TYPE r) const
     {
-        long numerator = fact((long)n);
-        long denominator = fact((long)r) * fact((long)n - (long)r);
+        FIDO_SIZE_TYPE numerator = fact(n);
+        FIDO_SIZE_TYPE denominator = fact(r) * fact(n - r);
         return numerator / denominator;
     }
 
@@ -56,13 +56,13 @@ class GPUGDV_functions
         clear_adjlist(output);
 
         // Create needed objects for function.
-        int subgraph_nodes = nodes.veclen;
+        FIDO_SIZE_TYPE subgraph_nodes = nodes.veclen;
         edgevec neighbor_list;
         Adjlist temp_bundle;
         Edge_raw temp_edge;
 
         // Check the neighbors of the subgraph nodes to determine where edges need to be.
-        for (int i = 0; i < subgraph_nodes; i++)
+        for (FIDO_SIZE_TYPE i = 0; i < subgraph_nodes; i++)
         {
             // Find which node in the network corresponds to nodes[i] and store it's neighbors.
             bool node_found = false;
@@ -84,9 +84,9 @@ class GPUGDV_functions
 
 
             // Check which of the nodes[j] correspond to neighbors of nodes[i].
-            for (int j = 0; j < subgraph_nodes; j++)
+            for (FIDO_SIZE_TYPE j = 0; j < subgraph_nodes; j++)
             {
-                for (int k = 0; k < neighbor_list.veclen; k++)
+                for (FIDO_SIZE_TYPE k = 0; k < neighbor_list.veclen; k++)
                 {
                     if (neighbor_list.vec[k].first == nodes.vec[j])
                     {
@@ -136,7 +136,7 @@ class GPUGDV_functions
         if (network.nodes_len != 0)
         {
             clear_intvec(deg_sig);
-            for (int i = 0; i < network.nodes_len; i++)
+            for (FIDO_SIZE_TYPE i = 0; i < network.nodes_len; i++)
             {
                 pushback_intvec(deg_sig, network.vec[i].ListW.veclen);
             }
@@ -165,7 +165,7 @@ class GPUGDV_functions
             // Then use the shortest paths to calculate the distance signature.
             clear_intvec(dist_sig);
 
-            for (int i = 0; i < shortest_paths.veclen; i++)
+            for (FIDO_SIZE_TYPE i = 0; i < shortest_paths.veclen; i++)
             {
                 dist_sig.vec[shortest_paths.vec[i]] += 1;
             }
