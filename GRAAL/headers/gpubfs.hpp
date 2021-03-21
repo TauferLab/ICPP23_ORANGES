@@ -3,7 +3,6 @@
 
 #include "raw_vecs.hpp"
 #include "structure_defs.hpp"
-#include <iostream>
 
 using namespace std;
 

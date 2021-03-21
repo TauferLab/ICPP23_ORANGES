@@ -3,8 +3,6 @@
 
 #include <umpire/Allocator.hpp>
 
-#include <stdlib.h>
-
 //#if defined(__CUDACC__) || defined(__HIPCC__)
 #if defined(__CUDACC__)
 #include <cuda.h>
@@ -19,6 +17,7 @@
 #define FIDO_HOST
 #define FIDO_CONSTANT
 #endif
+#include <stdlib.h>
 
 // int_double
 struct Edge_raw
