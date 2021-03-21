@@ -226,7 +226,7 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
 
     int combinations_size = 0;
     for (int node_count = 1; node_count <= 5; node_count++){
-        combinations_size += ggdvf.combination(neighbours.size(), node_count);
+       combinations_size += ggdvf.combination(neighbours.size(), node_count);
         printf("r = %d; combinations_size = %d\n", node_count, combinations_size);
     }
     printf("Combinations size = %d\n", combinations_size);

@@ -30,12 +30,12 @@ using namespace std;
 class GPUGDV_functions
 {
     public:
-    int fact(int n) const { return (n > 1) ? n * fact(n - 1) : 1; }
+    long fact(long n) const { return (n > 1) ? n * fact(n - 1) : 1; }
 
     int combination(int n, int r) const
     {
-        int numerator = fact(n);
-        int denominator = fact(r) * fact(n - r);
+        long numerator = fact((long)n);
+        long denominator = fact((long)r) * fact((long)n - (long)r);
         return numerator / denominator;
     }
 
