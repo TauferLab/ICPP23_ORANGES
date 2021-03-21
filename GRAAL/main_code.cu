@@ -228,10 +228,12 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
     for (int node_count = 1; node_count < 5; node_count++){
         combinations_size += ((ggdvf.fact(neighbours.size()))/(ggdvf.fact(node_count)*ggdvf.fact(neighbours.size()-node_count)));
     }
+    printf("Combinations size = %d\n", combinations_size);
     combinationsList = new_intvecvec_umpire(combinations_size, halloc);
     for (int node_count = 1; node_count < 5; node_count++)
     {
         ggdvf.find_combinations_raw(&set[0], numElements, node_count, combinationsList, halloc);
+        printf("Combinations length after r = %d: %d\n", node_count, combinationsList.veclen);
     }
     printf("numElements = %d\n", numElements);
     printf("neighbours size = %d\n", neighbours.size());
