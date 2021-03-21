@@ -130,6 +130,8 @@ Adjlist new_adjlist_umpire(int list_cap, int ops_cap, umpire::Allocator& alloc)
     new_adjlist.ops_len  = 0;
     new_adjlist.ListW    = new_edgevec_umpire(list_cap, alloc);
     new_adjlist.Ops      = new_intvec_umpire(ops_cap, alloc);
+    printf("New ListW ptr = %p\n", new_adjlist.ListW.vec);
+    printf("New Ops ptr = %p\n", new_adjlist.ListW.vec);
     return new_adjlist;
 }
 
@@ -304,6 +306,10 @@ FIDO_HOST_DEVICE void pushback_adjlist(A_Network_raw& vec, Adjlist in)
     vec.vec[vec.nodes_len].ListW.veclen = in.ListW.veclen;
     vec.vec[vec.nodes_len].Ops.vec = in.Ops.vec;
     vec.vec[vec.nodes_len].Ops.veclen = in.Ops.veclen;
+    printf("Input Adjlist ListW Ptr: %p\n", in.ListW.vec);
+    printf("Input Adjlist Ops Ptr: %p\n", in.Ops.vec);
+    printf("Saved Adjlist ListW Ptr: %p\n", vec.vec[vec.nodes_len].ListW.vec);
+    printf("Saved Adjlist Ops Ptr: %p\n", vec.vec[vec.nodes_len].Ops.vec);
 }
 
 FIDO_HOST_DEVICE void pushback_intvecvec(intvecvec& vec, intvec in)
