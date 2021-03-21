@@ -306,11 +306,11 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
     std::copy(gdv.vec, gdv.vec+gdv.veclen, gdvMetric.GDV.begin());
     //gdvMetric.GDV  = gdv;
     gdvMetric.node = node;
-    intvec gdv = delete_intvec_umpire(orbits.size(), dalloc);
+    delete_intvec_umpire(gdv, dalloc);
     for(int i = 0; i < combinations_size; i++){
-        delete_intvec_umpire(combinationsList.vec[i].vec, dalloc);
+        delete_intvec_umpire(combinationsList.vec[i], dalloc);
     }
-    delete_intvecvec_umpire(combinationsList.vec, dalloc);
+    delete_intvecvec_umpire(combinationsList, dalloc);
     for(int i = 0; i < raw_Graph.nodes_len; i++){
         delete_adjlist_umpire(raw_Graph.vec[i], dalloc);
     }
