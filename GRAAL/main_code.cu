@@ -234,7 +234,7 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
         ggdvf.find_combinations_raw(&set[0], numElements, node_count, combinationsList, halloc);
     }
 
-    for(int i = 0; i < combinations_size; i++){
+    for(int i = 0; i < combinationsList.veclen; i++){
         combinationsList.vec[i].vec = (int*) res.move(combinationsList.vec[i].vec, dalloc);
     }
     combinationsList.vec = (intvec*) res.move(combinationsList.vec, dalloc);
