@@ -288,8 +288,8 @@ void delete_orbvec_umpire(orbvec& vec, umpire::Allocator& alloc)
 
 FIDO_HOST_DEVICE void pushback_edgevec(edgevec& vec, Edge_raw in)
 {
-    vec.vec[vec.veclen++].first = in.first;
-    vec.vec[vec.veclen].second = in.second;
+    vec.vec[vec.veclen].first = in.first;
+    vec.vec[vec.veclen++].second = in.second;
 }
 
 FIDO_HOST_DEVICE void pushback_intvec(intvec& vec, int in)
@@ -299,36 +299,36 @@ FIDO_HOST_DEVICE void pushback_intvec(intvec& vec, int in)
 
 FIDO_HOST_DEVICE void pushback_adjlist(A_Network_raw& vec, Adjlist in)
 {
-    vec.vec[vec.nodes_len++].Row = in.Row;
+    vec.vec[vec.nodes_len].Row = in.Row;
     vec.vec[vec.nodes_len].list_len = in.list_len;
     vec.vec[vec.nodes_len].ops_len = in.ops_len;
     vec.vec[vec.nodes_len].ListW.vec = in.ListW.vec;
     vec.vec[vec.nodes_len].ListW.veclen = in.ListW.veclen;
     vec.vec[vec.nodes_len].Ops.vec = in.Ops.vec;
-    vec.vec[vec.nodes_len].Ops.veclen = in.Ops.veclen;
+    vec.vec[vec.nodes_len++].Ops.veclen = in.Ops.veclen;
     printf("Input Adjlist ListW Ptr: %p\n", in.ListW.vec);
     printf("Input Adjlist Ops Ptr: %p\n", in.Ops.vec);
-    printf("Saved Adjlist ListW Ptr: %p\n", vec.vec[vec.nodes_len].ListW.vec);
-    printf("Saved Adjlist Ops Ptr: %p\n", vec.vec[vec.nodes_len].Ops.vec);
+    printf("Saved Adjlist ListW Ptr: %p\n", vec.vec[vec.nodes_len-1].ListW.vec);
+    printf("Saved Adjlist Ops Ptr: %p\n", vec.vec[vec.nodes_len-1].Ops.vec);
 }
 
 FIDO_HOST_DEVICE void pushback_intvecvec(intvecvec& vec, intvec in)
 {
-    vec.vec[vec.veclen++].vec = in.vec;
-    vec.vec[vec.veclen].veclen = in.veclen;
+    vec.vec[vec.veclen].vec = in.vec;
+    vec.vec[vec.veclen++].veclen = in.veclen;
     printf("Input Ptr = %p\n", in.vec);
     printf("Input Len = %d\n", in.veclen);
-    printf("Saved Ptr = %p\n", vec.vec[vec.veclen].vec);
-    printf("Saved Len = %d\n", vec.vec[vec.veclen].veclen);
+    printf("Saved Ptr = %p\n", vec.vec[vec.veclen-1].vec);
+    printf("Saved Len = %d\n", vec.vec[vec.veclen-1].veclen);
 }
 
 FIDO_HOST_DEVICE void pushback_orbvec(orbvec& vec, OrbitMetric_raw in)
 {
-    vec.vec[vec.veclen++].orbitNumber = in.orbitNumber;
+    vec.vec[vec.veclen].orbitNumber = in.orbitNumber;
     vec.vec[vec.veclen].orbitDegree.vec = in.orbitDegree.vec;
     vec.vec[vec.veclen].orbitDegree.veclen = in.orbitDegree.veclen;
     vec.vec[vec.veclen].orbitDistance.vec = in.orbitDistance.vec;
-    vec.vec[vec.veclen].orbitDistance.veclen = in.orbitDistance.veclen;
+    vec.vec[vec.veclen++].orbitDistance.veclen = in.orbitDistance.veclen;
 }
 
 FIDO_HOST_DEVICE void clear_edgevec(edgevec& vec)
