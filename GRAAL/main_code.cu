@@ -187,7 +187,7 @@ void GDV_vector_calculation(A_Network graph, vector<GDVMetric>* graph_GDV,
             ADJ_Bundle node = graph[i];
             vector<int> GDV_1;
             GDVMetric gdvMetric(node.Row, GDV_1);
-            Calculate_GDV(node.Row, graph, orbits, gdvMetric);
+            Calculate_GDV(node.Row, graph, orbits, gdvMetric, res);
             // cout<<"gdv for node "<<node.Row<<endl;
             graph_GDV->push_back(gdvMetric);
             });
