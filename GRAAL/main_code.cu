@@ -227,21 +227,14 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
     int combinations_size = 0;
     for (int node_count = 1; node_count <= 5; node_count++){
        combinations_size += ggdvf.combination(neighbours.size(), node_count);
-        printf("r = %d; combinations_size = %d\n", node_count, combinations_size);
     }
-    printf("Combinations size = %d\n", combinations_size);
     combinationsList = new_intvecvec_umpire(combinations_size, halloc);
     for (int node_count = 1; node_count <= 5; node_count++)
     {
         ggdvf.find_combinations_raw(&set[0], numElements, node_count, combinationsList, halloc);
-        printf("Combinations length after r = %d: %d\n", node_count, combinationsList.veclen);
     }
-    printf("numElements = %d\n", numElements);
-    printf("neighbours size = %d\n", neighbours.size());
 
     for(int i = 0; i < combinationsList.veclen; i++){
-        printf("i = %d\n", i);
-        printf("Vec Addr is %p\n", combinationsList.vec[i].vec);
         combinationsList.vec[i].vec = (int*) res.move(combinationsList.vec[i].vec, dalloc);
     }
     combinationsList.vec = (intvec*) res.move(combinationsList.vec, dalloc);
@@ -313,20 +306,20 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
     std::copy(gdv.vec, gdv.vec+gdv.veclen, gdvMetric.GDV.begin());
     //gdvMetric.GDV  = gdv;
     gdvMetric.node = node;
-    delete_intvec_umpire(gdv, dalloc);
-    for(int i = 0; i < combinations_size; i++){
-        delete_intvec_umpire(combinationsList.vec[i], dalloc);
-    }
-    delete_intvecvec_umpire(combinationsList, dalloc);
-    for(int i = 0; i < raw_Graph.nodes_len; i++){
-        delete_adjlist_umpire(raw_Graph.vec[i], dalloc);
-    }
-    delete_network_umpire(raw_Graph, dalloc);
+    //delete_intvec_umpire(gdv, dalloc);
+    //for(int i = 0; i < combinations_size; i++){
+    //    delete_intvec_umpire(combinationsList.vec[i], dalloc);
+    //}
+    //delete_intvecvec_umpire(combinationsList, dalloc);
+    //for(int i = 0; i < raw_Graph.nodes_len; i++){
+    //    delete_adjlist_umpire(raw_Graph.vec[i], dalloc);
+    //}
+    //delete_network_umpire(raw_Graph, dalloc);
 
-    for(int i = 0; i < raw_orbits.veclen; i++){
-        delete_orbitmetric_umpire(raw_orbits.vec[i], dalloc);
-    }
-    delete_orbvec_umpire(raw_orbits, dalloc);
+    //for(int i = 0; i < raw_orbits.veclen; i++){
+    //    delete_orbitmetric_umpire(raw_orbits.vec[i], dalloc);
+    //}
+    //delete_orbvec_umpire(raw_orbits, dalloc);
 }
 
 // This method takes the file and converts it into orbits and saves in output
