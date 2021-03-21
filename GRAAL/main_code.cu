@@ -235,6 +235,7 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
     }
 
     for(int i = 0; i < combinationsList.veclen; i++){
+        printf("Vec Addr is %p\n", combinationsList.vec[i].vec);
         combinationsList.vec[i].vec = (int*) res.move(combinationsList.vec[i].vec, dalloc);
     }
     combinationsList.vec = (intvec*) res.move(combinationsList.vec, dalloc);

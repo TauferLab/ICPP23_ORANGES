@@ -130,8 +130,6 @@ Adjlist new_adjlist_umpire(int list_cap, int ops_cap, umpire::Allocator& alloc)
     new_adjlist.ops_len  = 0;
     new_adjlist.ListW    = new_edgevec_umpire(list_cap, alloc);
     new_adjlist.Ops      = new_intvec_umpire(ops_cap, alloc);
-    printf("New ListW ptr = %p\n", new_adjlist.ListW.vec);
-    printf("New Ops ptr = %p\n", new_adjlist.Ops.vec);
     return new_adjlist;
 }
 
@@ -306,20 +304,12 @@ FIDO_HOST_DEVICE void pushback_adjlist(A_Network_raw& vec, Adjlist in)
     vec.vec[vec.nodes_len].ListW.veclen = in.ListW.veclen;
     vec.vec[vec.nodes_len].Ops.vec = in.Ops.vec;
     vec.vec[vec.nodes_len++].Ops.veclen = in.Ops.veclen;
-    printf("Input Adjlist ListW Ptr: %p\n", in.ListW.vec);
-    printf("Input Adjlist Ops Ptr: %p\n", in.Ops.vec);
-    printf("Saved Adjlist ListW Ptr: %p\n", vec.vec[vec.nodes_len-1].ListW.vec);
-    printf("Saved Adjlist Ops Ptr: %p\n", vec.vec[vec.nodes_len-1].Ops.vec);
 }
 
 FIDO_HOST_DEVICE void pushback_intvecvec(intvecvec& vec, intvec in)
 {
     vec.vec[vec.veclen].vec = in.vec;
     vec.vec[vec.veclen++].veclen = in.veclen;
-    printf("Input Ptr = %p\n", in.vec);
-    printf("Input Len = %d\n", in.veclen);
-    printf("Saved Ptr = %p\n", vec.vec[vec.veclen-1].vec);
-    printf("Saved Len = %d\n", vec.vec[vec.veclen-1].veclen);
 }
 
 FIDO_HOST_DEVICE void pushback_orbvec(orbvec& vec, OrbitMetric_raw in)
@@ -450,12 +440,8 @@ void stdnet_to_rawnet(A_Network& stdnet, A_Network_raw& rawnet, umpire::Allocato
     {
         pushback_adjlist(rawnet, new_adjlist_umpire(node.ListW.size(), 1, alloc));
         rawnet.vec[rawnet.nodes_len - 1].Row = node.Row;
-        printf("Base ListW ptr = %p\n", rawnet.vec[rawnet.nodes_len-1].ListW.vec);
-        printf("Base ListW ptr = %p\n", rawnet.vec[rawnet.nodes_len-1].ListW.vec);
         for (int i = 0; i < node.ListW.size(); i++)
         {
-            printf("Initial first val for i = %d = %d\n", i, rawnet.vec[rawnet.nodes_len-1].ListW.vec[i].first);
-            printf("Initial second val for i = %d = %f\n", i, rawnet.vec[rawnet.nodes_len-1].ListW.vec[i].second);
             rawnet.vec[rawnet.nodes_len-1].ListW.vec[i].first = node.ListW[i].first;
             rawnet.vec[rawnet.nodes_len-1].ListW.vec[i].second = node.ListW[i].second;
         }
