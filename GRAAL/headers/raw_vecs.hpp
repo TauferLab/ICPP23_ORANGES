@@ -5,7 +5,10 @@
 
 #include <stdlib.h>
 
-#if defined(__CUDACC__) || defined(__HIPCC__)
+//#if defined(__CUDACC__) || defined(__HIPCC__)
+#if defined(__CUDACC__)
+#include <cuda.h>
+#include <cuda_runtime.h>
 #define FIDO_HOST_DEVICE __host__ __device__
 #define FIDO_DEVICE      __device__
 #define FIDO_HOST        __host__
