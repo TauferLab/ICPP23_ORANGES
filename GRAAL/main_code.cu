@@ -241,7 +241,7 @@ void Calculate_GDV(int node, A_Network Graph, vector<OrbitMetric>& orbits, GDVMe
 
     for(int i = 0; i < raw_Graph.nodes_len; i++){
         raw_Graph.vec[i].ListW.vec = (Edge_raw*) res.move(raw_Graph.vec[i].ListW.vec, dalloc);
-        raw_Graph.vec[i].Ops.vec = (int*) res.move(raw_Graph.vec[i].Ops.vec, dalloc);
+        //raw_Graph.vec[i].Ops.vec = (int*) res.move(raw_Graph.vec[i].Ops.vec, dalloc);
     }
     raw_Graph.vec = (Adjlist*) res.move(raw_Graph.vec, dalloc);
 
