@@ -20,7 +20,7 @@ void metric_formula(GDVMetric gdvm, double* gdv_score);
 double GDV_distance_calculation(GDVMetric gdvm1, GDVMetric gdvm2);
 void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network graph2,vector<OrbitMetric> orbits,int p);
 using namespace std;
-using exec_policy=RAJA::omp_parallel_for_exec;
+using exec_policy=RAJA::seq_exec;
 
 int main(int argc, char *argv[]) {
   clock_t tStart = clock();
