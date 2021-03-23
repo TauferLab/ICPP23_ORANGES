@@ -112,11 +112,26 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
   int n = (int)graph2_GDV.size();
 
   double sim_mat[m][n];
+double metric_score_matrix_graph1[m];  
+double metric_score_matrix_graph2[n];
+   for (GDVMetric gdvm: graph1_GDV)
+  {
+    double gdv_score;
+    metric_formula(gdvm,&gdv_score);
+    metric_score_matrix_graph1[gdvm.node] = gdv_score;
+  }
+     for (GDVMetric gdvm: graph2_GDV)
+  {
+    double gdv_score;
+    metric_formula(gdvm,&gdv_score);
+    metric_score_matrix_graph2[gdvm.node] = gdv_score;
+  }
   for (GDVMetric gdvm1: graph1_GDV)
   {
     for(GDVMetric gdvm2: graph2_GDV)
     {
-      sim_mat[gdvm1.node][gdvm2.node]= GDV_distance_calculation(gdvm1,gdvm2);
+      sim_mat[gdvm1.node][gdvm2.node]=abs(metric_score_matrix_graph1[gdvm1.node]-metric_score_matrix_graph2[gdvm2.node]);
+
     }
   }
 double end = omp_get_wtime();
