@@ -512,7 +512,8 @@ void Calculate_GDV(int node,A_Network Graph,vector<OrbitMetric> &orbits, GDVMetr
     //print_vector(neighbours);
     int set[neighbours.size()]; 
     std::copy( neighbours.begin(), neighbours.end(), set );
-    int numElements = *(&set + 1) - set;
+    //int numElements = *(&set + 1) - set;
+    int numElements = sizeof(set)/sizeof(set[0]);
     for (int node_count = 1; node_count < 5; node_count++)
     {
       vector<vector<int>> combinationsList;
