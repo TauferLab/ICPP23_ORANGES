@@ -11,7 +11,10 @@ def main( filepath , run_max ):
     runtimes_total_2d = []*int(run_max);
 
     for run_num in range(1, int(run_max)+1):
-        filename = filepath + "/run_00" + str(run_num) + "/runtimes_rec.txt"
+        if (run_num < 10):
+            filename = filepath + "/run_00" + str(run_num) + "/runtimes_rec.txt";
+        if (run_num >= 10 and run_num < 100):
+            filename = filepath + "/run_0" + str(run_num) + "/runtimes_rec.txt";
         with open(filename, "r") as file:
 
             runtimes_prior_gather = [];                                                                                                                                                                                              
@@ -60,8 +63,8 @@ def main( filepath , run_max ):
     print(x_vals)
 
     fig1 = plt.figure();
-    plt.bar(x_vals, prior_gather_avg);
-    plt.bar(x_vals, gather_addition, bottom=prior_gather_avg);
+    plt.bar(x_vals, prior_gather_avg, color='b');
+    plt.bar(x_vals, gather_addition, bottom=prior_gather_avg, color='r');
     plt.xticks(x_vals);
 
     plt.xlabel('MPI Rank x')
@@ -73,7 +76,7 @@ def main( filepath , run_max ):
 
 
     fig2 = plt.figure();
-    plt.bar(x_vals, prior_gather_avg);
+    plt.bar(x_vals, prior_gather_avg, color='b');
     plt.xticks(x_vals);
 
     plt.xlabel('MPI Rank x')
@@ -85,7 +88,7 @@ def main( filepath , run_max ):
 
 
     fig3 = plt.figure();
-    plt.bar(x_vals, post_gather_avg);
+    plt.bar(x_vals, post_gather_avg, color='b');
     plt.xticks(x_vals);
 
     plt.xlabel('MPI Rank x')
@@ -97,7 +100,7 @@ def main( filepath , run_max ):
 
 
     fig4 = plt.figure();
-    plt.bar(x_vals, total_time_avg);
+    plt.bar(x_vals, total_time_avg, color='b');
     #plt.bar(x_vals, post_gather, bottom=prior_gather);
     plt.xticks(x_vals)
 
