@@ -8,7 +8,7 @@ results_path=$2
 function join_by { local d=$1; shift; local f=$1; shift; printf %s "$f" "${@/#/$d}"; }
 
 # Define Paths
-root_path=$STOCKYARD/stampede2/Src_Fido/GRAAL
+root_path=$STOCKYARD2/stampede2/Src_Fido/GRAAL
 graph_align_job_script=${root_path}/parallel_graph_align/graph_align_par.sh
 
 # Configure Outputs
@@ -27,15 +27,15 @@ make deg
 echo "Made executable"
 
 # Configure Inputs
-#run_scales=(4 8 16 32 64)
+#run_scales=(4 8 16 32)
 #run_scales=(2 4)
 #run_scales=(32)
 #run_scales=(64)
 #run_scales=(16 32 64)
 #run_scales=(24 40 48 56)
-#run_scales=(1 8 16)
-#run_scales=(1 2 4 8 16 32)
-run_scales=(16)
+#run_scales=(16 32 48)
+#run_scales=(2 4 8 16 32)
+run_scales=(1 2 4 8 16 32)
 #run_scales=(1)
 
 sim_jobs=(1)
@@ -50,6 +50,11 @@ comm_size=332
 msg_size=512
 comm_runs=2
 comm_slices=1
+
+n_nodes=1
+
+job_time=150 # In minutes
+job_queue="skx-normal" # For Stampede
 
 #input_graphs=(graph_slice3.txt)
 #run_idx_low=1
@@ -67,6 +72,7 @@ comm_slices=1
 for n_procs in ${run_scales[@]}; do
 #	for run_idx in `seq -f "%03g" ${run_idx_low} ${run_idx_high}`;
 #	do
+    procs_per_node=$((n_procs/n_nodes))
     for runs1 in $(seq 1 ${comm_runs}); do
 	for runs2 in $(seq 1 ${comm_runs}); do
 	    if [ ${runs1} -lt ${runs2} ]; then
@@ -77,7 +83,7 @@ for n_procs in ${run_scales[@]}; do
 			#for iters in `seq -f "%03g" 1 32`; do
 			echo ${results_path}
 			unq_job=$(date +%s)
-		    	sbatch -o ${output_file} -e ${error_file} -N 1 --wait -J fido_job -p normal -n ${n_procs} -t 10 ${graph_align_job_script} ${n_runs} ${n_procs} ${runs1} ${runs2} ${slices} ${comm_procs} ${comm_iters} ${comm_size} ${comm_type} ${msg_size} ${sims} ${results_path} -f input.\$LSB_JOBINDEX
+		    	sbatch -o ${output_file} -e ${error_file} -N ${n_nodes} --wait -J fido_job -p ${job_queue} --exclusive -n ${n_procs} --ntasks-per-node=${procs_per_node} -t ${job_time} ${graph_align_job_script} ${n_runs} ${n_procs} ${runs1} ${runs2} ${slices} ${comm_procs} ${comm_iters} ${comm_size} ${comm_type} ${msg_size} ${sims} ${results_path}
 			#bsub -n $((32-${n_procs}*${sims})) -m "tellico-compute0" -J "fidobuff" sleep 400000 
 			#bwait -w "done(fidojobs_${unq_job})"
 			#bkill -J "fidobuff"

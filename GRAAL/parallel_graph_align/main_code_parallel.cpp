@@ -5,8 +5,8 @@
 #include "printout_others.hpp"
 #include "printout_network.hpp"
 #include "ADJ/find_Xneighbors.hpp"
-#include "/home/mushi11/Documents/Src_Fido/GRAAL/headers/GDV_functions.hpp"
-#include "/home/mushi11/Documents/Src_Fido/GRAAL/headers/class_definitions.hpp"
+#include "/work2/08092/tg873913/stampede2/Src_Fido/GRAAL/headers/GDV_functions.hpp"
+#include "/work2/08092/tg873913/stampede2/Src_Fido/GRAAL/headers/class_definitions.hpp"
 #include <time.h>
 #include <stdlib.h>
 #include <ctime>
@@ -400,13 +400,13 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
     } else { // There are more nodes in graph than there are MPI processes
 
       // First get each process busy
-      int send_node;
-      int rcv_node;
+      int send_node; // Corresponds to index of node to send
+      int rcv_node;  // Corresponds to name of graph node recieved from worker rank
       vector<int> rcv_gdv;
       for (i = 1; i < comm_size; i++) {
 	send_node = i-1;
         #ifdef DEBUG
-          cout << "Sending node " << send_node << " to rank " << i << endl;
+          cout << "Sending node " << graph[send_node].node << " to rank " << i << endl;
         #endif
 	MPI_Send(&send_node, 1, MPI_INT, i, tag, MPI_COMM_WORLD);
       }
@@ -440,7 +440,7 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
 	  // Prepare to send next node to finished process.
 	  if (send_node < graph_size) { // Jobs still exist.  Send next.
             #ifdef DEBUG
-	      cout << "Sending node " << send_node << " to rank " << i << endl;
+	      cout << "Sending node " << graph[send_node].node << " to rank " << i << endl;
 	    #endif
 	    MPI_Send(&send_node, 1, MPI_INT, i, tag, MPI_COMM_WORLD);
 	    send_node += 1;
@@ -491,21 +491,21 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
 
       MPI_Recv(&node_name, 1, MPI_INT, 0, tag, MPI_COMM_WORLD, &worker_status);
       #ifdef DEBUG
-	cout << "Recieved node " << node_name << " at rank " << rankn << endl;
+	cout << "Recieved node " << graph[node_name].node << " at rank " << rankn << endl;
       #endif
       if (node_name == -1) {break;}
       vector<int> gdv_alloc;
-      GDVMetric gdvMetric(node_name, gdv_alloc);
-      Calculate_GDV(node_name, graph, orbits, gdvMetric);
+      GDVMetric gdvMetric(graph[node_name].node, gdv_alloc);
+      Calculate_GDV(graph[node_name].node, graph, orbits, gdvMetric);
       int gdv_Length = gdvMetric.GDV.size();
       int* gdv_array = new int[gdv_Length + 1];
       for (int i = 0; i < gdv_Length; i++) {
         gdv_array[i] = gdvMetric.GDV[i];
       }
-      gdv_array[gdv_Length] = node_name;
+      gdv_array[gdv_Length] = graph[node_name].node;
       MPI_Send(gdv_array, gdv_Length+1, MPI_INT, 0, tag, MPI_COMM_WORLD);
       #ifdef DEBUG
-	cout << "Sending GDV for node " << node_name << " from rank " << rankn << endl;
+	cout << "Sending GDV for node " << graph[node_name].node << " from rank " << rankn << endl;
       #endif
       delete[] gdv_array;
 
