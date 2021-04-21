@@ -406,7 +406,7 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
       for (i = 1; i < comm_size; i++) {
 	send_node = i-1;
         #ifdef DEBUG
-          cout << "Sending node " << graph[send_node].node << " to rank " << i << endl;
+          cout << "Sending node " << graph[send_node].Row << " to rank " << i << endl;
         #endif
 	MPI_Send(&send_node, 1, MPI_INT, i, tag, MPI_COMM_WORLD);
       }
@@ -440,7 +440,7 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
 	  // Prepare to send next node to finished process.
 	  if (send_node < graph_size) { // Jobs still exist.  Send next.
             #ifdef DEBUG
-	      cout << "Sending node " << graph[send_node].node << " to rank " << i << endl;
+	      cout << "Sending node " << graph[send_node].Row << " to rank " << i << endl;
 	    #endif
 	    MPI_Send(&send_node, 1, MPI_INT, i, tag, MPI_COMM_WORLD);
 	    send_node += 1;
@@ -491,21 +491,21 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
 
       MPI_Recv(&node_name, 1, MPI_INT, 0, tag, MPI_COMM_WORLD, &worker_status);
       #ifdef DEBUG
-	cout << "Recieved node " << graph[node_name].node << " at rank " << rankn << endl;
+	cout << "Recieved node " << graph[node_name].Row << " at rank " << rankn << endl;
       #endif
       if (node_name == -1) {break;}
       vector<int> gdv_alloc;
-      GDVMetric gdvMetric(graph[node_name].node, gdv_alloc);
-      Calculate_GDV(graph[node_name].node, graph, orbits, gdvMetric);
+      GDVMetric gdvMetric(graph[node_name].Row, gdv_alloc);
+      Calculate_GDV(graph[node_name].Row, graph, orbits, gdvMetric);
       int gdv_Length = gdvMetric.GDV.size();
       int* gdv_array = new int[gdv_Length + 1];
       for (int i = 0; i < gdv_Length; i++) {
         gdv_array[i] = gdvMetric.GDV[i];
       }
-      gdv_array[gdv_Length] = graph[node_name].node;
+      gdv_array[gdv_Length] = graph[node_name].Row;
       MPI_Send(gdv_array, gdv_Length+1, MPI_INT, 0, tag, MPI_COMM_WORLD);
       #ifdef DEBUG
-	cout << "Sending GDV for node " << graph[node_name].node << " from rank " << rankn << endl;
+	cout << "Sending GDV for node " << graph[node_name].Row << " from rank " << rankn << endl;
       #endif
       delete[] gdv_array;
 
