@@ -77,8 +77,8 @@ def main( filepath , run_max ):
 
 
     fig2 = plt.figure();
-    plt.bar(x_vals, prior_gather_avg, color='b');
-    #plt.boxplot(prior_gather, positions=x_vals);
+    #plt.bar(x_vals, prior_gather_avg, color='b');
+    plt.boxplot(prior_gather, positions=x_vals);
     plt.xticks(x_vals);
 
     plt.xlabel('MPI Rank x')
@@ -87,7 +87,7 @@ def main( filepath , run_max ):
     #plt.axis('tight')
     plt.ylim([0, 150]);
     plt.title('Time Taken on Each Rank of GDV Vector Calculation Prior to MPI_Gather');
-    plt.savefig( "png_files/load_imb_bar_prior_gather.png", bbox_inches="tight", pad_inches=0.25);
+    plt.savefig( "png_files/load_imb_box_prior_gather.png", bbox_inches="tight", pad_inches=0.25);
 
 
     #fig3 = plt.figure();
