@@ -53,12 +53,12 @@ comm_slices=1
 
 n_nodes=1
 
-job_time=150 # In minutes
-job_queue="skx-normal" # For Stampede
-
 #input_graphs=(graph_slice3.txt)
 #run_idx_low=1
 #run_idx_high=${n_runs}
+
+slurm_queue="skx-normal"
+slurm_time_limit=150
 
 #job_sub=$( bsub -o ${output_file} -e ${error_file} -n 1 -m "tellico-compute1" ${graph_align_job_script} ${n_runs} ${n_procs} ${runs1} ${runs2} ${slices} ${iters} ${results_path} )
 #job_sub_id=$( echo ${job_sub} | sed 's/[^0-9]*//g' )
@@ -83,7 +83,7 @@ for n_procs in ${run_scales[@]}; do
 			#for iters in `seq -f "%03g" 1 32`; do
 			echo ${results_path}
 			unq_job=$(date +%s)
-		    	sbatch -o ${output_file} -e ${error_file} -N ${n_nodes} --wait -J fido_job -p ${job_queue} --exclusive -n ${n_procs} --ntasks-per-node=${procs_per_node} -t ${job_time} ${graph_align_job_script} ${n_runs} ${n_procs} ${runs1} ${runs2} ${slices} ${comm_procs} ${comm_iters} ${comm_size} ${comm_type} ${msg_size} ${sims} ${results_path}
+		    	sbatch -o ${output_file} -e ${error_file} -N 1 --wait -J fido_job -p ${slurm_queue} -n ${n_procs} -t ${slurm_time_limit} ${graph_align_job_script} ${n_runs} ${n_procs} ${runs1} ${runs2} ${slices} ${comm_procs} ${comm_iters} ${comm_size} ${comm_type} ${msg_size} ${sims} ${results_path} -f input.\$LSB_JOBINDEX
 			#bsub -n $((32-${n_procs}*${sims})) -m "tellico-compute0" -J "fidobuff" sleep 400000 
 			#bwait -w "done(fidojobs_${unq_job})"
 			#bkill -J "fidobuff"
