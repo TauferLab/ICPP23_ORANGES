@@ -5,8 +5,8 @@
 #include "printout_others.hpp"
 #include "printout_network.hpp"
 #include "ADJ/find_Xneighbors.hpp"
-#include "/work2/08092/tg873913/stampede2/Src_Fido/GRAAL/headers/GDV_functions.hpp"
-#include "/work2/08092/tg873913/stampede2/Src_Fido/GRAAL/headers/class_definitions.hpp"
+#include "/home/pnbell/Src_GraphAlignment/GRAAL/headers/GDV_functions.hpp"
+#include "/home/pnbell/Src_GraphAlignment/GRAAL/headers/class_definitions.hpp"
 #include <time.h>
 #include <stdlib.h>
 #include <ctime>
@@ -465,6 +465,7 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
 
       } while (rec_count < graph_size);
 
+      vec_calc_prior_gather = MPI_Wtime() - vec_calc_start + vec_calc_prior_gather;
 
       // Sort return vector
       sort(graph_GDV->begin(), graph_GDV->end(), node_id_order());
@@ -493,7 +494,10 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
       #ifdef DEBUG
 	cout << "Recieved node " << graph[node_name].Row << " at rank " << rankn << endl;
       #endif
-      if (node_name == -1) {break;}
+      if (node_name == -1) {
+        vec_calc_prior_gather = MPI_Wtime() - vec_calc_start + vec_calc_prior_gather;
+        break;
+      }
       vector<int> gdv_alloc;
       GDVMetric gdvMetric(graph[node_name].Row, gdv_alloc);
       Calculate_GDV(graph[node_name].Row, graph, orbits, gdvMetric);
