@@ -5,8 +5,8 @@
 #include "printout_others.hpp"
 #include "printout_network.hpp"
 #include "ADJ/find_Xneighbors.hpp"
-#include "/home/pnbell/Src_GraphAlignment/GRAAL/headers/GDV_functions.hpp"
-#include "/home/pnbell/Src_GraphAlignment/GRAAL/headers/class_definitions.hpp"
+#include "../headers/GDV_functions.hpp"
+#include "../headers/class_definitions.hpp"
 #include <time.h>
 #include <stdlib.h>
 #include <ctime>
@@ -37,8 +37,10 @@ double vec_calc_prior_gather_mpi[MAX_COMM_SIZE] = {};
 double vec_calc_post_gather_mpi[MAX_COMM_SIZE] = {};
 double gdv_calc_mpi[MAX_COMM_SIZE] = {};*/
 double total_time_taken;
-double vec_calc_prior_gather;
-double vec_calc_post_gather;
+double vec_calc_communication_time;
+double vec_calc_computation_time;
+//double vec_calc_prior_gather;
+//double vec_calc_post_gather;
 int vec_calc_avg_node_deg;
 
 using namespace std;
@@ -194,6 +196,9 @@ int main(int argc, char *argv[]) {
     cout << "Starting Similarity Metric Calculation on Rank: " << rank << endl;
   #endif
 
+  vec_calc_communication_time = 0;
+  vec_calc_computation_time = 0;
+
   // Perform Similarity Calculations
   Similarity_Metric_calculation_for_two_graphs(X,Y,orbits, graph_name1, graph_name2);
 
@@ -205,9 +210,12 @@ int main(int argc, char *argv[]) {
   double* time_buff = NULL;
   int num_times = 3;
   double send_times[num_times];
+//  if (rank == 0) {
+//    vec_calc_computation_time = 0;
+//  }
   send_times[0] = total_time_taken;
-  send_times[1] = vec_calc_prior_gather;
-  send_times[2] = vec_calc_post_gather;
+  send_times[1] = vec_calc_communication_time;
+  send_times[2] = vec_calc_computation_time;
   if (rank == 0) {
     time_buff = (double *)malloc(numtasks*num_times*sizeof(double));
   }
@@ -371,6 +379,9 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
 {
 
   double vec_calc_start = MPI_Wtime();
+  double process_ends_communication;
+  double vec_calc_computation_start = 0;
+  double vec_calc_computation_end = 0;
 
   // Set up parallelization               
   int comm_size, rankn;
@@ -465,7 +476,8 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
 
       } while (rec_count < graph_size);
 
-      vec_calc_prior_gather = MPI_Wtime() - vec_calc_start + vec_calc_prior_gather;
+      process_ends_communication = MPI_Wtime();
+      //vec_calc_prior_gather = MPI_Wtime() - vec_calc_start + vec_calc_prior_gather;
 
       // Sort return vector
       sort(graph_GDV->begin(), graph_GDV->end(), node_id_order());
@@ -495,12 +507,15 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
 	cout << "Recieved node " << graph[node_name].Row << " at rank " << rankn << endl;
       #endif
       if (node_name == -1) {
-        vec_calc_prior_gather = MPI_Wtime() - vec_calc_start + vec_calc_prior_gather;
+	process_ends_communication = MPI_Wtime();
+        //vec_calc_prior_gather = MPI_Wtime() - vec_calc_start + vec_calc_prior_gather;
         break;
       }
       vector<int> gdv_alloc;
       GDVMetric gdvMetric(graph[node_name].Row, gdv_alloc);
+      vec_calc_computation_start = MPI_Wtime();
       Calculate_GDV(graph[node_name].Row, graph, orbits, gdvMetric);
+      vec_calc_computation_time = MPI_Wtime() - vec_calc_computation_start + vec_calc_computation_time;
       int gdv_Length = gdvMetric.GDV.size();
       int* gdv_array = new int[gdv_Length + 1];
       for (int i = 0; i < gdv_Length; i++) {
@@ -517,7 +532,9 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
 
   }
 
-  vec_calc_post_gather = MPI_Wtime() - vec_calc_start + vec_calc_post_gather;
+  //vec_calc_post_gather = MPI_Wtime() - vec_calc_start + vec_calc_post_gather;
+  vec_calc_communication_time = process_ends_communication - vec_calc_start + vec_calc_communication_time;
+  //vec_calc_computation_time = vec_calc_computation_end - vec_calc_computation_start + vec_calc_computation_time;
 
   #ifdef DEBUG
     cout << "Finished GDV Vector Calc on Rank: " << rankn << endl;
