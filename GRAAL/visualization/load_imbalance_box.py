@@ -85,7 +85,8 @@ def main( filepath , run_max ):
     plt.ylabel('Runtime (s.) on MPI Rank x')
     #plt.legend(['Prior Gather', 'Post Gather']);
     #plt.axis('tight')
-    plt.ylim([0, 150]);
+    plt.ylim([0, 75]);
+    plt.xticks(np.arange(0, len(runtimes_total), step=2), np.arange(0, len(runtimes_total), step=2));
     plt.title('Time Taken on Each Rank of GDV Vector Calculation Prior to MPI_Gather');
     plt.savefig( "png_files/load_imb_box_prior_gather.png", bbox_inches="tight", pad_inches=0.25);
 
