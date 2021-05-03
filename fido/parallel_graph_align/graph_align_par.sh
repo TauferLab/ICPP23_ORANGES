@@ -13,7 +13,7 @@ results_path=$6
 #echo $@
 
 source ./fido_paths.config
-root_path=${fido_project_root}/GRAAL
+root_path=${fido_project_root}/fido
 g_align=${root_path}/parallel_graph_align/graph_alignment
 deg_count=${root_path}/parallel_graph_align/node_deg
 
