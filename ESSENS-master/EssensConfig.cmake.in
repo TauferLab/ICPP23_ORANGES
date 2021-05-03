@@ -1,0 +1,7 @@
+set(ESSENS_CMAKE_CONFIG_PATH @ESSENS_CMAKE_CONFIG_PATH@)
+
+# Uncomment and/or expand if dependencies are added
+# include(CMakeFindDependencyMacro)
+# find_dependency(<dependency info; similar to "find_package">)
+
+include("${ESSENS_CMAKE_CONFIG_PATH}/EssensTargets.cmake")

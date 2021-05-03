@@ -1,0 +1,5 @@
+fido/a.out
+fido/makeout
+.vscode/settings.json
+fido/makefile
+**/build/
