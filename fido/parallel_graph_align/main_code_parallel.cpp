@@ -23,7 +23,7 @@ void convert_string_vector_int(string* , vector<int>* ,string );
 void Similarity_Metric_calculation_for_two_graphs(A_Network, A_Network,vector<OrbitMetric>, string, string);
 double GDV_distance_calculation(GDVMetric&, GDVMetric&);
 void metric_formula(GDVMetric&, double*);
-void GDV_vector_calculation(A_Network,vector<GDVMetric>*,  vector<OrbitMetric>, const char*);
+void GDV_vector_calculation(A_Network,vector<GDVMetric>*,  vector<OrbitMetric>, const char*, int);
 
 struct node_id_order {
   inline bool operator() (const GDVMetric& gdv_met_1, const GDVMetric& gdv_met_2) {
@@ -37,8 +37,11 @@ double vec_calc_prior_gather_mpi[MAX_COMM_SIZE] = {};
 double vec_calc_post_gather_mpi[MAX_COMM_SIZE] = {};
 double gdv_calc_mpi[MAX_COMM_SIZE] = {};*/
 double total_time_taken;
-double vec_calc_communication_time;
-double vec_calc_computation_time;
+double vec_calc_communication_time[2] = {};
+double* vec_calc_computation_time_X;
+double* vec_calc_computation_time_Y;
+int* vec_calc_proc_assign_X;
+int* vec_calc_proc_assign_Y;
 //double vec_calc_prior_gather;
 //double vec_calc_post_gather;
 int vec_calc_avg_node_deg;
@@ -110,6 +113,12 @@ int main(int argc, char *argv[]) {
   //print_disconnected_network(X);
   //print_disconnected_network(Y);
   //}
+
+  // Allocate space for time recording by graph node
+  vec_calc_computation_time_X = new double[X.size()];
+  vec_calc_computation_time_Y = new double[Y.size()];
+  vec_calc_proc_assign_X = new int[X.size()];
+  vec_calc_proc_assign_Y = new int[Y.size()];
 
   for (int i = 0; i < X.size(); i++) {
     for (int j = 0; j < X[i].ListW.size(); j++) {
@@ -196,8 +205,8 @@ int main(int argc, char *argv[]) {
     cout << "Starting Similarity Metric Calculation on Rank: " << rank << endl;
   #endif
 
-  vec_calc_communication_time = 0;
-  vec_calc_computation_time = 0;
+  //vec_calc_communication_time = 0;
+  //vec_calc_computation_time = 0;
 
   // Perform Similarity Calculations
   Similarity_Metric_calculation_for_two_graphs(X,Y,orbits, graph_name1, graph_name2);
@@ -214,8 +223,8 @@ int main(int argc, char *argv[]) {
 //    vec_calc_computation_time = 0;
 //  }
   send_times[0] = total_time_taken;
-  send_times[1] = vec_calc_communication_time;
-  send_times[2] = vec_calc_computation_time;
+  send_times[1] = vec_calc_communication_time[1];
+  send_times[2] = vec_calc_communication_time[2];
   if (rank == 0) {
     time_buff = (double *)malloc(numtasks*num_times*sizeof(double));
   }
@@ -287,9 +296,10 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
   MPI_Comm_rank(MPI_COMM_WORLD, &rankm);
   MPI_Comm_size(MPI_COMM_WORLD, &numtasksm);
 
-  GDV_vector_calculation(graph1, &graph1_GDV, orbits, "graph1"); 
+  int graph_counter = 0;
+  GDV_vector_calculation(graph1, &graph1_GDV, orbits, "graph1", graph_counter); 
   //cout << "Rank " << rankm << " finished graph1" << endl;
-  GDV_vector_calculation(graph2, &graph2_GDV, orbits, "graph2"); 
+  GDV_vector_calculation(graph2, &graph2_GDV, orbits, "graph2", graph_counter); 
   //cout << "Finished Vector Calculations" << endl;
 
   // Calculate Similarities in GDVs
@@ -375,13 +385,8 @@ void metric_formula(GDVMetric &gdvm, double* gdv_score)
   *gdv_score = sqrt(sum);
 }
 
-void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vector<OrbitMetric> orbits, const char* graph_name)
+void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vector<OrbitMetric> orbits, const char* graph_name, int graph_counter)
 {
-
-  double vec_calc_start = MPI_Wtime();
-  double process_ends_communication;
-  double vec_calc_computation_start = 0;
-  double vec_calc_computation_end = 0;
 
   // Set up parallelization               
   int comm_size, rankn;
@@ -390,6 +395,12 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
   int tag = 11;
   int graph_size = graph.size();
   graph_GDV->clear();
+  graph_counter += 1;
+
+  double process_ends_communication;
+  double vec_calc_computation_start;
+  double vec_calc_computation_end;
+  double vec_calc_start = MPI_Wtime();
 
   if (rankn == 0) {
     
@@ -515,7 +526,14 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
       GDVMetric gdvMetric(graph[node_name].Row, gdv_alloc);
       vec_calc_computation_start = MPI_Wtime();
       Calculate_GDV(graph[node_name].Row, graph, orbits, gdvMetric);
-      vec_calc_computation_time = MPI_Wtime() - vec_calc_computation_start + vec_calc_computation_time;
+      if (graph_counter == 1) {
+        vec_calc_computation_time_X[node_name] = MPI_Wtime() - vec_calc_computation_start;
+        vec_calc_proc_assign_X[node_name] = rankn;
+      }
+      if (graph_counter == 2) {
+	vec_calc_computation_time_Y[node_name] = MPI_Wtime() - vec_calc_computation_start;
+        vec_calc_proc_assign_Y[node_name] = rankn;
+      }
       int gdv_Length = gdvMetric.GDV.size();
       int* gdv_array = new int[gdv_Length + 1];
       for (int i = 0; i < gdv_Length; i++) {
@@ -533,7 +551,7 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
   }
 
   //vec_calc_post_gather = MPI_Wtime() - vec_calc_start + vec_calc_post_gather;
-  vec_calc_communication_time = process_ends_communication - vec_calc_start + vec_calc_communication_time;
+  vec_calc_communication_time[graph_counter - 1] = process_ends_communication - vec_calc_start;
   //vec_calc_computation_time = vec_calc_computation_end - vec_calc_computation_start + vec_calc_computation_time;
 
   #ifdef DEBUG

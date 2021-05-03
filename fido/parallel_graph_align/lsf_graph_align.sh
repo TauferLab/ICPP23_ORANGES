@@ -14,7 +14,7 @@ function join_by { local d=$1; shift; local f=$1; shift; printf %s "$f" "${@/#/$
 # Define Paths
 source ./fido_paths.config
 mkdir -p ${results_path}
-root_path=${fido_project_root}/GRAAL
+root_path=${fido_project_root}/fido
 graph_align_job_script=${root_path}/parallel_graph_align/graph_align_par.sh
 load_assignment="dynamic"
 
