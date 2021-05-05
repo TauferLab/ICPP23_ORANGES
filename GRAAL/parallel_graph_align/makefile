@@ -1,7 +1,8 @@
-#Change thos line to a different location if needed
-#ESSENS =/mnt/c/users/lohit/desktop/RA/Src_GraphAlignment/ESSENS-master
-root_path=/home/pnbell/Src_GraphAlignment/GRAAL
-ESSENS=/home/pnbell/Src_GraphAlignment/ESSENS-master
+#Change these line to a different location if needed
+include ./fido_paths.config
+proj_root=${fido_project_root}
+root_path=${proj_root}/fido
+ESSENS=${proj_root}/ESSENS-master
 #ESSENS= ./ESSENS
 
 #Use this to run on Linux
@@ -12,6 +13,8 @@ ESSENS=/home/pnbell/Src_GraphAlignment/ESSENS-master
 #CXX = /usr/local/opt/llvm/bin/clang++
 #CXXFLAGS = -I/usr/local/opt/llvm/include -fopenmp
 # LDFLAGS = -L/usr/local/opt/llvm/lib
+
+HEADER_PATHS=$(root_path)/headers
 
 CXX=mpicxx
 CXXFLAGS=-fopenmp -g -O3
@@ -57,9 +60,9 @@ BASIC_ANALYSIS=$(ESSENS)/Basic_Analysis
 BASIC_ANALYSIS_INC=-I$(BASIC_ANALYSIS)/Level0
 
 ESSENS_PATHS=$(BASIC_IO_INC) $(BASIC_SETOP_INC) $(BASIC_TRAVERSAL_INC) $(BASIC_CHANGE_INC) $(BASIC_ANALYSIS_INC)
-HEADER_PATHS=$(root_path)/headers
+#HEADER_PATHS=$(root_path)/headers
 
-all:    main_code_parallel.cpp $(HEADER_PATHS)/GDV_functions.hpp $(HEADER_PATHS)/bfs.hpp $(HEADER_PATHS)/print_disconnected_graph.hpp
+all:    main_code_parallel.cpp $(HEADER_PATHS)/GDV_functions.hpp $(HEADER_PATHS)/class_definitions.hpp $(HEADER_PATHS)/bfs.hpp $(HEADER_PATHS)/print_disconnected_graph.hpp
 	echo $(ESSENS_PATHS)
 	$(CXX) $(CXXFLAGS) -o graph_alignment $(ESSENS_PATHS) main_code_parallel.cpp
 
