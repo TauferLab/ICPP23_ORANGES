@@ -38,6 +38,7 @@ for run_idx in `seq -f "%03g" ${run_idx_low} ${run_idx_high}`; do
 	run_path=${results_path}/sims_$LSB_JOBINDEX/procs_${n_procs}/run_${run_idx}/
     	mkdir -p ${run_path}
     	cd ${run_path}
+        mkdir -p ${run_path}/runtime_data
 
     	echo "======================================================================"
     	echo "Starting run ${run_idx} of ${input_graph1} with ${input_graph2} on ${n_procs} processes"

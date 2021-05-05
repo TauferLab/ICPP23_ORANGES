@@ -115,10 +115,10 @@ int main(int argc, char *argv[]) {
   //}
 
   // Allocate space for time recording by graph node
-  vec_calc_computation_time_X = new double[X.size()];
-  vec_calc_computation_time_Y = new double[Y.size()];
-  vec_calc_proc_assign_X = new int[X.size()];
-  vec_calc_proc_assign_Y = new int[Y.size()];
+  vec_calc_computation_time_X = new double[X.size()]();
+  vec_calc_computation_time_Y = new double[Y.size()]();
+  vec_calc_proc_assign_X = new int[X.size()]();
+  vec_calc_proc_assign_Y = new int[Y.size()]();
 
   for (int i = 0; i < X.size(); i++) {
     for (int j = 0; j < X[i].ListW.size(); j++) {
@@ -222,9 +222,11 @@ int main(int argc, char *argv[]) {
 //  if (rank == 0) {
 //    vec_calc_computation_time = 0;
 //  }
+//  cout << "Runtime on rank " << rank << " for graph 1 = " << vec_calc_communication_time[0] << endl;
+//  cout << "Runtime on rank " << rank << " for graph 2 = " << vec_calc_communication_time[1] << endl;
   send_times[0] = total_time_taken;
-  send_times[1] = vec_calc_communication_time[1];
-  send_times[2] = vec_calc_communication_time[2];
+  send_times[1] = vec_calc_communication_time[0];
+  send_times[2] = vec_calc_communication_time[1];
   if (rank == 0) {
     time_buff = (double *)malloc(numtasks*num_times*sizeof(double));
   }
@@ -261,7 +263,7 @@ int main(int argc, char *argv[]) {
     }
 
     // Print out rank specific runtime data
-    string time_file = "runtimes_rec.txt";
+    string time_file = "runtime_data/runtimes_rec_over.txt";
     myfile.open(time_file, ofstream::trunc);
     if (!myfile.is_open()) {
       cout << "INPUT ERROR:: Could not open the local time recording file\n";
@@ -274,10 +276,38 @@ int main(int argc, char *argv[]) {
 
   }
 
+  string computation_time_file_x = "runtime_data/runtimes_rec_x_" + to_string(rank) + ".txt";
+  string computation_time_file_y = "runtime_data/runtimes_rec_y_" + to_string(rank) + ".txt";
+  ofstream myfile;
+  myfile.open(computation_time_file_x, ofstream::trunc);
+  if (!myfile.is_open()) {
+    cout << "INPUT ERROR:: Could not open the local time recording file\n";
+  }
+  if (myfile.is_open()) {
+    for (int i = 0; i < X.size(); i++) {
+      myfile << X[i].Row << " " << vec_calc_proc_assign_X[i] << " " << vec_calc_computation_time_X[i] << endl;
+    }
+    myfile.close();
+  }
+  myfile.open(computation_time_file_y, ofstream::trunc);
+  if (!myfile.is_open()) {
+    cout << "INPUT ERROR:: Could not open the local time recording file\n";
+  }
+  if (myfile.is_open()) {
+    for (int i = 0; i < Y.size(); i++) {
+      myfile << Y[i].Row << " " << vec_calc_proc_assign_Y[i] << " " << vec_calc_computation_time_Y[i] << endl;
+    }
+    myfile.close();
+  }
+
 
   //printf("Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
-  cout << "Time taken on rank " << rank << " = " << (double)(clock() - tStart)/CLOCKS_PER_SEC << endl;
+  //cout << "Time taken on rank " << rank << " = " << (double)(clock() - tStart)/CLOCKS_PER_SEC << endl;
   //MPI_Barrier( MPI_COMM_WORLD );
+  delete[] vec_calc_computation_time_X;
+  delete[] vec_calc_computation_time_Y;
+  delete[] vec_calc_proc_assign_X;
+  delete[] vec_calc_proc_assign_Y;
   MPI_Finalize(); 
   return 0;
 
@@ -296,9 +326,10 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
   MPI_Comm_rank(MPI_COMM_WORLD, &rankm);
   MPI_Comm_size(MPI_COMM_WORLD, &numtasksm);
 
-  int graph_counter = 0;
+  int graph_counter = 1;
   GDV_vector_calculation(graph1, &graph1_GDV, orbits, "graph1", graph_counter); 
   //cout << "Rank " << rankm << " finished graph1" << endl;
+  graph_counter = 2;
   GDV_vector_calculation(graph2, &graph2_GDV, orbits, "graph2", graph_counter); 
   //cout << "Finished Vector Calculations" << endl;
 
@@ -395,7 +426,8 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
   int tag = 11;
   int graph_size = graph.size();
   graph_GDV->clear();
-  graph_counter += 1;
+  //graph_counter += 1;
+  //cout << "Graph counter on rank " << rankn << " = " << graph_counter << endl;
 
   double process_ends_communication;
   double vec_calc_computation_start;
@@ -552,6 +584,7 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
 
   //vec_calc_post_gather = MPI_Wtime() - vec_calc_start + vec_calc_post_gather;
   vec_calc_communication_time[graph_counter - 1] = process_ends_communication - vec_calc_start;
+//  cout << "Communication time on process " << rankn << " for graph " << graph_counter << " = " << vec_calc_communication_time[graph_counter - 1] << endl;
   //vec_calc_computation_time = vec_calc_computation_end - vec_calc_computation_start + vec_calc_computation_time;
 
   #ifdef DEBUG
