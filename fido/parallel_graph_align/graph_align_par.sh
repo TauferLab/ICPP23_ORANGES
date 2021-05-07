@@ -76,7 +76,7 @@ done
 # Construct deg distribution across processes
 if [ "${load_assignment}" == "static" ]; then
     cd ${run_path}/../
-    #mpirun -np ${n_procs} > deg_count_out.txt 2> deg_count_err.txt ${deg_count} ${input_graph1} ${input_graph2}
+    mpirun -np ${n_procs} > deg_count_out.txt 2> deg_count_err.txt ${deg_count} ${input_graph1} ${input_graph2} ${metis_graph_files}/event_graph_1.graph.part.${n_procs} ${metis_graph_files}/event_graph_2.graph.part.${n_procs}
 fi
 
 

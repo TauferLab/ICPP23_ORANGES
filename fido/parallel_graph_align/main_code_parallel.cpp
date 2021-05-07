@@ -454,7 +454,7 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
 	break;
       }
       if (part_assignment == rankn) {
-	assigned_nodes.push_back(node_counter);
+	assigned_nodes.push_back(graph[node_counter].Row);
       }
       per_proc[part_assignment] += 1;
       node_counter += 1;
