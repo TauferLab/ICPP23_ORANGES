@@ -1,7 +1,7 @@
 #Change these line to a different location if needed
 include ./fido_paths.config
 proj_root=${fido_project_root}
-root_path=${proj_root}/fido
+#root_path=${proj_root}/fido
 ESSENS=${proj_root}/ESSENS-master
 #ESSENS= ./ESSENS
 
