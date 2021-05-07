@@ -16,7 +16,7 @@ source ./fido_paths.config
 mkdir -p ${results_path}
 root_path=${fido_project_root}/fido
 graph_align_job_script=${root_path}/parallel_graph_align/graph_align_par.sh
-load_assignment="dynamic"
+load_assignment="static"
 
 # Configure Outputs
 output_file=${results_path}/debugging/lsf_output.txt
