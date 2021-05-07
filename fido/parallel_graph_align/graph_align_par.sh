@@ -15,19 +15,19 @@ results_path=$6
 partition="metis"
 
 source ./fido_paths.config
-root_path=${fido_project_root}/fido
-g_align=${root_path}/parallel_graph_align/graph_alignment
-deg_count=${root_path}/parallel_graph_align/node_deg
-metis_path=/home/mushi11/METIS/build/programs/
-metis_bin=gpmetis
-nk_conversion_script=${root_path}/parallel_graph_align/nk_conversion.py
-metis_graph_files=/home/mushi11/metis_graph_samps/
-metis_graphml1=/home/mushi11/comm_pattern_output/message_race_1619711571/msg_size_512/n_procs_10/n_iters_1/run_000/event_graph.graphml
-metis_graphml2=/home/mushi11/comm_pattern_output/message_race_1619711571/msg_size_512/n_procs_10/n_iters_1/run_001/event_graph.graphml
+#root_path=${fido_project_root}/fido
+#o_align=${root_path}/parallel_graph_align/graph_alignment
+#deg_count=${root_path}/parallel_graph_align/node_deg
+#metis_path=/home/mushi11/METIS/build/programs/
+#metis_bin=gpmetis
+#nk_conversion_script=${root_path}/parallel_graph_align/nk_conversion.py
+#metis_graph_files=/home/mushi11/metis_graph_samps/
+#metis_graphml1=/home/mushi11/comm_pattern_output/message_race_1619711571/msg_size_512/n_procs_10/n_iters_1/run_000/event_graph.graphml
+#metis_graphml2=/home/mushi11/comm_pattern_output/message_race_1619711571/msg_size_512/n_procs_10/n_iters_1/run_001/event_graph.graphml
 
 # Define Paths for Input Files
-orbit_file=${root_path}/orbit_list.txt
-time_keeping=${root_path}/parallel_graph_align/time_results.txt
+#orbit_file=${root_path}/orbit_list.txt
+#time_keeping=${root_path}/parallel_graph_align/time_results.txt
 
 #val_mpi_suppr=/home/pnbell/spack/opt/spack/linux-rhel7-power9le/gcc-9.2.0/openmpi-3.1.6-3kn5q2dl3x5lk4jhkni75o4zx5dijrfq/share/openmpi/openmpi-valgrind.supp
 #val_mpi_suppr2=/home/pnbell/spack/opt/spack/linux-rhel7-power9le/gcc-9.2.0/openmpi-3.1.6-klg2sl3myyo6etpxcj4os46qhd2bahfh/share/openmpi/openmpi-valgrind.supp
