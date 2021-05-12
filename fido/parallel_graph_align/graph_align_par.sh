@@ -6,10 +6,11 @@ n_procs=$2
 input_graph1=$3
 input_graph2=$4
 load_assignment=$5
-results_path=$6
+partition=$6
+results_path=$7
 
 
-partition="metis"
+#partition="divide"
 
 source ./fido_paths.config
 mkdir -p ${graphml_graph_files}
@@ -46,6 +47,12 @@ if [ ${partition} == "metis" ]; then
     mv ${metis_graph_files}/${part_file_2} ${part_dir}/${part_file_2}
     cd -
 
+fi
+if [ ${partition} == "divide" ]; then
+
+    part_file_1=${graph_base_1}.graph.part.${n_procs}
+    part_file_2=${graph_base_2}.graph.part.${n_procs}
+    mpirun -np ${n_procs} ${static_assign} ${input_graph1} ${input_graph2} "mod_divide" ${part_dir}/${part_file_1} ${part_dir}/${part_file_2} 	
 
 fi
 

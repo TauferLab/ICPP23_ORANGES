@@ -69,6 +69,9 @@ all:    main_code_parallel.cpp $(HEADER_PATHS)/GDV_functions.hpp $(HEADER_PATHS)
 deg:	node_deg_count.cpp $(HEADER_PATHS)/GDV_functions.hpp $(HEADER_PATHS)/bfs.hpp $(HEADER_PATHS)/print_disconnected_graph.hpp
 	$(CXX) $(CXXFLAGS) -o node_deg $(ESSENS_PATHS) node_deg_count.cpp
 
+stat:	static_assigner.cpp
+	$(CXX) $(CXXFLAGS) -o static_assigner $(ESSENS_PATHS) static_assigner.cpp
+
 cE:     create_edgelist.cpp
 	$(CXX) -g -o cE.out $(ESSENS_PATHS) create_edgelist.cpp
 sparse: sparsify.cpp
@@ -89,4 +92,4 @@ test1:  test_SetOps.cpp
 	$(CXX) $(BASIC_IO_INC) $(BASIC_SETOP_INC) $(BASIC_TRAVERSAL_INC) test_SetOps.cpp
 
 clean:
-	$(RM) *.out *.o graph_alignment node_deg
+	$(RM) *.out *.o graph_alignment node_deg static_assigner
