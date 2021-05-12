@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-# find_package(OpenMP REQUIRED)
+find_package(MPI REQUIRED)
 
 set(FIDO_HEADERS
     headers/GDV_functions.hpp
@@ -10,23 +10,23 @@ set(FIDO_HEADERS
     headers/print_disconnected_graph.hpp
 )
 
-add_executable(fido main_code.cpp ${FIDO_HEADERS})
-target_include_directories(fido PUBLIC
+add_executable(Fido parallel_graph_align/main_code_parallel.cpp ${FIDO_HEADERS})
+target_include_directories(Fido PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/headers>
     $<INSTALL_INTERFACE:headers>
 )
-target_link_libraries(fido PUBLIC ESSENS)
-# target_link_libraries(fido PUBLIC OpenMP::OpenMP_CXX)
-set_target_properties(fido PROPERTIES
+target_link_libraries(Fido PUBLIC ESSENS)
+target_link_libraries(Fido PUBLIC MPI::MPI_CXX)
+set_target_properties(Fido PROPERTIES
     CXX_STANDARD 11
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
 )
-set_target_properties(fido PROPERTIES
+set_target_properties(Fido PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}
 )
 
-install(TARGETS fido
+install(TARGETS Fido
     EXPORT FidoExport
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )

@@ -7,7 +7,7 @@ set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "")
 include(GNUInstallDirs)
 
 add_subdirectory(ESSENS-master)
-add_subdirectory(GRAAL)
+add_subdirectory(fido)
 
 install(EXPORT FidoExport
     FILE FidoTargets.cmake
