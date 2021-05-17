@@ -302,14 +302,17 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
 {
 
   //clock_t out_tStart = clock();
-  MPI_Barrier( MPI_COMM_WORLD );
-  double out_tStart = MPI_Wtime();
+  //MPI_Barrier( MPI_COMM_WORLD );
+  //double out_tStart = MPI_Wtime();
 
   vector<GDVMetric> graph1_GDV;
   vector<GDVMetric> graph2_GDV;
   int rankm, numtasksm;
   MPI_Comm_rank(MPI_COMM_WORLD, &rankm);
   MPI_Comm_size(MPI_COMM_WORLD, &numtasksm);
+
+  MPI_Barrier( MPI_COMM_WORLD );
+  double out_tStart = MPI_Wtime();
 
   int graph_counter = 1;
   GDV_vector_calculation(graph1, &graph1_GDV, orbits, "graph1", part_file_1, graph_counter); 
