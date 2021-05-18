@@ -13,7 +13,7 @@ def main( filepath , run_max, n_procs ):
     runtimes_y = []*3*int(run_max);
 
     # Intake Overhead Runtimes
-    for run_num in range(0, int(run_max):
+    for run_num in range(0, int(run_max)):
         if (run_num < 10):
             filename = filepath + "/run_00" + str(run_num) + "/runtime_data/runtimes_rec_over.txt";
         if (run_num >= 10 and run_num < 100):
@@ -49,60 +49,68 @@ def main( filepath , run_max, n_procs ):
     # Intake graph 1 computation data
     for run_num in range(0, int(run_max)):
 
-        runtimes_x_run = []*3
+        runtimes_x_run = []*3;
 
-        for rank_num in n_procs:
+        for rank_num in range(0, int(n_procs)):
             if (run_num < 10):
-                filename = filepath + "/run_00" + str(run_num) + "/runtime_data/runtimes_rec_x_" + rank_num + ".txt";
+                filename = filepath + "/run_00" + str(run_num) + "/runtime_data/runtimes_rec_x_" + str(rank_num) + ".txt";
             if (run_num >= 10 and run_num < 100):
-                filename = filepath + "/run_0" + str(run_num) + "/runtime_data/runtimes_rec_x_" + rank_num + ".txt";
+                filename = filepath + "/run_0" + str(run_num) + "/runtime_data/runtimes_rec_x_" + str(rank_num) + ".txt";
+            #print(filename)
             with open(filename, "r") as file:
 
-                runtimes_x_rank = [];
                 count_line = 0;
-
                 for line in file:
+                    runtimes_x_line = [];
                     count_word = 0;
                     for word in line.split():
                         if (count_word == 0):
-                            runtimes_x_rank.append(int(word));
+                            node_name=int(word)
                         if (count_word == 1):
-                            runtimes_x_rank.append(int(word));
+                            rank_assignment=int(word)
                         if (count_word == 2):
-                            runtimes_x_rank.append(float(word));
+                            if (float(word) != 0):
+                                runtimes_x_line.append(node_name);
+                                runtimes_x_line.append(rank_assignment);
+                                runtimes_x_line.append(float(word));
                         count_word += 1;
                     count_line += 1;
-                runtimes_x_run.append(runtimes_x_rank);
+                    if (len(runtimes_x_line) != 0):
+                        runtimes_x_run.append(runtimes_x_line);
         runtimes_x_run = sorted(runtimes_x_run, key=lambda x: x[0])
         runtimes_x.append(runtimes_x_run);
 
     # Intake graph 2 computation data
     for run_num in range(0, int(run_max)):
 
-        runtimes_y_run = []*3
+        runtimes_y_run = []*3;
 
-        for rank_num in n_procs:
+        for rank_num in range(0, int(n_procs)):
             if (run_num < 10):
-                filename = filepath + "/run_00" + str(run_num) + "/runtime_data/runtimes_rec_y_" + rank_num + ".txt";
+                filename = filepath + "/run_00" + str(run_num) + "/runtime_data/runtimes_rec_y_" + str(rank_num) + ".txt";
             if (run_num >= 10 and run_num < 100):
-                filename = filepath + "/run_0" + str(run_num) + "/runtime_data/runtimes_rec_y_" + rank_num + ".txt";
+                filename = filepath + "/run_0" + str(run_num) + "/runtime_data/runtimes_rec_y_" + str(rank_num) + ".txt";
+            #print(filename)
             with open(filename, "r") as file:
 
-                runtimes_y_rank = [];
                 count_line = 0;
-
                 for line in file:
+                    runtimes_y_line = [];
                     count_word = 0;
                     for word in line.split():
                         if (count_word == 0):
-                            runtimes_y_rank.append(int(word));
+                            node_name=int(word)
                         if (count_word == 1):
-                            runtimes_y_rank.append(int(word));
+                            rank_assignment=int(word)
                         if (count_word == 2):
-                            runtimes_y_rank.append(float(word));
+                            if (float(word) != 0):
+                                runtimes_y_line.append(node_name);
+                                runtimes_y_line.append(rank_assignment);
+                                runtimes_y_line.append(float(word));
                         count_word += 1;
                     count_line += 1;
-                runtimes_y_run.append(runtimes_y_rank);
+                    if (len(runtimes_y_line) != 0):
+                        runtimes_y_run.append(runtimes_y_line);
         runtimes_y_run = sorted(runtimes_y_run, key=lambda x: x[0])
         runtimes_y.append(runtimes_y_run);
 
@@ -117,6 +125,7 @@ def main( filepath , run_max, n_procs ):
     graph_2_comm = np.array(runtimes_graph_2_2d);
     total_time = np.array(runtimes_total_2d);
     graph_1_comp = np.array(runtimes_x);
+    #graph_1_comp_times = np.array(runtimes_x_times);
     graph_2_comp = np.array(runtimes_y);
 
     print(np.shape(total_time));
@@ -143,13 +152,15 @@ def main( filepath , run_max, n_procs ):
     #plt.title('Time Taken on Each Rank of GDV Vector Calculation');
     #plt.savefig( "png_files/load_imb_bar_vec.png", bbox_inches="tight", pad_inches=0.25);
 
+    print(np.shape(total_time[:,0]));
+    print(np.shape(graph_1_comm + graph_2_comm));
 
-    c1 = "blue"
-    c2 = "red"
-    c3 = "purple"
+    c1 = "red"
+    c2 = "purple"
+    c3 = "blue"
     fig2 = plt.figure();
     #plt.bar(x_vals, prior_gather_avg, color='b');
-    plt.boxplot(total_time[0], positions=np.array([0]), notch=True, patch_artist=True,
+    plt.boxplot(total_time[:,0], positions=np.array([0]), notch=True, patch_artist=True,
             boxprops=dict(facecolor=c1, color=c1),
             capprops=dict(color=c1),
             whiskerprops=dict(color=c1),
@@ -173,12 +184,52 @@ def main( filepath , run_max, n_procs ):
     plt.ylabel('Runtime (s.) on MPI Rank x')
     #plt.legend(['Prior Gather', 'Post Gather']);
     #plt.axis('tight')
-    plt.ylim([0, 75]);
+    plt.ylim([0, 100]);
     plt.xticks(np.arange(0, len(runtimes_total), step=2), np.arange(0, len(runtimes_total), step=2));
     plt.title('Time taken in GDV Vector Calculation');
-    plt.savefig( "png_files/load_imb_box_total_time_" + n_procs + ".png", bbox_inches="tight", pad_inches=0.25);
+    plt.savefig( "./png_files/load_imb_box_total_time_" + n_procs + ".png", bbox_inches="tight", pad_inches=0.25);
 
 
+    #print(np.shape(graph_1_comp))
+    #print(graph_1_comp)
+    #print(len(graph_1_comp[0,:,0]))
+    comp_times = np.zeros((int(run_max), int(n_procs)))
+    for i in range(0, int(run_max)):
+        for j in range(0, len(graph_1_comp[0,:,0])):
+            comp_times[i, int(graph_1_comp[i,j,1])] += graph_1_comp[i,j,2];
+    #print(graph_1_comp_times)
+    #print(np.shape(np.sum(graph_1_comp, axis=2)[:,2]))
+    print(comp_times)
+
+    fig3 = plt.figure();
+    plt.boxplot(comp_times, positions=x_vals, notch=True, patch_artist=True,
+            boxprops=dict(facecolor=c2, color=c2),
+            capprops=dict(color=c2),
+            whiskerprops=dict(color=c2),
+            flierprops=dict(color=c2, markeredgecolor=c2),
+            medianprops=dict(color=c2));
+    
+    for i in range(0, int(run_max)):
+        for j in range(0, len(graph_2_comp[0,:,0])):
+            comp_times[i, int(graph_2_comp[i,j,1])] += graph_2_comp[i,j,2];
+    print(comp_times)
+
+    plt.boxplot(comp_times, positions=x_vals, notch=True, patch_artist=True,
+            boxprops=dict(facecolor=c3, color=c3),
+            capprops=dict(color=c3),
+            whiskerprops=dict(color=c3),
+            flierprops=dict(color=c3, markeredgecolor=c3),
+            medianprops=dict(color=c3));
+
+    plt.xticks(x_vals);
+    plt.xlabel('MPI Rank x')
+    plt.ylabel('Runtime (s.) on MPI Rank x')
+    #plt.legend(['Prior Gather', 'Post Gather']);
+    #plt.axis('tight')
+    plt.ylim([0, 100]);
+    plt.xticks(np.arange(0, len(runtimes_total), step=2), np.arange(0, len(runtimes_total), step=2));
+    plt.title('Time taken in GDV Computation');
+    plt.savefig( "./png_files/load_imb_box_comp_time_" + n_procs + ".png", bbox_inches="tight", pad_inches=0.25);
 
     #fig3 = plt.figure();
     #plt.bar(x_vals, post_gather_avg, color='b');
@@ -214,7 +265,7 @@ if __name__ == "__main__":
     parser.add_argument("-p", "--n_procs", required=True,
                         help="Number of processes parallelized across")
     args = parser.parse_args()
-    main( args.filepath, args.run_max )
+    main( args.filepath, args.run_max, args.n_procs )
 
 
 
