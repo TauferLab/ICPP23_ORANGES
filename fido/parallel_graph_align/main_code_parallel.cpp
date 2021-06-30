@@ -269,6 +269,7 @@ int main(int argc, char *argv[]) {
       cout << "INPUT ERROR:: Could not open the local time recording file\n";
     }
     myfile << "Time Taken in Similarity Metric Calculation = " << " \n";
+    myfile << "Rank\tGraph 1\tGraph 2\tTotal\n";
     for (int i = 0; i < numtasks; i++) {
       myfile << i << " " << time_buff[num_times*i+1] << " " << time_buff[num_times*i+2] << " " << time_buff[num_times*i] << " \n";
     }
