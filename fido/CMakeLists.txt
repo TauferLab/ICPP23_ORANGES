@@ -1,6 +1,7 @@
 cmake_minimum_required(VERSION 3.15)
 
 find_package(MPI REQUIRED)
+find_package(Kokkos REQUIRED)
 
 set(FIDO_HEADERS
     headers/GDV_functions.hpp
@@ -17,6 +18,8 @@ target_include_directories(Fido PUBLIC
 )
 target_link_libraries(Fido PUBLIC ESSENS)
 target_link_libraries(Fido PUBLIC MPI::MPI_CXX)
+target_link_libraries(Fido PUBLIC Kokkos::kokkos)
+
 set_target_properties(Fido PROPERTIES
     CXX_STANDARD 11
     CXX_STANDARD_REQUIRED YES

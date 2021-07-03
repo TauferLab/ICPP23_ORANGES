@@ -113,6 +113,13 @@ public:
   void find_neighbours(int node,A_Network network,int distance,vector<int> *neighbours)
   {
     get_unq_neighbors(node, network, distance, neighbours);
+    sort(neighbours->begin(), neighbours->begin()+neighbours->size());
+    unsigned int index = 0;
+    for(index; index<neighbours->size(); index++) {
+      if((*neighbours)[index] > node)
+        break;
+    }
+    neighbours->erase(neighbours->begin(), neighbours->begin()+index);
     return;
   }
 
@@ -144,7 +151,7 @@ public:
       dist_sig.clear();
       dist_sig.resize(6, 0);
       for (int i = 0; i < shortest_paths.size(); i++) {
-	dist_sig[shortest_paths[i]] += 1;
+	      dist_sig[shortest_paths[i]] += 1;
       }
 
     } else {
