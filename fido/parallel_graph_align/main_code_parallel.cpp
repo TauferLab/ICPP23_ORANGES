@@ -15,6 +15,7 @@
 
 #define MAX_COMM_SIZE 32
 #define GDV_LENGTH 22
+#define CHUNK_SIZE 8
 //#define DEBUG
 
 void Calculate_GDV(int ,A_Network ,vector<OrbitMetric>&, GDVMetric&);
@@ -76,10 +77,10 @@ int main(int argc, char *argv[]) {
     cout<<"INPUT ERROR:: Could not open the orbit file\n";
   }
 
-  //ifstream the_file3 ( argv[4] + "time_results.txt" );
-  //if (!the_file3.is_open() ) {
-  //  cout << "INPUT ERROR:: Could not open the time recording file\n";
-  //}
+  ifstream the_file3 ( argv[4] + "time_results.txt" );
+  if (!the_file3.is_open() ) {
+    cout << "INPUT ERROR:: Could not open the time recording file\n";
+  }
 
   vector<OrbitMetric> orbits;
   readin_orbits(&the_file2,&orbits);
@@ -329,6 +330,7 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
   int graph_counter = 1;
   GDV_vector_calculation(graph1, &graph1_GDV, orbits, "graph1", graph_counter); 
   //cout << "Rank " << rankm << " finished graph1" << endl;
+
   graph_counter = 2;
   GDV_vector_calculation(graph2, &graph2_GDV, orbits, "graph2", graph_counter); 
   //cout << "Finished Vector Calculations" << endl;
@@ -458,7 +460,8 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
       int rcv_node;  // Corresponds to name of graph node recieved from worker rank
       vector<int> rcv_gdv;
       for (i = 1; i < comm_size; i++) {
-	send_node = i-1;
+
+	send_node = (i-1) * CHUNK_SIZE;
         #ifdef DEBUG
           cout << "Sending node " << graph[send_node].Row << " to rank " << i << endl;
         #endif
@@ -467,7 +470,7 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
 
       // Start probing and recieving results from other processes
       int rec_count = 0;
-      send_node += 1;
+      send_node += CHUNK_SIZE;
       //int next_job = comm_size-1;
       do {
 	
@@ -510,13 +513,33 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
             rcv_gdv[j] = gdv_array[j];
           }
           rcv_node = gdv_array[GDV_LENGTH];
-          GDVMetric gdv_extract(rcv_node, rcv_gdv);
-          graph_GDV->push_back(gdv_extract);
-          rec_count += 1;
-	  free(gdv_array);
 
-	}
-
+          // We are updating each vertex in the nodes neighborhood.
+          // Last GDV update for the node will be node+graph_size 
+          // as a signal for when we're done with this node
+          if(rcv_node >= graph_size) { // Check if last GDV for the node
+            rcv_node -= graph_size;
+            rec_count += CHUNK_SIZE;
+      	    // Prepare to send next node to finished process.
+      	    if (send_node < graph_size) { // Jobs still exist.  Send next.
+              #ifdef DEBUG
+      	        cout << "Sending node " << graph[send_node].Row << " to rank " << i << endl;
+      	      #endif
+      	      MPI_Send(&send_node, 1, MPI_INT, i, tag, MPI_COMM_WORLD);
+      	      send_node += CHUNK_SIZE;
+      	    } else { // Send termination
+      	      flag = -1;
+      	      MPI_Send(&flag, 1, MPI_INT, i, tag, MPI_COMM_WORLD);
+      	    }
+          }
+//          GDVMetric gdv_extract(rcv_node, rcv_gdv);
+//          graph_GDV->push_back(gdv_extract);
+//          (*graph_GDV)[rcv_node] = gdv_extract;
+          for(int j=0; j<GDV_LENGTH; j++) {
+            (*graph_GDV)[rcv_node].GDV[j] += rcv_gdv[j];
+          }
+      	  free(gdv_array);
+      	}
       } while (rec_count < graph_size);
 
       process_ends_communication = MPI_Wtime();
@@ -554,30 +577,48 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
         //vec_calc_prior_gather = MPI_Wtime() - vec_calc_start + vec_calc_prior_gather;
         break;
       }
-      vector<int> gdv_alloc;
-      GDVMetric gdvMetric(graph[node_name].Row, gdv_alloc);
-      vec_calc_computation_start = MPI_Wtime();
-      Calculate_GDV(graph[node_name].Row, graph, orbits, gdvMetric);
-      if (graph_counter == 1) {
-        vec_calc_computation_time_X[node_name] = MPI_Wtime() - vec_calc_computation_start;
-        vec_calc_proc_assign_X[node_name] = rankn;
-      }
-      if (graph_counter == 2) {
-	vec_calc_computation_time_Y[node_name] = MPI_Wtime() - vec_calc_computation_start;
-        vec_calc_proc_assign_Y[node_name] = rankn;
-      }
-      int gdv_Length = gdvMetric.GDV.size();
-      int* gdv_array = new int[gdv_Length + 1];
-      for (int i = 0; i < gdv_Length; i++) {
-        gdv_array[i] = gdvMetric.GDV[i];
-      }
-      gdv_array[gdv_Length] = graph[node_name].Row;
-      MPI_Send(gdv_array, gdv_Length+1, MPI_INT, 0, tag, MPI_COMM_WORLD);
-      #ifdef DEBUG
-	cout << "Sending GDV for node " << graph[node_name].Row << " from rank " << rankn << endl;
-      #endif
-      delete[] gdv_array;
 
+      int end = node_name+CHUNK_SIZE;
+      if(end > graph.size())
+        end = graph.size();
+      for(int node=node_name; node<end; node++) {
+        vector<int> gdv_alloc;
+        GDVMetric gdvMetric(graph[node].Row, gdv_alloc);
+        vec_calc_computation_start = MPI_Wtime();
+        vector<GDVMetric> metrics;
+        for(int idx=0; idx<graph.size(); idx++) {
+          metrics.push_back(GDVMetric(graph[idx].Row, vector<int>(GDV_LENGTH, 0)));
+        }
+        Calculate_GDV(graph[node].Row, graph, orbits, metrics);
+
+        if (graph_counter == 1) {
+          vec_calc_computation_time_X[node] = MPI_Wtime() - vec_calc_computation_start;
+          vec_calc_proc_assign_X[node] = rankn;
+        }
+        if (graph_counter == 2) {
+          vec_calc_computation_time_Y[node] = MPI_Wtime() - vec_calc_computation_start;
+          vec_calc_proc_assign_Y[node] = rankn;
+        }
+
+        for(int idx=0; idx<graph.size(); idx++) {
+          int gdv_Length = metrics[idx].GDV.size();
+          int* gdv_array = new int[gdv_Length + 1];
+          for (int j = 0; j < gdv_Length; j++) {
+            gdv_array[j] = metrics[idx].GDV[j];
+          }
+          // Send row+graph_size as a signal that this is the last GDV to update
+          if(idx >= graph.size()-1 && node == end-1) {
+            gdv_array[gdv_Length] = graph[idx].Row + graph.size();
+          } else {
+            gdv_array[gdv_Length] = graph[idx].Row;
+          }
+          MPI_Send(gdv_array, gdv_Length+1, MPI_INT, 0, tag, MPI_COMM_WORLD);
+          delete[] gdv_array;
+        }
+        #ifdef DEBUG
+          cout << "Sending GDV for node " << graph[node_name].Row << " from rank " << rankn << endl;
+        #endif
+      }
     } while (node_name != -1); // Exit loop if kill value is sent
 
   }
