@@ -66,4 +66,52 @@ class Combinations
 
 };
 
+// Class for creating combinations of k indices
+class CombinationGenerator
+{
+  public:
+    vector<int> combination; // Indices for combination
+    bool done;
+    int n, k;
+
+    CombinationGenerator(int num_elements, int combo_size)
+    {
+      n = num_elements;
+      k = combo_size;
+      done =  n<1 || k>n;
+      for(int i=0; i<k; i++) 
+      {
+        combination.push_back(i);
+      }
+    }
+
+    void get_combination(const vector<int>& set, vector<int>& combo) 
+    {
+      combo.clear();
+      for(int i=0; i<k; i++) {
+        if(combination[i] < set.size())
+          combo.push_back(set[combination[i]]);
+      }
+      return;
+    }
+
+    bool next()
+    {
+      done = true;
+      for(int i=k-1; i>=0; --i)
+      {
+        if(combination[i] < n - k + i + 1)
+        {
+          int j = combination[i] + 1;
+          while(i <= k-1)
+            combination[i++] = j++;
+          done = false;
+          break;
+        }
+      }
+      return done;
+    }
+
+};
+
 #endif
