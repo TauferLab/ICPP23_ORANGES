@@ -1,10 +1,22 @@
-# Src_GraphAlignment
+# Fido
+
+Code is in `fido/parallel_graph_align/main_code.cpp` and `fido/headers`.
 
 Instructions to run the code: 
 
-1. Download both the folders "ESSENS-master" and "GRAAL"
-2. Open the makefile in GRAAL folder and in line 2 : ESSENS = "Place your essens-master directory path" 
-3. Navigate to the path of GRAAL folder and type command "make all" which will create a executable file 'graal'
-4. Now provide graph file as input to the 'graal' as "./graal <graph1> <graph2> orbit_list.txt <no_of_threads>". (a sample graph files are available in test_graphs/)
-5. You are good to go.
+1. Download and install kokkos and kokkos-kernels
+2. If using KokkosResilience fork then use tab 3.2.00 for kokkos-kernels
+3. Create a build directory
+4. Run CMake. ex
+```
+cmake \
+  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+  -DKokkos_DIR=/home/ntan1/KokkosResilience/kokkos/build/install/lib64/cmake/Kokkos \
+  -DKokkosKernels_DIR=/home/ntan1/KokkosResilience/kokkos-kernels/build/install/lib64/cmake/KokkosKernels \
+  ..
+```
+5. `make`
+6. This will produce a binary called Fido
+7. Run command: `mpirun -n N ./Fido path_to_graph1 path_to_graph2 ../fido/orbit_list.txt path_to_timing_file.txt --kokkos-threads=1` This will compare `graph1` and `graph2` using the orbits specified in `orbit_list.txt` and `N` processes.
+8. Similarity matrix will be output to `out_similarity_matrix.txt`
 
