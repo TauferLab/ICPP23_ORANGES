@@ -54,16 +54,16 @@ public:
       bool node_found = false;
       int graph_count = 0;
       while (!node_found) {
-	if (network[graph_count].Row == nodes[i]) {
-	  node_found = true;
-	  neighbor_list = network[graph_count].ListW;
-	  //cout << nodes[i] << ": ";
-	  //for (int j = 0; j < neighbor_list.size(); j++) {
-	  //  cout << neighbor_list[j].first << ", ";
-	  //}
-	  //cout << endl;
-	}
-	graph_count += 1;
+	      if (network[graph_count].Row == nodes[i]) {
+	        node_found = true;
+	        neighbor_list = network[graph_count].ListW;
+	        //cout << nodes[i] << ": ";
+	        //for (int j = 0; j < neighbor_list.size(); j++) {
+	        //  cout << neighbor_list[j].first << ", ";
+	        //}
+	        //cout << endl;
+	      }
+	      graph_count += 1;
       }
 
       // Ensure subgraph contains next node.              
@@ -72,19 +72,20 @@ public:
 
       // Check which of the nodes[j] correspond to neighbors of nodes[i].
       for (int j = 0; j < subgraph_nodes; j++) {
-	for (int k = 0; k < neighbor_list.size(); k++) {
-	  if (neighbor_list[k].first == nodes[j]) {
-	    temp_edge.first = nodes[j];
-	    temp_edge.second = neighbor_list[k].second;
-	    output[i].ListW.push_back(temp_edge);
-	  }
-	}
+	      for (int k = 0; k < neighbor_list.size(); k++) {
+	        if (neighbor_list[k].first == nodes[j]) {
+	          temp_edge.first = nodes[j];
+	          temp_edge.second = neighbor_list[k].second;
+	          output[i].ListW.push_back(temp_edge);
+	        }
+	      }
       }
 
     }
 
     return;
   };
+
 
   // Evaluate whether network is a connected graph.  Store result in isConnected.                  
   void isConnected(A_Network network, bool& isConnected)

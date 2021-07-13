@@ -6,6 +6,7 @@
 #include "printout_others.hpp"
 #include "printout_network.hpp"
 #include "ADJ/find_Xneighbors.hpp"
+#include <Kokkos_Core.hpp>
 using namespace std;
 
 class Combinations
@@ -70,11 +71,59 @@ class Combinations
 class CombinationGenerator
 {
   public:
+    Kokkos::View<int*> k_combination;
+    bool done;
+    int n, k;
+
+    KOKKOS_INLINE_FUNCTION CombinationGenerator() {}
+
+    KOKKOS_INLINE_FUNCTION CombinationGenerator(int num_elements, int combo_size)
+    {
+      n = num_elements;
+      k = combo_size;
+      done =  n<1 || k>n;
+      k_combination = Kokkos::View<int*>("Combination indices", k);
+      for(int i=0; i<k; i++) 
+      {
+        k_combination(i) = i;
+      }
+    }
+
+    KOKKOS_INLINE_FUNCTION void kokkos_get_combination(const Kokkos::View<int*>& set, Kokkos::View<int*>& combo) 
+    {
+      for(int i=0; i<k; i++) {
+        if(i < set.size())
+          combo(i) = set(k_combination(i));
+      }
+      return;
+    }
+
+    KOKKOS_INLINE_FUNCTION bool kokkos_next()
+    {
+      done = true;
+      for(int i=k-1; i>=0; i--) {
+        if(k_combination(i) < n-k+i) {
+          k_combination(i) += 1;
+          for(int j=i+1; j<k; j++) {
+            k_combination(j) = k_combination(j-1)+1;
+          }
+          done = false;
+          break;
+        } 
+      }
+      return done;
+    }
+};
+
+// Class for creating combinations of k indices
+class CombinationGeneratorVector
+{
+  public:
     vector<int> combination; // Indices for combination
     bool done;
     int n, k;
 
-    CombinationGenerator(int num_elements, int combo_size)
+    CombinationGeneratorVector(int num_elements, int combo_size)
     {
       n = num_elements;
       k = combo_size;
@@ -111,7 +160,6 @@ class CombinationGenerator
       }
       return done;
     }
-
 };
 
 #endif
