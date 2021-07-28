@@ -3,6 +3,7 @@ cmake_minimum_required(VERSION 3.15)
 project(FIDO)
 
 set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "")
+set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
 include(GNUInstallDirs)
 

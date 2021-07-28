@@ -51,7 +51,7 @@ class Orbits {
     start_indices = Kokkos::View<int*>("Starting indices for graphlets", max_nodes+2);
   }
 
-  int num_orbits() {
+  int num_orbits() const {
     return degree.extent(0);
   }
 };
@@ -61,7 +61,10 @@ using Offset        = int;
 using Scalar        = float;
 using device_type   = typename Kokkos::Device<Kokkos::DefaultExecutionSpace, 
                       typename Kokkos::DefaultExecutionSpace::memory_space>;
-using matrix_type   = typename KokkosSparse::CrsMatrix<Scalar, Ordinal, device_type, void, Offset>;
+using scratch_device = typename Kokkos::Device<Kokkos::DefaultExecutionSpace,
+                        typename Kokkos::DefaultExecutionSpace::scratch_memory_space>;
+using scratch_matrix   = typename KokkosSparse::CrsMatrix<Scalar, Ordinal, scratch_device, Kokkos::MemoryTraits<Kokkos::Unmanaged>, Offset>;
+using matrix_type = typename KokkosSparse::CrsMatrix<Scalar, Ordinal, device_type, void, Offset>;
 using graph_type    = typename matrix_type::staticcrsgraph_type;
 using row_map_type  = typename graph_type::row_map_type;
 using entries_type  = typename graph_type::entries_type;
