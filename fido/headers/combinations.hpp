@@ -114,25 +114,6 @@ class CombinationGenerator
       k = num_selection;
     }
 
-//    KOKKOS_INLINE_FUNCTION void kokkos_get_combination(const Kokkos::View<int*>& set, Kokkos::View<int*>& combo) 
-//    {
-//      for(int i=0; i<k; i++) {
-//        if(i < set.size())
-//          combo(i) = set(k_combination(i));
-//      }
-//      return;
-//    }
-//
-//    template<class ViewType>
-//    KOKKOS_INLINE_FUNCTION void kokkos_get_combination(int set_size, const Kokkos::View<int*>& set, ViewType& combo) 
-//    {
-//      for(int i=0; i<k; i++) {
-//        if(i < set_size)
-//          combo(i) = set(k_combination(i));
-//      }
-//      return;
-//    }
-
     template<class IndexView, class SetView, class CombinationView>
     KOKKOS_INLINE_FUNCTION void kokkos_get_combination(IndexView& indices, int set_size, const SetView& set, CombinationView& combo)  const
     {
@@ -161,22 +142,6 @@ class CombinationGenerator
       return done;
     }
 
-//    KOKKOS_INLINE_FUNCTION bool kokkos_next()
-//    {
-//      done = true;
-//      for(int i=k-1; i>=0; i--) {
-//        if(k_combination(i) < n-k+i) {
-//          k_combination(i) += 1;
-//          for(int j=i+1; j<k; j++) {
-//            k_combination(j) = k_combination(j-1)+1;
-//          }
-//          done = false;
-//          break;
-//        } 
-//      }
-//      return done;
-//    }
-  
     KOKKOS_INLINE_FUNCTION int get_num_comb() {
       return num_comb;
     }

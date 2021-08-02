@@ -1,0 +1,8 @@
+{
+  "backend": "veloc",
+  "backends": {
+    "veloc": {
+      "config": "/home/ntan1/Src_Fido_Kokkos/fido.cfg"
+    }
+  }
+}
