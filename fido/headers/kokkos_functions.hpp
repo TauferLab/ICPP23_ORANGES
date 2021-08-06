@@ -19,8 +19,8 @@ KOKKOS_INLINE_FUNCTION int64_t factorial(int n) {
   return result;
 }
 
-KOKKOS_INLINE_FUNCTION int64_t get_num_combinations(int n, int k) {
-  int64_t result = 1;
+KOKKOS_INLINE_FUNCTION uint64_t get_num_combinations(int n, int k) {
+  uint64_t result = 1;
   for(int i=n-k+1; i<=n; i++) {
     result *= i;
   }
@@ -30,6 +30,21 @@ KOKKOS_INLINE_FUNCTION int64_t get_num_combinations(int n, int k) {
   return result;
 }
 
+KOKKOS_INLINE_FUNCTION uint32_t
+get_approx_num_neighbors(const matrix_type& graph, int node, int distance) {
+  uint32_t num_neighbors = 0;
+  auto row = graph.row(node);
+  if(distance > 1) {
+    for(size_t i=0; i<row.length; i++) {
+      num_neighbors += get_approx_num_neighbors(graph, row.colidx(i), distance-1);
+    }
+  } else {
+    return row.length;
+  }
+  return num_neighbors;
+}
+
+
 template<class IndexView>
 KOKKOS_INLINE_FUNCTION void combination_from_position(IndexView& indices, int64_t position, int size, int k) {
   int64_t m = position;
@@ -38,7 +53,7 @@ KOKKOS_INLINE_FUNCTION void combination_from_position(IndexView& indices, int64_
   for(int i=0; i<indices.extent(0); i++) {
     indices(i) = 0;
   }
-  Kokkos::deep_copy(indices, 0);
+//  Kokkos::deep_copy(indices, 0);
   int64_t y;
   while(n > 0) {
     if(n > r && r >= 0) {
@@ -55,9 +70,9 @@ KOKKOS_INLINE_FUNCTION void combination_from_position(IndexView& indices, int64_
     }
     n -= 1;
   }
-  for(int i=0; i<k; i++) {
+  for(size_t i=0; i<k; i++) {
     int index = 0;
-    for(int j=i; j<indices.extent(0); j++) {
+    for(size_t j=i; j<indices.extent(0); j++) {
       if(indices(j) == 1) {
         index = j;
         indices(j) = 0;
@@ -133,8 +148,6 @@ namespace EssensKokkos {
 //  find_neighbours(int node, const matrix_type& graph,int distance, Kokkos::View<int*>& neighbors)
   find_neighbours(int node, const matrix_type& graph,int distance, SubviewType& neighbors)
   {
-//    Kokkos::View<int*> temp_neighbors("Temporary neighbor view", graph.numRows());
-//    Kokkos::deep_copy(temp_neighbors, -1);
     int num_neighbors = 0;
     int level = 0;
     int level_start = 0;
@@ -142,7 +155,6 @@ namespace EssensKokkos {
     auto root_row = graph.row(node);
     for(int i=0; i<root_row.length; i++) {
       if(root_row.colidx(i) > node) {
-//        temp_neighbors(num_neighbors) = root_row.colidx(i);
         neighbors(num_neighbors) = root_row.colidx(i);
         num_neighbors++;
       }
@@ -151,21 +163,18 @@ namespace EssensKokkos {
     level = 1;
     while(level < distance) {
       for(int i=level_start; i<level_end; i++) {
-//        auto row = graph.row(temp_neighbors(i));
         auto row = graph.row(neighbors(i));
         for(int j=0; j<row.length; j++) {
           bool new_node = true;
           int u = row.colidx(j);
           if(u > node) {
             for(int k=0; k<num_neighbors; k++) {
-//              if(u == temp_neighbors(k)) {
               if(u == neighbors(k)) {
                 new_node = false;
                 break;
               }
             }
             if(new_node) {
-//              temp_neighbors(num_neighbors) = u;
               neighbors(num_neighbors) = u;
               num_neighbors++;
             }
@@ -176,19 +185,6 @@ namespace EssensKokkos {
       level_start = level_end;
       level_end = num_neighbors;
     }
-//    for(int i=0; i<num_neighbors-1; i++) {
-//      for(int j=0; j<num_neighbors-1-i; j++) {
-//        if(neighbors(j) > neighbors(j+1)) {
-//          int temp = neighbors(j);
-//          neighbors(j) = neighbors(j+1);
-//          neighbors(j+1) = temp;
-//        }
-//      }
-//    }
-//    neighbours = Kokkos::View<int*>("Neighbor View", num_neighbors);
-//    for(int i=0; i<num_neighbors; i++) {
-//      neighbours(i) = temp_neighbors(i);
-//    }
     return num_neighbors;
   }
 
@@ -298,16 +294,16 @@ namespace EssensKokkos {
   KOKKOS_INLINE_FUNCTION int
   kokkos_induced_subgraph(const matrix_type& graph, const CombinationView& nodes, SubgraphType& subgraph)
   {
-    for(int i=0; i<subgraph.extent(0); i++) {
-      for(int j=0; j<subgraph.extent(1); j++) {
+    for(size_t i=0; i<subgraph.extent(0); i++) {
+      for(size_t j=0; j<subgraph.extent(1); j++) {
         subgraph(i,j) = 0;
       }
     }
     int edge_count = 0;
-    for(int i=0; i<nodes.size(); i++) {
+    for(size_t i=0; i<nodes.size(); i++) {
       auto row = graph.row(nodes(i));
-      for(int j=0; j<row.length; j++) {
-        for(int k=0; k<nodes.size(); k++) {
+      for(size_t j=0; j<row.length; j++) {
+        for(size_t k=0; k<nodes.size(); k++) {
           if(row.colidx(j) == nodes(k) && (k!=i)) {
             subgraph(i,k) = row.value(j);
             edge_count++;
@@ -388,11 +384,11 @@ namespace EssensKokkos {
   KOKKOS_INLINE_FUNCTION
   bool is_connected(const GraphType& graph, VisitedView& visited, QueueView& queue)
   {
-    for(int i=0; i<visited.size(); i++) {
+    for(size_t i=0; i<visited.size(); i++) {
       visited(i) = false;
       queue(i) = -1;
     }
-    int connected_nodes = 0;
+    size_t connected_nodes = 0;
     int queue_length = 0;
     visited(0) = true;
     queue(0) = 0;
@@ -401,7 +397,7 @@ namespace EssensKokkos {
     while(queue_length > 0) {
       int node = queue(queue_length-1);
       queue_length -= 1;
-      for(int i=0; i<graph.extent(1); i++) {
+      for(size_t i=0; i<graph.extent(1); i++) {
         if(!visited(i) && graph(node,i) == 1) {
           visited(i) = true;
           queue(queue_length) = i;
@@ -424,18 +420,18 @@ namespace EssensKokkos {
     if(deg_sig.size() != graph.extent(0)) {
       std::cout << "Warning: Degree signature View does not match # of subgraph nodes." << endl;
     } else {
-      for(int i=0; i<deg_sig.size(); i++) {
+      for(size_t i=0; i<deg_sig.size(); i++) {
         deg_sig(i) = 0;
       }
-      for(int i=0; i<graph.extent(0); i++) {
-        for(int j=0; j<graph.extent(1); j++) {
+      for(size_t i=0; i<graph.extent(0); i++) {
+        for(size_t j=0; j<graph.extent(1); j++) {
           if(graph(i,j) == 1)
             deg_sig(i) += 1;
         }
       }
       // Sort
-      for(int i=0; i<deg_sig.size()-1; i++) {
-        for(int j=0; j<deg_sig.size()-1-i; j++) {
+      for(size_t i=0; i<deg_sig.size()-1; i++) {
+        for(size_t j=0; j<deg_sig.size()-1-i; j++) {
           if(deg_sig(j) > deg_sig(j+1)) {
             int temp = deg_sig(j);
             deg_sig(j) = deg_sig(j+1);
@@ -563,16 +559,15 @@ namespace EssensKokkos {
   KOKKOS_INLINE_FUNCTION
   void calc_distance_signature(int node, const GraphType& graph, ViewType& dist_sig, VisitedView& visited, QueueView& queue, DistanceView& distance)
   {
-    for(int i=0; i<distance.size(); i++) {
+    for(size_t i=0; i<distance.size(); i++) {
       distance(i) = INT_MAX;
     }
-    for(int i=0; i<visited.size(); i++) {
+    for(size_t i=0; i<visited.size(); i++) {
       visited(i) = false;
     }
-    for(int i=0; i<dist_sig.size(); i++) {
+    for(size_t i=0; i<dist_sig.size(); i++) {
       dist_sig(i) = 0;
     }
-    int numrows = graph.extent(0);
     int numcols = graph.extent(1);
     int queue_length = 0;
     visited(node) = true;
@@ -618,7 +613,7 @@ namespace EssensKokkos {
   template<class Signature>
   KOKKOS_INLINE_FUNCTION
   bool compare_signatures(const Signature& sig1, const Signature& sig2) {
-    for(int i=0; i<sig1.size(); i++) {
+    for(size_t i=0; i<sig1.size(); i++) {
       if(sig1(i) != sig2(i)) 
         return false;
     }

@@ -70,6 +70,6 @@ using row_map_type  = typename graph_type::row_map_type;
 using entries_type  = typename graph_type::entries_type;
 using values_type   = typename matrix_type::values_type;
 
-using GDVs = Kokkos::View<int**>;
+using GDVs = Kokkos::View<uint32_t**>;
 
 #endif
