@@ -345,39 +345,39 @@ namespace EssensKokkos {
     return false;
   }
   
-  // Check if a graph is connected with BFS.
-  template<class GraphType, class VisitedView, class QueueView>
-  KOKKOS_INLINE_FUNCTION
-  bool isConnected(const GraphType& graph, VisitedView& visited, QueueView& queue)
-  {
-    for(int i=0; i<visited.size(); i++) {
-      visited(i) = false;
-      queue(i) = -1;
-    }
-    int connected_nodes = 0;
-    int queue_length = 0;
-    visited(0) = true;
-    queue(0) = 0;
-    queue_length = 1;
-    connected_nodes++;
-    while(queue_length > 0) {
-      int node = queue(queue_length-1);
-      queue_length -= 1;
-      auto row = graph.row(node);
-      for(int i=0; i<row.length; i++) {
-        if(!visited(row.colidx(i))) {
-          visited(row.colidx(i)) = true;
-          queue(queue_length) = row.colidx(i);
-          queue_length++;
-          connected_nodes++;
-        }
-      }
-    }
-    if(connected_nodes == graph.numRows()) {
-      return true;
-    }
-    return false;
-  }
+//  // Check if a graph is connected with BFS.
+//  template<class GraphType, class VisitedView, class QueueView>
+//  KOKKOS_INLINE_FUNCTION
+//  bool isConnected(const GraphType& graph, VisitedView& visited, QueueView& queue)
+//  {
+//    for(int i=0; i<visited.size(); i++) {
+//      visited(i) = false;
+//      queue(i) = -1;
+//    }
+//    int connected_nodes = 0;
+//    int queue_length = 0;
+//    visited(0) = true;
+//    queue(0) = 0;
+//    queue_length = 1;
+//    connected_nodes++;
+//    while(queue_length > 0) {
+//      int node = queue(queue_length-1);
+//      queue_length -= 1;
+//      auto row = graph.row(node);
+//      for(int i=0; i<row.length; i++) {
+//        if(!visited(row.colidx(i))) {
+//          visited(row.colidx(i)) = true;
+//          queue(queue_length) = row.colidx(i);
+//          queue_length++;
+//          connected_nodes++;
+//        }
+//      }
+//    }
+//    if(connected_nodes == graph.numRows()) {
+//      return true;
+//    }
+//    return false;
+//  }
   
   // Check if a graph is connected with BFS.
   template<class GraphType, class VisitedView, class QueueView>
