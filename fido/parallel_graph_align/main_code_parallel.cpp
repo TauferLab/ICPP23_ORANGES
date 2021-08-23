@@ -17,17 +17,20 @@
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Sort.hpp>
 #include <Kokkos_ScatterView.hpp>
-#include <resilience/Resilience.hpp>
-#include <resilience/CheckpointFilter.hpp>
 
-#define GDV_LENGTH 22
-#define CHUNK_SIZE 8
+#define GDV_LENGTH 73
+#define CHUNK_SIZE 32
 //#define DEBUG
 //#define INSTRUMENT
 //#define RESILIENCE
 //#define CHECKPOINT_TEST
 //#define AUTO_CHECKPOINT
 #define NUM_THREADS 4
+
+#ifdef RESILIENCE
+#include <resilience/Resilience.hpp>
+#include <resilience/CheckpointFilter.hpp>
+#endif
 
 void Calculate_GDV(int ,A_Network ,vector<OrbitMetric>&, GDVMetric&);
 void Calculate_GDV(int node,A_Network Graph,vector<OrbitMetric> &orbits, vector<GDVMetric> &gdvMetrics);

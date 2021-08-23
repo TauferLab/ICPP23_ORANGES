@@ -3,8 +3,8 @@ cmake_minimum_required(VERSION 3.15)
 find_package(MPI REQUIRED)
 find_package(Kokkos REQUIRED)
 find_package(KokkosKernels REQUIRED)
-find_package(resilience REQUIRED)
-find_package(VeloC)
+#find_package(resilience REQUIRED)
+#find_package(VeloC)
 
 set(FIDO_HEADERS
     headers/GDV_functions.hpp
@@ -23,8 +23,8 @@ target_link_libraries(Fido PRIVATE ESSENS)
 target_link_libraries(Fido PRIVATE MPI::MPI_CXX)
 target_link_libraries(Fido PRIVATE Kokkos::kokkos)
 target_link_libraries(Fido PRIVATE Kokkos::kokkoskernels)
-target_link_libraries(Fido PRIVATE Kokkos::resilience)
-target_link_libraries(Fido PRIVATE veloc::veloc)
+#target_link_libraries(Fido PRIVATE Kokkos::resilience)
+#target_link_libraries(Fido PRIVATE veloc::veloc)
 
 set_target_properties(Fido PROPERTIES
     CXX_STANDARD 11
