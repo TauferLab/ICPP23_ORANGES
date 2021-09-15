@@ -21,7 +21,7 @@
 
 #define GDV_LENGTH 73
 #define CHUNK_SIZE 1
-#define NUM_THREADS 4
+#define NUM_THREADS 1
 #define MAX_SUBGRAPH 5
 //#define DEBUG
 //#define INSTRUMENT
@@ -283,7 +283,7 @@ int main(int argc, char *argv[]) {
     // File IO to Record Run Data
     // Date \t n_procs \t graph_name1 \t graph_name2 \t n_nodes \t runtime(s) 
     ofstream myfile;
-    myfile.open(argv[4], ios_base::app);
+    /*myfile.open(argv[4], ios_base::app);
     if (!myfile.is_open() ) {
       cout << "INPUT ERROR:: Could not open the time recording file\n";   
     }
@@ -294,7 +294,7 @@ int main(int argc, char *argv[]) {
     }
     else { 
       cout << "Out File Did Not Open";
-    }
+    }*/
 
     // Print out rank specific runtime data
     string time_file = "runtime_data/runtimes_rec_over.txt";
