@@ -1312,8 +1312,13 @@ printf("Calculated # of combinations\n");
   KOKKOS_LAMBDA(const int i, uint64_t& update) {
     update += num_combinations(i+start_offset);
   }, local_combinations);
+
+  Kokkos::View<uint64_t*> send_comb("Send buffer", end_offset-start_offset);
+  auto s_view = Kokkos::subview(num_combinations, Kokkos::make_pair(start_offset, end_offset));
+  Kokkos::deep_copy(send_comb, s_view);
   MPI_Barrier(MPI_COMM_WORLD);
-  MPI_Allgatherv(num_combinations.data()+start_offset, 
+//  MPI_Allgatherv(num_combinations.data()+start_offset, 
+  MPI_Allgatherv(send_comb.data(), 
                   end_offset-start_offset, 
                   MPI_UNSIGNED_LONG, 
                   num_combinations.data(), 
