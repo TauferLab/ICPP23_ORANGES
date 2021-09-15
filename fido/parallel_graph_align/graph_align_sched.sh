@@ -10,9 +10,9 @@ paths_dir=$5
 results_path=$6
 #sims=1
 scheduler=$7
-sched_queue="skx-normal"
-sched_time_limit=$8
-load_assignment="dynamic"
+sched_queue=$8
+sched_time_limit=$9
+load_assignment=${10}
 
 function join_by { local d=$1; shift; local f=$1; shift; printf %s "$f" "${@/#/$d}"; }
 
