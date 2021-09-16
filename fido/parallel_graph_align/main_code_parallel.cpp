@@ -265,7 +265,7 @@ int main(int argc, char *argv[]) {
     // File IO to Record Run Data
     // Date \t n_procs \t graph_name1 \t graph_name2 \t n_nodes \t runtime(s) 
     ofstream myfile;
-    myfile.open(argv[4], ios_base::app);
+    /*myfile.open(argv[4], ios_base::app);
     if (!myfile.is_open() ) {
       cout << "INPUT ERROR:: Could not open the time recording file\n";   
     }
@@ -276,7 +276,7 @@ int main(int argc, char *argv[]) {
     }
     else { 
       cout << "Out File Did Not Open";
-    }
+    }*/
 
     // Print out rank specific runtime data
     string time_file = "runtime_data/runtimes_rec_over.txt";
@@ -872,6 +872,88 @@ void convert_string_vector_int(string* str, vector<int>* output,string delimiter
   while (pos != std::string::npos);
 
 }
+
+
+/*
+bool sort_by_dest(vector<int>& a, vector<int>& b) {
+  return a[1] < b[1];
+}
+
+KOKKOS_INLINE_FUNCTION void readin_graph(ifstream* file, matrix_type& graph) 
+{
+  string line;;
+  int nnz = 0;
+
+  int lastrow = 0;
+  vector<int> rows, cols;
+  vector<float> vals;
+  int k = 0;
+  vector<vector<int>> edge_list;
+  while(std::getline(*file,line))
+  {
+    int u, v;
+    float w;
+    sscanf(line.c_str(), "%d %d %f", &u, &v, &w);
+    //printf("Found nodes u and v: %d, %d\n", u, v);
+    if(u > lastrow) 
+      lastrow = u;
+    if(v > lastrow) 
+      lastrow = v;
+    vector<int> edge1;
+    edge1.push_back(u);
+    edge1.push_back(v);
+    if(w != 0.0) {
+        edge1.push_back(1);
+    } else {
+        edge1.push_back(0);
+    }
+    edge_list.push_back(edge1);
+    if(u != v) {
+      vector<int> edge2;
+      edge2.push_back(v);
+      edge2.push_back(u);
+      if(w != 0.0) {
+            edge2.push_back(1);
+      } else {
+            edge2.push_back(0);
+      }
+      edge_list.push_back(edge2);
+    }
+    //printf("Edge list size is: %d\n", edge_list.size());
+    //printf("Last row is: %d\n", lastrow); 
+  }
+  sort(edge_list.begin(), edge_list.end(), sort_by_leading_edge);
+
+  vector<int> rowmap(lastrow+2, 0);
+  for(int i=0; i<edge_list.size(); i++) {
+    rows.push_back(edge_list[i][0]);
+    cols.push_back(edge_list[i][1]);
+    vals.push_back(edge_list[i][2]);
+  }
+  
+  for(int i=0; i<rows.size(); i++) {
+    if(rows[i] != cols[i])
+    {
+      rowmap[rows[i]+1]++;
+    }
+    else
+    {
+      rowmap[rows[i]+1]++;
+    }
+  }
+  for(int i=1; i<rowmap.size(); i++) {
+    rowmap[i] += rowmap[i-1];
+  }
+  for(int i=0; i<rowmap.size()-1; i++) {
+    sort(cols.begin()+rowmap[i], cols.begin()+rowmap[i+1]);
+  }
+  
+  graph = matrix_type("Graph", lastrow+1, lastrow+1, vals.size(), 
+                      vals.data(), rowmap.data(), cols.data());
+  return;
+}
+*/
+
 
 
 
