@@ -25,16 +25,7 @@ echo ${progress_delimiter}
 echo
 rm -rf ${build_dir} && mkdir ${build_dir}
 cd ${build_dir}
-export CC=mpicc
-export CXX=mpicxx
-cmake \
-  -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-  -DCMAKE_CXX_COMPILER=mpicxx \
-  -DCMAKE_PREFIX_PATH=${project_root} \
-  -DKokkos_DIR=${kokkos_path}/lib64/cmake/Kokkos \
-  -DKokkosKernels_DIR=${kokkos_kernels_path}/lib64/cmake/KokkosKernels \
-  ..
-make
+. ../install/install_fido.sh ${kokkos_path} ${kokkos_kernels_path}
 cd ..
 echo
 echo ${progress_delimiter}
