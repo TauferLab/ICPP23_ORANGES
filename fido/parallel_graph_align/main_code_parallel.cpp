@@ -249,7 +249,7 @@ if(rank == 0) {
     // File IO to Record Run Data
     // Date \t n_procs \t graph_name1 \t graph_name2 \t n_nodes \t runtime(s) 
     ofstream myfile;
-    myfile.open(argv[4], ios_base::app);
+    /*myfile.open(argv[4], ios_base::app);
     if (!myfile.is_open() ) {
       cout << "INPUT ERROR:: Could not open the time recording file\n";   
     }
@@ -260,7 +260,7 @@ if(rank == 0) {
     }
     else { 
       cout << "Out File Did Not Open";
-    }
+    }*/
 
     // Print out rank specific runtime data
     string time_file = "runtime_data/runtimes_rec_over.txt";
@@ -1417,7 +1417,7 @@ KOKKOS_INLINE_FUNCTION void readin_graph(ifstream* file, matrix_type& graph)
   string line;;
   int nnz = 0;
 
-  int lastrow;
+  int lastrow = 0;
   vector<int> rows, cols;
   vector<float> vals;
   int k = 0;
@@ -1427,6 +1427,7 @@ KOKKOS_INLINE_FUNCTION void readin_graph(ifstream* file, matrix_type& graph)
     int u, v;
     float w;
     sscanf(line.c_str(), "%d %d %f", &u, &v, &w);
+    //printf("Found nodes u and v: %d, %d\n", u, v);
     if(u > lastrow) 
       lastrow = u;
     if(v > lastrow) 
@@ -1451,6 +1452,8 @@ KOKKOS_INLINE_FUNCTION void readin_graph(ifstream* file, matrix_type& graph)
       }
       edge_list.push_back(edge2);
     }
+    //printf("Edge list size is: %d\n", edge_list.size());
+    //printf("Last row is: %d\n", lastrow); 
   }
   sort(edge_list.begin(), edge_list.end(), sort_by_leading_edge);
 
