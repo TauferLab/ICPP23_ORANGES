@@ -3,9 +3,8 @@
 
 build_dir=build/
 project_root=$(pwd)
-
-kokkos_path=/work2/08092/tg873913/stampede2/spack/opt/spack/linux-centos7-skylake_avx512/intel-19.1.1.217/kokkos-3.3.01-4ct54q7mxt37js5622iokn63yrviwyjz/
-kokkos_kernels_path=/work2/08092/tg873913/stampede2/spack/opt/spack/linux-centos7-skylake_avx512/intel-19.1.1.217/kokkos-kernels-3.2.00-ooqvbeobrgycgsmt453f2v3lhqy7zuia/
+#kokkos_path=/work2/08092/tg873913/stampede2/spack/opt/spack/linux-centos7-skylake_avx512/intel-19.1.1.217/kokkos-3.3.01-4ct54q7mxt37js5622iokn63yrviwyjz/
+#kokkos_kernels_path=/work2/08092/tg873913/stampede2/spack/opt/spack/linux-centos7-skylake_avx512/intel-19.1.1.217/kokkos-kernels-3.2.00-ooqvbeobrgycgsmt453f2v3lhqy7zuia/
 
 
 ## Setup progress delimiter
@@ -17,16 +16,62 @@ do
 done
 
 
+## Update Git Submodules
+echo
+echo ${progress_delimiter}
+echo "Fetching Submodules..."
+echo ${progress_delimiter}
+echo
+rm -rf ./submodules/*
+git submodule update --init --recursive
+echo
+echo ${progress_delimiter}
+echo "Done Fetching Submodules."
+echo ${progress_delimiter}
+echo
+
+
+## Build Kokkos
+echo
+echo ${progress_delimiter}
+echo "Building Kokkos..."
+echo ${progress_delimiter}
+echo
+kokkos_build_dir=${project_root}/submodules/kokkos/${build_dir}
+cd submodules/kokkos/
+. ${project_root}/install/install_kokkos.sh
+cd ../../
+echo
+echo ${progress_delimiter}
+echo "Done Installing Kokkos"
+echo ${progress_delimiter}
+echo
+
+
+## Build Kokkos-Kernels
+echo
+echo ${progress_delimiter}
+echo "Building Kokkos-Kernels..."
+echo ${progress_delimiter}
+echo
+kokkos_kernels_build_dir=${project_root}/submodules/kokkos-kernels/${build_dir}
+cd submodules/kokkos-kernels/
+. ${project_root}/install/install_kokkos-kernels.sh ${kokkos_build_dir}
+cd ../../
+echo
+echo ${progress_delimiter}
+echo "Done Installing Kokkos-Kernels"
+echo ${progress_delimiter}
+echo
+
+
 ## Build fido
 echo
 echo ${progress_delimiter}
-echo "Installing Fido"
+echo "Installing Fido..."
 echo ${progress_delimiter}
 echo
-rm -rf ${build_dir} && mkdir ${build_dir}
-cd ${build_dir}
-. ../install/install_fido.sh ${kokkos_path} ${kokkos_kernels_path}
-cd ..
+. ./install/install_fido.sh
 echo
 echo ${progress_delimiter}
 echo "Done Installing Fido"
@@ -36,3 +81,6 @@ echo
 
 ## Setup project directory
 sed -i "s#fido_project_root= #fido_project_root=${project_root}#" ./fido/parallel_graph_align/fido_paths.config
+
+
+
