@@ -135,8 +135,6 @@ bash ${fido_sched_script} ${n_procs} ${n_nodes} ${graph_one} ${graph_two} ${path
 
 echo ""
 echo "==========================================================="
-echo ""
 echo "Your output will be stored in the directory: ${results_path}"
-echo ""
 echo "==========================================================="
 echo ""
