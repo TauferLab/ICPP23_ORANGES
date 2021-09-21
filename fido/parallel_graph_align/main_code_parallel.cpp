@@ -577,9 +577,10 @@ template <class SubviewType>
 KOKKOS_INLINE_FUNCTION
 double kokkos_metric_formula(SubviewType &gdvm)
 {
-  int sum = 0;
+  unsigned long long sum = 0;
   for(int i=0; i<gdvm.extent(0); i++) {
-    sum += gdvm[i]*gdvm[i];
+    //sum += gdvm[i]*gdvm[i];
+    sum += static_cast<double>(static_cast<int64_t>(gdvm[i])*static_cast<int64_t>(gdvm[i]));
   }
   return sqrt(sum);
 }
@@ -881,6 +882,7 @@ cout << "# of processes : " << comm_size << endl;
     ends(i) = starts(i+1);
   }
   ends(ends.extent(0)-1) = graph.numRows();
+  #ifdef DEBUG
   for(int i=0; i<starts.extent(0); i++) {
     printf("%d ", starts(i));
   }
@@ -893,6 +895,7 @@ cout << "# of processes : " << comm_size << endl;
     printf("%d ", num_combinations(starts(i)));
   }
   printf("\n");
+  #endif
 
   if(comm_size == 1)
   {
