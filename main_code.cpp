@@ -77,18 +77,28 @@ void subgraph_enumeration(A_Network graph, vector<subgraph> &subgraph_combinatio
             temp_list.parent = i;
             temp_list.child = node.ListW[j].first;
             temp_subgraph.list.push_back(temp_list);
-            // making end nodes
+            //making end nodes
             temp_subgraph.end_nodes.push_back(node.ListW[j].first);
             temp_subgraph.list_of_nodes.push_back(i);
             temp_subgraph.list_of_nodes.push_back(node.ListW[j].first);
-            making adjacency list
+            //making adjacency list
             ADJ_Bundle item;
             item.Row = i;
             int_double temp_ListW;
             temp_ListW.first = node.ListW[j].first;
             temp_ListW.second = 1;
             item.ListW.push_back(temp_ListW);
+            //pushing 1 node
             temp_subgraph.adj_list.push_back(item);
+            //making adjlist of 2nd node
+            ADJ_Bundle item1;
+            item1.Row = node.ListW[j].first;
+            int_double temp_ListW1;
+            temp_ListW1.first = i;
+            temp_ListW1.second = 1;
+            item1.ListW.push_back(temp_ListW1);
+            temp_subgraph.adj_list.push_back(item1);
+            // checking if subgraph is valid
             if(node.ListW[j].first > i)
             {
                 temp_subgraph.is_subgraph = 1;
@@ -104,13 +114,13 @@ void subgraph_enumeration(A_Network graph, vector<subgraph> &subgraph_combinatio
 
     for(subgraph element1 : subgraph_combinations)
     {
-        vector<vector<graph_combination>> combination_list;
-        vector<graph_combination> temp_combination;
         for(int k= 0; k< element1.end_nodes.size(); k++)
         {
+            vector<vector<graph_combination>> combination_list;
+            vector<graph_combination> temp_combination;
             int end_node_item;
             end_node_item = element1.end_nodes[k];
-            ADJ_Bundle node_temp = graph[element1.end_nodes[k]];
+            ADJ_Bundle node_temp = graph[end_node_item];
             for(int p = 0; p<node_temp.ListW.size(); p++)
             {
               graph_combination temp_comb;
@@ -118,19 +128,40 @@ void subgraph_enumeration(A_Network graph, vector<subgraph> &subgraph_combinatio
               temp_comb.child = node_temp.ListW[p].first;
               temp_combination.push_back(temp_comb);
             }
+            generate_combinations(temp_combination, combination_list);
+            for(vector<graph_combination> element : combination_list)
+            {
+              subgraph temp_element = element1;
+              for(graph_combination element_2 : element)
+              {
+                int quantity1 = element_2.parent;
+                int quantity2 = element_2.child;
+                //making adjacency list
+                ADJ_Bundle item;
+                item.Row = quantity1;
+                int_double temp_ListW;
+                temp_ListW.first = quantity2;
+                temp_ListW.second = 1;
+                item.ListW.push_back(temp_ListW);
+                //pushing 1 node
+                temp_element.adj_list.push_back(item);
+                //making adjlist of 2nd node
+                ADJ_Bundle item1;
+                item1.Row = quantity2;
+                int_double temp_ListW1;
+                temp_ListW1.first = quantity1;
+                temp_ListW1.second = 1;
+                item1.ListW.push_back(temp_ListW1);
+                temp_element.adj_list.push_back(item1);
+
+                //cout << element_2.parent;
+                //cout <<"||";
+                //cout << element_2.child;
+                //cout <<" ";
+              }
+              cout <<endl;
+            }
         }
-        generate_combinations(temp_combination, combination_list);
-        for(vector<graph_combination> element : combination_list)
-       {
-        for(graph_combination element_1 : element)
-        {
-            cout << element_1.parent;
-            cout <<"||";
-            cout << element_1.child;
-            cout <<" ";
-        }
-        cout <<endl;
-      }
 
     }
 
