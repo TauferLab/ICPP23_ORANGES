@@ -21,9 +21,8 @@
 #define GDV_LENGTH 73
 #define CHUNK_SIZE 1
 //#define DEBUG
-//#define RUNTIME
+#define RUNTIME
 #define NUM_THREADS 1
-
 
 void Calculate_GDV(int ,A_Network ,vector<OrbitMetric>&, GDVMetric&);
 void Calculate_GDV(int node,A_Network Graph,vector<OrbitMetric> &orbits, vector<GDVMetric> &gdvMetrics);
@@ -448,7 +447,7 @@ if(rankm == 0)
   kokkos_GDV_vector_calculation(graph2, graph2_GDV, orbits, "graph2", graph_counter); 
   MPI_Barrier(MPI_COMM_WORLD);
 
-if(rankm == 0)
+if (rankm == 0)
   cout << "Done with GDV calculation for graph 2\n";
 
 //if(rankm == 0) {
@@ -463,19 +462,29 @@ if(rankm == 0)
 //cout << endl;
 //}
 
-  int m = graph1_GDV.extent(0);
-  int n = graph2_GDV.extent(0);
-  Kokkos::View<double**> sim_mat("Similarity matrix", m, n);
-if(rankm == 0) {
+int m = 0;
+int n = 0;
+Kokkos::View<double**> sim_mat;
+
+if (rankm == 0) {
+  m = graph1_GDV.extent(0);
+  n = graph2_GDV.extent(0);
+  cout << "Creating similarity matrix with size " << m << "x" << n << endl;
+  //Kokkos::View<double**> sim_mat("Similarity matrix", m, n);
+  sim_mat = Kokkos::View<double**>("Similarity matrix", m, n);
+
+  cout << "Adding data to similarity matrix" << endl;
   Kokkos::MDRangePolicy<Kokkos::Rank<2>> mdrange({0,0}, {m,n});
   Kokkos::parallel_for("Compute sim_mat", mdrange, KOKKOS_LAMBDA(const int i, const int j) {
       auto g1_subview = Kokkos::subview(graph1_GDV, i, Kokkos::ALL);
       auto g2_subview = Kokkos::subview(graph2_GDV, j, Kokkos::ALL);
       sim_mat(i,j) = kokkos_GDV_distance_calculation(g1_subview, g2_subview);
   });
+  cout << "Constructed similarity matrix" << endl;
 }
-if(rankm == 0)
+if (rankm == 0) {
   cout << "Created similarity matrix\n";
+}
 //cout << "Similarity matrix\n";
 //for(int i=0; i<m; i++) {
 //  for(int j=0; j<n; j++) {
@@ -848,7 +857,9 @@ cout << "# of processes : " << comm_size << endl;
   double vec_calc_start = MPI_Wtime();
 #endif
 
-  Kokkos::View<int*> num_combinations("Number of combinations", graph.numRows());
+  Kokkos::View<unsigned long int*> num_combinations("Number of combinations", graph.numRows());
+  //Kokkos::View<long long int*> num_combinations("Number of combinations", graph.numRows());
+  //cout << "Initial Number of Combinations on Graph Size=" << graph.numRows() << " is : " << num_combinations(graph.numRows()-1) << endl;
   int k_interval = 1000000;
 
   Kokkos::View<int*> neighbor_scratch("Neighbors", graph.numRows());
@@ -857,18 +868,23 @@ cout << "# of processes : " << comm_size << endl;
     num_neighbors = EssensKokkos::get_num_neighbors(graph, node, 4, neighbor_scratch);
     for(int i=1; i<5; i++) {
       num_combinations(node) += get_num_combinations(num_neighbors, i);
+      //cout << "Changing Number of Combinations at node " << node << " to: " << num_combinations(node) << " based on iteration " << i << " of get_num_neighbors=" << get_num_combinations(num_neighbors, i) << endl;
     }
   });
   printf("Computed # of combinations\n");
-  Kokkos::parallel_scan(num_combinations.extent(0), KOKKOS_LAMBDA(const int i, int& update, const bool final) {
+  Kokkos::parallel_scan(num_combinations.extent(0), KOKKOS_LAMBDA(const int i, unsigned long int& update, const bool final) {
     const int val_i = num_combinations(i);
     if(final) {
       num_combinations(i) = update;
+      //cout << "Setting Number of Combinations at node " << i << " to: " << num_combinations(i) << " based on update=" << update << endl;
     }
     update += val_i;
   });
-  Kokkos::View<int*> starts("Start indices", (num_combinations(graph.numRows()-1)/k_interval)+1);
-  Kokkos::View<int*> ends("Start indices", (num_combinations(graph.numRows()-1)/k_interval)+1);
+  //cout << "Number of Combinations: " << num_combinations(graph.numRows()-1) << " on rank: " << rankn << endl;
+  Kokkos::View<unsigned long int*> starts("Start indices", (num_combinations(graph.numRows()-1)/k_interval)+1);
+  Kokkos::View<unsigned long int*> ends("Start indices", (num_combinations(graph.numRows()-1)/k_interval)+1);
+  //Kokkos::View<long long int*> starts("Start indices", (num_combinations(graph.numRows()-1)/k_interval)+1);
+  //Kokkos::View<long long int*> ends("Start indices", (num_combinations(graph.numRows()-1)/k_interval)+1);
   starts(0) = 0;
   int threshold = k_interval;
   int start_index = 1;
@@ -1109,6 +1125,7 @@ chrono::  steady_clock::time_point t1 = chrono::steady_clock::now();
 
     do {
 
+      //cout << "About to do MPI_Recv on rank " << rankn << endl;
 //cout << "Starting worker thread\n";
       MPI_Recv(&node_name, 1, MPI_INT, 0, tag, MPI_COMM_WORLD, &worker_status);
 //cout << "Got new batch of nodes starting at " << node_name << "\n";
