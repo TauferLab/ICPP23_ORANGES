@@ -31,6 +31,7 @@ source ${paths_dir}/fido_paths.config
 #run_idx_low=0
 #run_idx_high=$((n_runs-1))
 
+export PSM2_MEMORY=large
 
 #for run_idx in `seq -f "%03g" ${run_idx_low} ${run_idx_high}`; do
     
