@@ -428,8 +428,10 @@ kokkos_Similarity_Metric_calculation_for_two_graphs(const matrix_type& graph1,
   kokkos_GDV_vector_calculation(graph1, graph1_GDV, orbits, "graph1", graph_counter); 
   MPI_Barrier(MPI_COMM_WORLD);
 
+#ifdef DEBUG
 if(rankm == 0)
   cout << "Done with GDV calculation for graph 1\n";
+#endif
 
 //if(rankm == 0) {
 //cout << "Post kokkos_GDV_vector_calculation: graph 1" << endl;
@@ -447,8 +449,10 @@ if(rankm == 0)
   kokkos_GDV_vector_calculation(graph2, graph2_GDV, orbits, "graph2", graph_counter); 
   MPI_Barrier(MPI_COMM_WORLD);
 
+#ifdef DEBUG
 if (rankm == 0)
   cout << "Done with GDV calculation for graph 2\n";
+#endif
 
 //if(rankm == 0) {
 //cout << "Post kokkos_GDV_vector_calculation: graph 2" << endl;
@@ -469,22 +473,24 @@ Kokkos::View<double**> sim_mat;
 if (rankm == 0) {
   m = graph1_GDV.extent(0);
   n = graph2_GDV.extent(0);
-  cout << "Creating similarity matrix with size " << m << "x" << n << endl;
+  //cout << "Creating similarity matrix with size " << m << "x" << n << endl;
   //Kokkos::View<double**> sim_mat("Similarity matrix", m, n);
   sim_mat = Kokkos::View<double**>("Similarity matrix", m, n);
 
-  cout << "Adding data to similarity matrix" << endl;
+  //cout << "Adding data to similarity matrix" << endl;
   Kokkos::MDRangePolicy<Kokkos::Rank<2>> mdrange({0,0}, {m,n});
   Kokkos::parallel_for("Compute sim_mat", mdrange, KOKKOS_LAMBDA(const int i, const int j) {
       auto g1_subview = Kokkos::subview(graph1_GDV, i, Kokkos::ALL);
       auto g2_subview = Kokkos::subview(graph2_GDV, j, Kokkos::ALL);
       sim_mat(i,j) = kokkos_GDV_distance_calculation(g1_subview, g2_subview);
   });
-  cout << "Constructed similarity matrix" << endl;
+  //cout << "Constructed similarity matrix" << endl;
 }
+#ifdef DEBUG
 if (rankm == 0) {
   cout << "Created similarity matrix\n";
 }
+#endif
 //cout << "Similarity matrix\n";
 //for(int i=0; i<m; i++) {
 //  for(int j=0; j<n; j++) {
@@ -838,8 +844,8 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
   MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
   int tag = 11;
   int graph_size = graph.numRows();
-cout << "Starting GDV vector calculation\n";
-cout << "# of processes : " << comm_size << endl;
+//cout << "Starting GDV vector calculation\n";
+//cout << "# of processes : " << comm_size << endl;
 //  int graph_size = graph.size();
 //  graph_GDV->clear();
 //
@@ -871,7 +877,7 @@ cout << "# of processes : " << comm_size << endl;
       //cout << "Changing Number of Combinations at node " << node << " to: " << num_combinations(node) << " based on iteration " << i << " of get_num_neighbors=" << get_num_combinations(num_neighbors, i) << endl;
     }
   });
-  printf("Computed # of combinations\n");
+  //printf("Computed # of combinations\n");
   Kokkos::parallel_scan(num_combinations.extent(0), KOKKOS_LAMBDA(const int i, unsigned long int& update, const bool final) {
     const int val_i = num_combinations(i);
     if(final) {
@@ -919,7 +925,9 @@ cout << "# of processes : " << comm_size << endl;
     Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace, Kokkos::Schedule<Kokkos::Dynamic>> policy(1, NUM_THREADS);
     using member_type = Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace, Kokkos::Schedule<Kokkos::Dynamic>>::member_type;
 
+#ifdef DEBUG
 cout << "Team size: " << policy.team_size() << endl;
+#endif
     Kokkos::View<int**> all_neighbors("Neighbor scratch", policy.team_size(), graph.numRows());
     Kokkos::View<int*> combination_counter("Per thread counter", policy.team_size());
     Kokkos::deep_copy(combination_counter, 0);
@@ -1158,7 +1166,9 @@ chrono::  steady_clock::time_point t1 = chrono::steady_clock::now();
 //      policy.set_scratch_size(0, Kokkos::PerThread(128));
       using member_type = Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>::member_type;
 
+#ifdef DEBUG
 cout << "Team size: " << policy.team_size() << endl;
+#endif
       Kokkos::View<int**> all_neighbors("Neighbor scratch", policy.team_size(), graph.numRows());
       GDVs metrics("GDVs", graph.numRows(), GDV_LENGTH);
       Kokkos::Experimental::ScatterView<int**> metrics_sa(metrics);
@@ -1254,7 +1264,9 @@ kokkos_calculate_GDV(Kokkos::TeamPolicy<>::member_type team_member,
   int k_interval = 1000000;
   int num_neighbors = EssensKokkos::find_neighbours(node, graph, 4, neighbor_buff);
   auto neighbors = Kokkos::subview(neighbor_buff, std::pair<int,int>(0, num_neighbors));
+#ifdef DEBUG
   printf("Allocated and found neighbors of %d: %d total neighbors\n", node, neighbors.size());
+#endif
   int iter_counter = counter(team_member.team_rank());
   for (int node_count = 1; node_count < 5; node_count++)
   {
