@@ -97,7 +97,19 @@ def main( filepath , run_min , run_max , vis_type ):
     #plt.boxplot(prior_gather, positions=x_vals);
 
     if ( vis_type == "runtime" ):
-        plt.violinplot(runtime_data, positions=x_vals)
+        parts = ax.violinplot(runtime_data, positions=x_vals, widths=2, showmedians=True, showextrema=True)
+        for vp in parts['bodies']:
+            vp.set_facecolor('olive')
+            vp.set_edgecolor('black')
+            vp.set_alpha(1)
+        parts['cbars'].set_linewidths(1)
+        parts['cbars'].set_edgecolors('black')
+        parts['cmins'].set_linewidths(2)
+        parts['cmins'].set_edgecolors('black')
+        parts['cmaxes'].set_linewidths(1)
+        parts['cmaxes'].set_edgecolors('black')
+        parts['cmedians'].set_linewidths(1)
+        parts['cmedians'].set_edgecolors('black')
         plt.xticks(x_vals)
         plt.xlabel('Number of MPI Processes Used')
         plt.ylabel('Runtime (s.)')
