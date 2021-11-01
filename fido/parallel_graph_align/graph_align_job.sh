@@ -46,6 +46,9 @@ cd ${run_path}
 debug_path=${run_path}/debug/
 mkdir -p ${debug_path}
 
+runtime_path=${run_path}/runtime_data/
+mkdir -p ${runtime_path}
+
 echo "======================================================================"
 echo "Starting Fido alignment of ${input_graph1} with ${input_graph2} on ${n_procs} processes"
     	#mpirun -np ${n_procs} > ${run_path}/graph_align_out.txt 2> ${run_path}/graph_align_err.txt valgrind --leak-check=full --error-limit=no --log-file="valgrind_out.txt" --suppressions=${val_mpi_suppr2} --suppressions=${val_mpi_suppr} --suppressions=/home/pnbell/Src_GraphAlignment/GRAAL/parallel_graph_align/mpi_supp_samp.supp --gen-suppressions=all ${g_align} ${input_graph1} ${input_graph2} ${orbit_file} ${time_keeping}
