@@ -30,7 +30,7 @@
 #define BASELINE
 //#define STANDARD
 //#define INCREMENTAL
-#define OUTPUT_MATRIX
+//#define OUTPUT_MATRIX
 
 #ifdef AUTO_CHECKPOINT
 #include <resilience/Resilience.hpp>
@@ -104,6 +104,8 @@ struct node_id_order {
 // Define variables for keeping track of time for load imbalancing tests.
 double total_time_taken;
 double vec_calc_communication_time[2] = {};
+double pre_process_time;
+double report_output_time;
 double* vec_calc_computation_time_X;
 double* vec_calc_computation_time_Y;
 int* vec_calc_proc_assign_X;
@@ -127,6 +129,7 @@ int main(int argc, char *argv[]) {
     //}
   clock_t tStart = clock();
   clock_t q, q1, q2,t;
+  double pre_tStart = MPI_Wtime();
 //  GDV_functions gdvf;
   /* Accepts file as input. 
      Input should be in the format of ( node1 node2 weight ). 
@@ -241,6 +244,8 @@ int main(int argc, char *argv[]) {
     cout << "# of vertices: " << graphy.numRows() << endl;
   }
 
+  pre_process_time = (double)(MPI_Wtime() - pre_tStart);
+
   // Perform Similarity Calculations
 //  Similarity_Metric_calculation_for_two_graphs(X,Y,orbits, graph_name1, graph_name2);
   kokkos_Similarity_Metric_calculation_for_two_graphs(graphx, graphy, k_orbits, graph_name1, graph_name2);
@@ -251,7 +256,7 @@ int main(int argc, char *argv[]) {
 
   // Set up for and Perform Runtime Management and Gather
   double* time_buff = NULL;
-  int num_times = 3;
+  int num_times = 5;
   double send_times[num_times];
 //  if (rank == 0) {
 //    vec_calc_computation_time = 0;
@@ -261,6 +266,8 @@ int main(int argc, char *argv[]) {
   send_times[0] = total_time_taken;
   send_times[1] = vec_calc_communication_time[0];
   send_times[2] = vec_calc_communication_time[1];
+  send_times[3] = pre_process_time;
+  send_times[4] = report_output_time;
   if (rank == 0) {
     time_buff = (double *)malloc(numtasks*num_times*sizeof(double));
   }
@@ -299,13 +306,22 @@ int main(int argc, char *argv[]) {
     // Print out rank specific runtime data
     string time_file = "runtime_data/runtimes_rec_over.txt";
     myfile.open(time_file, ofstream::trunc);
-    if (!myfile.is_open()) {
+    /*if (!myfile.is_open()) {
       cout << "INPUT ERROR:: Could not open the local time recording file\n";
     }
     myfile << "Time Taken in Similarity Metric Calculation = " << " \n";
     myfile << "Rank\tGraph 1\tGraph 2\tTotal\n";
     for (int i = 0; i < numtasks; i++) {
       myfile << i << " " << time_buff[num_times*i+1] << " " << time_buff[num_times*i+2] << " " << time_buff[num_times*i] << " \n";
+    }
+    myfile.close();*/
+    if (!myfile.is_open()) {
+      cout << "INPUT ERROR:: Could not open the local time recording file\n";
+    }
+    myfile << "Time Taken in Similarity Metric Calculation = " << " \n";
+    myfile << "Rank\tPre-Process\tReport Data\tGraph 1\tGraph 2\tTotal\n";
+    for (int i = 0; i < numtasks; i++) {
+      myfile << i << " " << time_buff[num_times*i+3] << " " << time_buff[num_times*i+4] << " " << time_buff[num_times*i+1] << " " << time_buff[num_times*i+2] << " " << time_buff[num_times*i] << " \n";
     }
     myfile.close();
 
@@ -507,6 +523,8 @@ if(rankm == 0)
     cout << "Finished similarity matrix calculation and prepped for fileIO on Rank: " << rankm << endl;
   #endif
 
+  double report_tStart = MPI_Wtime();
+
   // Perform File I/O for Output Data
   if (rankm == 0) {
 
@@ -544,6 +562,7 @@ if(rankm == 0)
     }
     myfile.close();
   }
+  report_output_time = (double)(MPI_Wtime() - report_tStart);
 }
 
 double GDV_distance_calculation(GDVMetric &gdvm1, GDVMetric &gdvm2)
