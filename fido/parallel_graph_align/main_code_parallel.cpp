@@ -9,6 +9,7 @@
 #include "../headers/class_definitions.hpp"
 #include "../headers/combinations.hpp"
 #include "../headers/kokkos_functions.hpp"
+#include "../headers/dirty_page_tracking.hpp"
 #include <time.h>
 #include <stdlib.h>
 #include <ctime>
@@ -25,6 +26,7 @@
 #define MAX_SUBGRAPH 5
 //#define DEBUG
 //#define INSTRUMENT
+#define DIRTY_PAGE_TRACKING
 //#define RESILIENCE
 //#define AUTO_CHECKPOINT
 #define BASELINE
@@ -1271,8 +1273,16 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
   std::string label(graph_name);
   label += "-Rank";
   label += std::to_string(rankn);
+
+#ifdef DIRTY_PAGE_TRACKING
+  pid_t pid = getpid();
+  uint64_t page_size = sysconf(_SC_PAGE_SIZE);
+#endif
+
+#ifdef DEBUG
 cout << "Starting GDV vector calculation\n";
 cout << "# of processes : " << comm_size << endl;
+#endif
 
   double process_ends_communication;
   double vec_calc_computation_start;
@@ -1284,10 +1294,14 @@ cout << "# of processes : " << comm_size << endl;
   uint64_t k_interval = 100000000;
 
   Kokkos::TeamPolicy<> team_policy(1, NUM_THREADS);
+#ifdef DEBUG
 printf("Number of threads: %d\n", team_policy.team_size());
+#endif
   using team_member_type = Kokkos::TeamPolicy<Kokkos::Schedule<Kokkos::Dynamic>>::member_type;
   Kokkos::View<int**> neighbor_scratch("Neighbors", team_policy.team_size(), graph.numRows());
+#ifdef DEBUG
 printf("Starting combination counter kernel\n");
+#endif
 
   uint32_t vertices_per_proc = graph.numRows()/comm_size;
   size_t start_offset = rankn*vertices_per_proc;
@@ -1304,11 +1318,13 @@ printf("Starting combination counter kernel\n");
   }
   recv_count[size_t (comm_size-1)] = graph.numRows()-(comm_size-1)*vertices_per_proc;
   displs[static_cast<size_t>(comm_size-1)] = running_count;
+#ifdef DEBUG
   for(int i=0; i<comm_size; i++) {
     printf("(%d,%d) ", recv_count[i], displs[i]);
   }
   printf("\n");
   printf("(%u,%u)\n", start_offset, end_offset);
+#endif
   Kokkos::parallel_for("Get # of combinations", team_policy, KOKKOS_LAMBDA(team_member_type team_member) {
     Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, end_offset-start_offset), [=] (int n) {
       size_t node = start_offset+n;
@@ -1324,7 +1340,9 @@ printf("Starting combination counter kernel\n");
 //        printf("Rank %d passed %d iterations\n", rankn, n);
     });
   });
+#ifdef DEBUG
 printf("Calculated # of combinations\n");
+#endif
   uint64_t total_combinations = 0;
   uint64_t local_combinations = 0;
   Kokkos::parallel_reduce("Number of combinations", end_offset-start_offset, 
@@ -1373,7 +1391,9 @@ printf("Calculated # of combinations\n");
   uint64_t num_intervals = total_combinations/k_interval;
   if(num_intervals*k_interval < total_combinations)
     num_intervals++;
+#ifdef DEBUG
   printf("Computed # of combinations: (%lu) split into %d groups\n", total_combinations, num_intervals);
+#endif
   Kokkos::View<uint32_t*> starts("Start indices", num_intervals+1);
   starts(0) = 0;
   Kokkos::parallel_for("Find starts", Kokkos::RangePolicy<>(0, starts.extent(0)-1), KOKKOS_LAMBDA(const int i) {
@@ -1388,11 +1408,13 @@ printf("Calculated # of combinations\n");
     }
   });
   starts(starts.extent(0)-1) = graph.numRows();
+#ifdef DEBUG
   printf("Rank %d: ", rankn);
   for(uint32_t i=0; i<starts.extent(0); i++) {
     printf("%ld ", starts(i));
   }
   printf("\n");
+#endif
 #ifdef INCREMENTAL
   uint32_t max_neighbors=0;
   for(int id=0; id<num_neighbors.extent(0); id++) {
@@ -1408,7 +1430,9 @@ printf("Calculated # of combinations\n");
     Kokkos::TeamPolicy<Kokkos::Schedule<Kokkos::Dynamic>> policy(1, NUM_THREADS);
     using member_type = Kokkos::TeamPolicy<Kokkos::Schedule<Kokkos::Dynamic>>::member_type;
 
+#ifdef DEBUG
     cout << "Team size: " << policy.team_size() << endl;
+#endif
     Kokkos::View<int**> all_neighbors("Neighbor scratch", policy.team_size(), graph.numRows());
     Kokkos::Experimental::ScatterView<uint32_t**> metrics_sa(graph_GDV);
 
@@ -1420,7 +1444,9 @@ printf("Calculated # of combinations\n");
     Kokkos::View<bool** > visited("BFS visited", policy.team_size(), 5);
     Kokkos::View<int**> queue("BFS queue", policy.team_size(), 5);
     Kokkos::View<int**> distance("BFS distance", policy.team_size(), 5);
+#ifdef DEBUG
     cout << "Allocated data\n";
+#endif
 
     int i=0;
 #ifdef AUTO_CHECKPOINT
@@ -1445,6 +1471,12 @@ printf("Calculated # of combinations\n");
       Kokkos::UnorderedMap<std::pair<int,int>, int> chkpt1_map(capacity);
 #endif
     for(i; i<starts.extent(0)-1; i++) {
+
+#ifdef DIRTY_PAGE_TRACKING
+printf("Chunk %d\n", i);
+      reset_dirty_bit(pid);
+#endif
+
 #ifdef AUTO_CHECKPOINT
 KokkosResilience::checkpoint(*ctx, graph_name, i, [=] () mutable {
 #endif
@@ -1473,6 +1505,29 @@ chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
       });
       Kokkos::Experimental::contribute(graph_GDV, metrics_sa);
       metrics_sa.reset();
+
+#ifdef DIRTY_PAGE_TRACKING
+      uintptr_t start_addr = reinterpret_cast<uintptr_t>(graph_GDV.data());
+      uintptr_t end_addr = reinterpret_cast<uintptr_t>(graph_GDV.data() + graph_GDV.span());
+      bool range_dirty = address_range_dirty(pid, start_addr, end_addr);
+      if(range_dirty) {
+        printf("Detected changes\n");
+      }
+      size_t num_pages = ((end_addr-start_addr)/page_size);
+      uint64_t* page_list = (uint64_t*) malloc(sizeof(uint64_t)*num_pages);
+      for(int j=0; j<num_pages; j++) {
+        page_list[j] = 0; 
+      }
+      bool dirty = get_dirty_pages(pid, start_addr, end_addr, page_list);
+      printf("List of dirty pages: ");
+      for(int j=0; j<num_pages; j++) {
+        if(page_list[j] > 0) {
+          printf("%llu, ", page_list[j]);
+        }
+      }
+      printf("\n");
+#endif
+
 #ifdef STANDARD
       Kokkos::deep_copy(chkpt1_view, graph_GDV);
       std::string chkpt1_file = "checkpoint_dir/" + label + "-Checkpoint1-" + std::to_string(i);
@@ -1530,7 +1585,9 @@ chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
 #endif
       chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
       chrono::duration<double> time_span = chrono::duration_cast<chrono::duration<double>>(t2-t1);
+#ifdef DEBUG
       printf("Done with chunk: %d, time: %f\n", i, time_span.count());
+#endif
 
 #ifdef AUTO_CHECKPOINT
 }, filt);
@@ -1545,7 +1602,9 @@ chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
     if(rankn == comm_size-1) {
       intervals_per_rank += num_intervals - (comm_size*intervals_per_rank);
     }
+#ifdef DEBUG
 printf("Rank %d start index: %d, intervals per rank: %d\n", rankn, start_index, intervals_per_rank);
+#endif
     uint32_t offset = 0;
     Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace> policy(1, NUM_THREADS);
     using member_type = Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>::member_type;
@@ -1569,7 +1628,9 @@ printf("Rank %d start index: %d, intervals per rank: %d\n", rankn, start_index, 
     Kokkos::View<bool** > visited("BFS visited", policy.team_size(), 5);
     Kokkos::View<int**> queue("BFS queue", policy.team_size(), 5);
     Kokkos::View<int**> distance("BFS distance", policy.team_size(), 5);
+#ifdef DEBUG
 printf("Rank %d allocated memory\n", rankn);
+#endif
 
 #ifdef AUTO_CHECKPOINT
     auto ctx = KokkosResilience::make_context(MPI_COMM_SELF, "/home/ntan1/Src_Fido_Kokkos/fido.json");
@@ -1603,6 +1664,9 @@ chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
 
 #ifdef AUTO_CHECKPOINT
 KokkosResilience::checkpoint(*ctx, label, offset, [=] () mutable {
+#endif
+#ifdef DIRTY_PAGE_TRACKING
+      reset_dirty_bit(pid);
 #endif
       uint32_t chunk_idx = start_index+offset;
       bool multi_node = (chunk_idx+1 == starts.extent(0) || starts(chunk_idx+1) != starts(chunk_idx)) && 
@@ -1638,7 +1702,9 @@ KokkosResilience::checkpoint(*ctx, label, offset, [=] () mutable {
 //            kokkos_calculate_GDV(team_member, node, graph, orbits, neighbor_subview, indices_subview, combination_subview, sgraph_dist_subview, sgraph_deg_subview, subgraph_subview, visited_subview, queue_subview, distance_subview, graph_GDV);
           });
         });
+#ifdef DEBUG
 printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
+#endif
       } else {
         auto neighbor_scratch = Kokkos::subview(all_neighbors, 0, Kokkos::ALL());
         int n_neighbors = EssensKokkos::find_neighbours(starts(chunk_idx), graph, 4, neighbor_scratch);
@@ -1767,12 +1833,35 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
             });
           }
         }
+#ifdef DEBUG
 printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
+#endif
       }
       Kokkos::fence();
 //      Kokkos::Experimental::contribute(graph_GDV, metrics_sa);
 //      metrics_sa.reset();
       Kokkos::fence();
+#ifdef DIRTY_PAGE_TRACKING
+      uintptr_t start_addr = reinterpret_cast<uintptr_t>(graph_GDV.data());
+      uintptr_t end_addr = reinterpret_cast<uintptr_t>(graph_GDV.data() + graph_GDV.span());
+      bool range_dirty = address_range_dirty(pid, start_addr, end_addr);
+      if(range_dirty) {
+        printf("Detected changes\n");
+      }
+      size_t num_pages = ((end_addr-start_addr)/page_size);
+      uint64_t* page_list = (uint64_t*) malloc(sizeof(uint64_t)*num_pages);
+      for(int j=0; j<num_pages; j++) {
+        page_list[j] = 0; 
+      }
+      bool dirty = get_dirty_pages(pid, start_addr, end_addr, page_list);
+      printf("List of dirty pages: ");
+      for(int j=0; j<num_pages; j++) {
+        if(page_list[j] > 0) {
+          printf("%llu, ", page_list[j]);
+        }
+      }
+      printf("\n");
+#endif
 #ifdef STANDARD
       Kokkos::deep_copy(chkpt1_view, graph_GDV);
       std::string chkpt1_file = "checkpoint_dir/" + label + "-Checkpoint1-" + std::to_string(offset);

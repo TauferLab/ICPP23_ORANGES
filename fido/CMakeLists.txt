@@ -12,6 +12,7 @@ set(FIDO_HEADERS
     headers/class_definitions.hpp
     headers/combinations.hpp
     headers/print_disconnected_graph.hpp
+    headers/dirty_page_tracking.hpp
 )
 
 add_executable(Fido parallel_graph_align/main_code_parallel.cpp ${FIDO_HEADERS})
