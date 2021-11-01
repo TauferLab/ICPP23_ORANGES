@@ -70,12 +70,12 @@ load_balancer="${load_balancer:="dynamic"}"
 
 # Ensure the input values are valid to program requirements
 while (( $(echo "$n_procs < 1" |bc -l) )) || ! [[ "$n_procs" =~ ^[0-9]+$ ]] || [ -z "$n_procs" ] ; do
-	echo "Number of MPI processes was set too low or is not an integer."
+	echo "Number of MPI processes: ${n_procs} was set too low or is not an integer."
 	echo "Please set number of processes to an integer greater than 0."
 	read -p "Number of MPI processes requested: " n_procs
 done
 while (( $(echo "$n_nodes < 1" |bc -l) )) || ! [[ "$n_nodes" =~ ^[0-9]+$ ]] || [ -z "$n_nodes" ] ; do
-	echo "Number of compute nodes was set too low or is not an integer."
+	echo "Number of compute nodes: ${n_nodes} was set too low or is not an integer."
 	echo "Please set number of compute nodes to an integer greater than 0. We recommend using at least 2 if available."
 	read -p "Number of compute nodes requested: " n_nodes
 done
