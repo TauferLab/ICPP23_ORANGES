@@ -20,6 +20,7 @@
 
 #define GDV_LENGTH 73
 #define CHUNK_SIZE 1
+#define SIM_MAT_CUTOFF 1000
 //#define DEBUG
 #define RUNTIME
 #define NUM_THREADS 1
@@ -71,6 +72,8 @@ struct node_id_order {
 #ifdef RUNTIME
 double total_time_taken;
 double vec_calc_communication_time[2] = {};
+double pre_process_time;
+double report_output_time;
 double* vec_calc_computation_time_X;
 double* vec_calc_computation_time_Y;
 int* vec_calc_proc_assign_X;
@@ -92,9 +95,12 @@ int main(int argc, char *argv[]) {
   //  if (rank == 0) {
   //clock_t out_tStart = clock();
   time_t now = time(0);
+  #ifdef RUNTIME
+  double pre_tStart = MPI_Wtime();
+  #endif
     //}
-  clock_t tStart = clock();
-  clock_t q, q1, q2,t;
+  //clock_t tStart = clock();
+  //clock_t q, q1, q2,t;
   GDV_functions gdvf;
   /* Accepts file as input. 
      Input should be in the format of ( node1 node2 weight ). 
@@ -125,10 +131,10 @@ int main(int argc, char *argv[]) {
   Orbits k_orbits;
   kokkos_readin_orbits(&the_file2, k_orbits);
 
-  A_Network X;
-  A_Network Y;
-  readin_network(&X,argv[1],0,-1);
-  readin_network(&Y,argv[2],0,-1);
+  //A_Network X;
+  //A_Network Y;
+  //readin_network(&X,argv[1],0,-1);
+  //readin_network(&Y,argv[2],0,-1);
   GDV_functions test_gdvf;
 
   matrix_type graphx, graphy;
@@ -211,6 +217,7 @@ if(rank == 0) {
   cout << "# of vertices: " << graphy.numRows() << endl;
 }
 
+  pre_process_time = (double)(MPI_Wtime() - pre_tStart);
   // Perform Similarity Calculations
 //  Similarity_Metric_calculation_for_two_graphs(X,Y,orbits, graph_name1, graph_name2);
   kokkos_Similarity_Metric_calculation_for_two_graphs(graphx, graphy, k_orbits, graph_name1, graph_name2);
@@ -221,7 +228,7 @@ if(rank == 0) {
 
   // Set up for and Perform Runtime Management and Gather
   double* time_buff = NULL;
-  int num_times = 3;
+  int num_times = 5;
   double send_times[num_times];
 //  if (rank == 0) {
 //    vec_calc_computation_time = 0;
@@ -232,6 +239,8 @@ if(rank == 0) {
   send_times[0] = total_time_taken;
   send_times[1] = vec_calc_communication_time[0];
   send_times[2] = vec_calc_communication_time[1];
+  send_times[3] = pre_process_time;
+  send_times[4] = report_output_time;
   if (rank == 0) {
     time_buff = (double *)malloc(numtasks*num_times*sizeof(double));
   }
@@ -276,9 +285,9 @@ if(rank == 0) {
       cout << "INPUT ERROR:: Could not open the local time recording file\n";
     }
     myfile << "Time Taken in Similarity Metric Calculation = " << " \n";
-    myfile << "Rank\tGraph 1\tGraph 2\tTotal\n";
+    myfile << "Rank\tPre-Process\tReport Data\tGraph 1\tGraph 2\tTotal\n";
     for (int i = 0; i < numtasks; i++) {
-      myfile << i << " " << time_buff[num_times*i+1] << " " << time_buff[num_times*i+2] << " " << time_buff[num_times*i] << " \n";
+      myfile << i << " " << time_buff[num_times*i+3] << " " << time_buff[num_times*i+4] << " " << time_buff[num_times*i+1] << " " << time_buff[num_times*i+2] << " " << time_buff[num_times*i] << " \n";
     }
     myfile.close();
 
@@ -370,6 +379,7 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
 
     // Start by Printing out Similarity Matrix into a file
     ofstream myfile; 
+    if ( (m > SIM_MAT_CUTOFF) || (n > SIM_MAT_CUTOFF) ) {
     string filename = "out_similarity_matrix.txt";
     myfile.open(filename);
     for(int i=1; i<m;i++) {
@@ -379,11 +389,12 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
       myfile<<"||"<<endl;
     }
     myfile.close();
+    }
     
     
     // Print out GDVs into files
-    string gdv_file1 = "out_gdv_1_" + graph_tag1 + ".txt";
-    string gdv_file2 = "out_gdv_2_" + graph_tag2 + ".txt";
+    string gdv_file1 = "out_gdv_1_" + graph_tag1;
+    string gdv_file2 = "out_gdv_2_" + graph_tag2;
     myfile.open(gdv_file1, ofstream::trunc);
     for (int i = 0; i < graph1_GDV.size(); i++) {
       for (int j = 0; j< graph1_GDV[i].GDV.size(); j++) {
@@ -510,11 +521,14 @@ if (rankm == 0) {
     cout << "Finished similarity matrix calculation and prepped for fileIO on Rank: " << rankm << endl;
   #endif
 
+  double report_tStart = MPI_Wtime();
+
   // Perform File I/O for Output Data
   if (rankm == 0) {
 
     // Start by Printing out Similarity Matrix into a file
     ofstream myfile; 
+    if ( (m > SIM_MAT_CUTOFF) || (n > SIM_MAT_CUTOFF) ) {
     string filename = "out_similarity_matrix.txt";
     myfile.open(filename);
     for(int i=1; i<m;i++) {
@@ -524,6 +538,7 @@ if (rankm == 0) {
       myfile<<"||"<<endl;
     }
     myfile.close();
+    }
     
     
     // Print out GDVs into files
@@ -547,6 +562,7 @@ if (rankm == 0) {
     myfile.close();
 
   }
+  report_output_time = (double)(MPI_Wtime() - report_tStart);
 }
 
 double GDV_distance_calculation(GDVMetric &gdvm1, GDVMetric &gdvm2)
