@@ -124,6 +124,7 @@ def main( filepath , run_min , run_max , vis_type ):
         plt.xlabel('Number of MPI Processes Used')
         plt.ylabel('Runtime Speedup over Lowest Process Count')
         plt.ylim(bottom=0)
+        plt.legend(['Ideal Speedup', 'Actual Speedup']);
         plt.savefig( "png_files/fido_strong_scaling_speedup.png", bbox_inches="tight", pad_inches=0.25)
         
     elif ( vis_type == "loss" ):
