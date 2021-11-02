@@ -50,5 +50,5 @@ if [ "${scheduler}" == "none" ]; then
 	bash > ${output_file} 2> ${error_file} ${graph_align_job_script} ${n_procs} ${input_graph1} ${input_graph2} ${load_assignment} ${paths_dir} ${results_path}
 fi
 
-echo "" >> ${root_path}/parallel_graph_align/time_results.txt
+#echo "" >> ${root_path}/parallel_graph_align/time_results.txt
 
