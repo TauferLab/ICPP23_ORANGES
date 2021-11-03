@@ -19,7 +19,7 @@
 #include <Kokkos_ScatterView.hpp>
 
 #define GDV_LENGTH 73
-#define CHUNK_SIZE 1
+#define CHUNK_SIZE 64
 #define SIM_MAT_CUTOFF 1000
 //#define DEBUG
 #define RUNTIME
@@ -290,7 +290,6 @@ if(rank == 0) {
       myfile << i << " " << time_buff[num_times*i+3] << " " << time_buff[num_times*i+4] << " " << time_buff[num_times*i+1] << " " << time_buff[num_times*i+2] << " " << time_buff[num_times*i] << " \n";
     }
     myfile.close();
-
   }
 
   string computation_time_file_x = "runtime_data/runtimes_rec_x_" + to_string(rank) + ".txt";
@@ -379,7 +378,7 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
 
     // Start by Printing out Similarity Matrix into a file
     ofstream myfile; 
-    if ( (m > SIM_MAT_CUTOFF) || (n > SIM_MAT_CUTOFF) ) {
+    if ( (m < SIM_MAT_CUTOFF) || (n < SIM_MAT_CUTOFF) ) {
     string filename = "out_similarity_matrix.txt";
     myfile.open(filename);
     for(int i=1; i<m;i++) {
@@ -481,7 +480,7 @@ int m = 0;
 int n = 0;
 Kokkos::View<double**> sim_mat;
 
-if (rankm == 0) {
+if (rankm == 0 && graph1_GDV.extent(0) < SIM_MAT_CUTOFF && graph2_GDV.extent(0) < SIM_MAT_CUTOFF) {
   m = graph1_GDV.extent(0);
   n = graph2_GDV.extent(0);
   //cout << "Creating similarity matrix with size " << m << "x" << n << endl;
@@ -698,14 +697,14 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
       	  i = master_status.MPI_SOURCE;
       	  int* gdv_array = (int*)calloc(GDV_LENGTH+1, sizeof(int));
       	  MPI_Recv(gdv_array, GDV_LENGTH + 1, MPI_INT, i, tag, MPI_COMM_WORLD, &master_status);
-      	  #ifdef DEBUG
-            cout << "Recieved GDV for node " << rcv_node << " from rank " << i << ": " << endl;
-            cout << gdv_array[GDV_LENGTH] << ": ";
-            for (int j = 0; j < GDV_LENGTH; j++) {
-              cout << gdv_array[j] << ", ";
-            }
-            cout << endl;
-          #endif
+//      	  #ifdef DEBUG
+//            cout << "Recieved GDV for node " << rcv_node << " from rank " << i << ": " << endl;
+//            cout << gdv_array[GDV_LENGTH] << ": ";
+//            for (int j = 0; j < GDV_LENGTH; j++) {
+//              cout << gdv_array[j] << ", ";
+//            }
+//            cout << endl;
+//          #endif
       
 //      	  // Prepare to send next node to finished process.
 //      	  if (send_node < graph_size) { // Jobs still exist.  Send next.
@@ -938,8 +937,8 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
   if(comm_size == 1)
   {
 //    Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace, Kokkos::Schedule<Kokkos::Dynamic>> policy(1, Kokkos::AUTO());
-    Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace, Kokkos::Schedule<Kokkos::Dynamic>> policy(1, NUM_THREADS);
-    using member_type = Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace, Kokkos::Schedule<Kokkos::Dynamic>>::member_type;
+    Kokkos::TeamPolicy<> policy(1, NUM_THREADS);
+    using member_type = Kokkos::TeamPolicy<>::member_type;
 
 #ifdef DEBUG
 cout << "Team size: " << policy.team_size() << endl;
@@ -960,8 +959,7 @@ cout << "Team size: " << policy.team_size() << endl;
 
     int i=0;
     for(i; i<starts.extent(0); i++) {
-      Kokkos::TeamPolicy<Kokkos::Schedule<Kokkos::Dynamic>> bundle_policy(1, NUM_THREADS);
-      Kokkos::parallel_for("Calcualte GDV bundle", bundle_policy, KOKKOS_LAMBDA(member_type team_member) {
+      Kokkos::parallel_for("Calcualte GDV bundle", policy, KOKKOS_LAMBDA(member_type team_member) {
         Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, ends(i)-starts(i)), [=] (int n_offset) {
           int node = starts(i) + n_offset;
           auto neighbor_subview = Kokkos::subview(all_neighbors, team_member.team_rank(), Kokkos::ALL());
@@ -973,12 +971,16 @@ cout << "Team size: " << policy.team_size() << endl;
           auto visited_subview = Kokkos::subview(visited, team_member.team_rank(), Kokkos::ALL());
           auto queue_subview = Kokkos::subview(queue, team_member.team_rank(), Kokkos::ALL());
           auto distance_subview = Kokkos::subview(distance, team_member.team_rank(), Kokkos::ALL());
-chrono::  steady_clock::time_point t1 = chrono::steady_clock::now();
+#ifdef DEBUG
+chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
+#endif
           kokkos_calculate_GDV(team_member, node, graph, orbits, neighbor_subview, indices_subview, combination_subview, sgraph_dist_subview, sgraph_deg_subview, subgraph_subview, visited_subview, queue_subview, distance_subview, combination_counter, 
                               metrics_sa);
+#ifdef DEBUG
           chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
           chrono::duration<double> time_span = chrono::duration_cast<chrono::duration<double>>(t2-t1);
           printf("Done with node: %d, time: %f\n", node, time_span.count());
+#endif
         });
       });
       Kokkos::Experimental::contribute(graph_GDV, metrics_sa);
@@ -1130,16 +1132,16 @@ chrono::  steady_clock::time_point t1 = chrono::steady_clock::now();
 
       // Sort return vector
 //      sort(graph_GDV->begin(), graph_GDV->end(), node_id_order());
-      #ifdef DEBUG
-        cout << "Constructed return GDV array" << endl;
-        for (i = 0; i < graph_GDV->size(); i++) {
-      	  cout << graph_GDV->at(i).node << ": ";
-      	  for (int j = 0; j < graph_GDV->at(i).GDV.size(); j++) {
-      	    cout << graph_GDV->at(i).GDV[j] << ", ";
-      	  }
-      	  cout << endl;
-      	}	
-      #endif
+//      #ifdef DEBUG
+//        cout << "Constructed return GDV array" << endl;
+//        for (i = 0; i < graph_GDV.size(); i++) {
+//      	  cout << graph_GDV->at(i).node << ": ";
+//      	  for (int j = 0; j < graph_GDV->at(i).GDV.size(); j++) {
+//      	    cout << graph_GDV->at(i).GDV[j] << ", ";
+//      	  }
+//      	  cout << endl;
+//      	}	
+//      #endif
     }
   }
   else // Instructions for work processes
@@ -1199,13 +1201,16 @@ cout << "Team size: " << policy.team_size() << endl;
   Kokkos::View<bool** > visited("BFS visited", policy.team_size(), 5);
   Kokkos::View<int**> queue("BFS queue", policy.team_size(), 5);
   Kokkos::View<int**> distance("BFS distance", policy.team_size(), 5);
+#ifdef DEBUG
+chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
+#endif
 //      Kokkos::View<int[1]> node_counter("Node counter");
 //      node_counter(0) = node_name;
       Kokkos::parallel_for("Calculate GDV", policy, KOKKOS_LAMBDA(member_type team_member) {
-//        Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, end-node_name), [=] (int n) {
-          int node = node_name + team_member.league_rank()*team_member.team_size() + team_member.team_rank();
+        Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, end-node_name), [=] (int n) {
+//          int node = node_name + team_member.league_rank()*team_member.team_size() + team_member.team_rank();
 //          int node = Kokkos::atomic_fetch_add(&node_counter(0), 1);
-//          int node = node_name + n;
+          int node = node_name + n;
 //printf("Node: %d\tThreadid: %d\tTeam size: %d\tLeague size: %d\n", node, team_member.team_rank(), team_member.team_size(), team_member.league_size());
           auto neighbor_subview = Kokkos::subview(all_neighbors, team_member.team_rank(), Kokkos::ALL());
           auto indices_subview = Kokkos::subview(indices, team_member.team_rank(), Kokkos::ALL());
@@ -1218,8 +1223,14 @@ cout << "Team size: " << policy.team_size() << endl;
           auto distance_subview = Kokkos::subview(distance, team_member.team_rank(), Kokkos::ALL());
           kokkos_calculate_GDV(team_member, node, graph, orbits, neighbor_subview, indices_subview, combination_subview, sgraph_dist_subview, sgraph_deg_subview, subgraph_subview, visited_subview, queue_subview, distance_subview, combination_counter, 
                                 metrics_sa);
-//        });
+        });
       });
+#ifdef DEBUG
+chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
+chrono::duration<double> time_span = chrono::duration_cast<chrono::duration<double>>(t2-t1);
+printf("Done with node chunk: %d, time: %f\n", node_name, time_span.count());
+std::cout << "Rank " << rankn << " finished chunk " << node_name << std::endl;
+#endif
       Kokkos::Experimental::contribute(metrics, metrics_sa);
       Kokkos::View<int*> gdv_array("Send buffer for GDV", GDV_LENGTH+1);
       for(int idx=0; idx<nrows; idx++) {
