@@ -52,9 +52,9 @@ done
 
 
 # Assign needed paths
-paths_dir=$(pwd)/fido/parallel_graph_align/
+paths_dir=$(pwd)/fido/config/
 source ${paths_dir}/fido_paths.config
-fido_sched_script=${fido_project_root}/fido/parallel_graph_align/graph_align_sched.sh
+fido_sched_script=${fido_project_root}/scheduling/graph_align_sched.sh
 
 # Assign Default Values
 n_procs="${n_procs:=2}"

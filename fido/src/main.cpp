@@ -5,9 +5,10 @@
 #include "printout_others.hpp"
 #include "printout_network.hpp"
 #include "ADJ/find_Xneighbors.hpp"
-#include "../headers/GDV_functions.hpp"
-#include "../headers/class_definitions.hpp"
-#include "../headers/combinations.hpp"
+#include "GDV_functions.hpp"
+#include "class_definitions.hpp"
+#include "combinations.hpp"
+#include "kokkos_functions.hpp"
 #include <time.h>
 #include <stdlib.h>
 #include <ctime>
