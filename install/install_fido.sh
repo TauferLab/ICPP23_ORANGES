@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
 build_dir=build
+sys_lib=lib
 project_root=$(pwd)
 
 rm -rf ${build_dir}
@@ -16,8 +17,8 @@ cmake \
   -DCMAKE_BUILD_TYPE=RelWithDebInfo \
   -DCMAKE_CXX_COMPILER=mpicxx \
   -DCMAKE_PREFIX_PATH=${project_root} \
-  -DKokkos_DIR=${project_root}/submodules/kokkos/${build_dir}/lib64/cmake/Kokkos \
-  -DKokkosKernels_DIR=${project_root}/submodules/kokkos-kernels/${build_dir}/lib64/cmake/KokkosKernels \
+  -DKokkos_DIR=${project_root}/submodules/kokkos/${build_dir}/${sys_lib}/cmake/Kokkos \
+  -DKokkosKernels_DIR=${project_root}/submodules/kokkos-kernels/${build_dir}/${sys_lib}/cmake/KokkosKernels \
   ..
 make
 

@@ -80,7 +80,7 @@ echo
 
 
 ## Setup project directory
-sed -i "s#fido_project_root= #fido_project_root=${project_root}#" ./fido/parallel_graph_align/fido_paths.config
+sed -i "s#fido_project_root= #fido_project_root=${project_root}#" ./fido/config/fido_paths.config
 
 
 

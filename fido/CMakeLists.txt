@@ -7,17 +7,17 @@ find_package(KokkosKernels REQUIRED)
 #find_package(VeloC)
 
 set(FIDO_HEADERS
-    headers/GDV_functions.hpp
-    headers/bfs.hpp
-    headers/class_definitions.hpp
-    headers/combinations.hpp
-    headers/print_disconnected_graph.hpp
+    include/GDV_functions.hpp
+    include/bfs.hpp
+    include/class_definitions.hpp
+    include/combinations.hpp
+    include/print_disconnected_graph.hpp
 )
 
-add_executable(Fido parallel_graph_align/main_code_parallel.cpp ${FIDO_HEADERS})
+add_executable(Fido src/main.cpp ${FIDO_HEADERS})
 target_include_directories(Fido PUBLIC
-    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/headers>
-    $<INSTALL_INTERFACE:headers>
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
 )
 target_link_libraries(Fido PRIVATE ESSENS)
 target_link_libraries(Fido PRIVATE MPI::MPI_CXX)
@@ -39,7 +39,7 @@ install(TARGETS Fido
     EXPORT FidoExport
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
 )
-install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/headers
+install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/include
     EXPORT FidoExport
     DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     FILES_MATCHING PATTERN "*.hpp"
