@@ -4,3 +4,6 @@
 [submodule "submodules/kokkos-kernels"]
 	path = submodules/kokkos-kernels
 	url = https://github.com/kokkos/kokkos-kernels.git
+[submodule "submodules/ESSENS"]
+	path = submodules/ESSENS
+	url = https://github.com/SanjuktaBhowmick/ESSENS.git

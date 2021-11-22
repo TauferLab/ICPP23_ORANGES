@@ -22,11 +22,26 @@ echo ${progress_delimiter}
 echo "Fetching Submodules..."
 echo ${progress_delimiter}
 echo
-rm -rf ./submodules/*
+rm -rf ./submodules/kokkos*
 git submodule update --init --recursive
 echo
 echo ${progress_delimiter}
 echo "Done Fetching Submodules."
+echo ${progress_delimiter}
+echo
+
+
+## Link ESSENS
+echo 
+echo ${progress_delimiter}
+echo "Linking ESSENS..."
+echo ${progress_delimiter}
+echo
+cp fido/config/CMakeLists.txt submodules/ESSENS/
+cp fido/config/EssensConfig.cmake.in submodules/ESSENS/
+echo
+echo ${progress_delimiter}
+echo "Done Linking ESSENS"
 echo ${progress_delimiter}
 echo
 
