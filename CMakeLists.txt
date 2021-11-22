@@ -7,7 +7,8 @@ set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
 include(GNUInstallDirs)
 
-add_subdirectory(ESSENS-master)
+#add_subdirectory(ESSENS-master)
+add_subdirectory(submodules/ESSENS)
 add_subdirectory(fido)
 
 install(EXPORT FidoExport
