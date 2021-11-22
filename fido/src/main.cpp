@@ -25,18 +25,19 @@
 #define RUNTIME
 #define NUM_THREADS 1
 
-void Calculate_GDV(int ,A_Network ,vector<OrbitMetric>&, GDVMetric&);
+/*void Calculate_GDV(int ,A_Network ,vector<OrbitMetric>&, GDVMetric&);
 void Calculate_GDV(int node,A_Network Graph,vector<OrbitMetric> &orbits, vector<GDVMetric> &gdvMetrics);
 void readin_orbits(  ifstream* ,vector<OrbitMetric>* );
 void convert_string_vector_int(string* , vector<int>* ,string );
 void Similarity_Metric_calculation_for_two_graphs(A_Network, A_Network,vector<OrbitMetric>, string, string);
 double GDV_distance_calculation(GDVMetric&, GDVMetric&);
 void metric_formula(GDVMetric&, double*);
-void GDV_vector_calculation(A_Network,vector<GDVMetric>*,  vector<OrbitMetric>, const char*, int);
+void GDV_vector_calculation(A_Network,vector<GDVMetric>*,  vector<OrbitMetric>, const char*, int);*/
 
 void kokkos_readin_orbits(ifstream *file, Orbits& orbits );
 void readin_graph(ifstream* file, matrix_type& graph);
 void kokkos_Similarity_Metric_calculation_for_two_graphs(const matrix_type&, const matrix_type&, const Orbits&, string, string);
+void convert_string_vector_int(string* , vector<int>* ,string );
 template <class SubviewType>
 KOKKOS_INLINE_FUNCTION double kokkos_GDV_distance_calculation(SubviewType&, SubviewType&);
 template <class SubviewType>
@@ -78,6 +79,7 @@ double* vec_calc_computation_time_X;
 double* vec_calc_computation_time_Y;
 int* vec_calc_proc_assign_X;
 int* vec_calc_proc_assign_Y;
+void record_runtimes();
 #endif
 //double vec_calc_prior_gather;
 //double vec_calc_post_gather;
@@ -331,87 +333,6 @@ if(rank == 0) {
   return 0;
 }
 
-void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network graph2,vector<OrbitMetric> orbits, string graph_tag1, string graph_tag2)
-{
-
-  //clock_t out_tStart = clock();
-  MPI_Barrier( MPI_COMM_WORLD );
-  #ifdef RUNTIME
-  double out_tStart = MPI_Wtime();
-  #endif
-
-  vector<GDVMetric> graph1_GDV;
-  vector<GDVMetric> graph2_GDV;
-  int rankm, numtasksm;
-  MPI_Comm_rank(MPI_COMM_WORLD, &rankm);
-  MPI_Comm_size(MPI_COMM_WORLD, &numtasksm);
-
-  int graph_counter = 1;
-  GDV_vector_calculation(graph1, &graph1_GDV, orbits, "graph1", graph_counter); 
-
-  graph_counter = 2;
-  GDV_vector_calculation(graph2, &graph2_GDV, orbits, "graph2", graph_counter); 
-  MPI_Barrier(MPI_COMM_WORLD);
-
-  // Calculate Similarities in GDVs
-  int m = (int)graph1_GDV.size();
-  int n = (int)graph2_GDV.size();
-  double sim_mat[m][n];
-  for (GDVMetric &gdvm1: graph1_GDV) {
-    for(GDVMetric &gdvm2: graph2_GDV) {
-      sim_mat[gdvm1.node][gdvm2.node]= GDV_distance_calculation(gdvm1,gdvm2);
-    }
-  }
-
-
-  // Measure final total time 
-  #ifdef RUTNIME
-  total_time_taken = (double)(MPI_Wtime() - out_tStart);
-  #endif
-
-  #ifdef DEBUG
-    cout << "Finished similarity matrix calculation and prepped for fileIO on Rank: " << rankm << endl;
-  #endif
-
-  // Perform File I/O for Output Data
-  if (rankm == 0) {
-
-    // Start by Printing out Similarity Matrix into a file
-    ofstream myfile; 
-    if ( (m < SIM_MAT_CUTOFF) || (n < SIM_MAT_CUTOFF) ) {
-    string filename = "out_similarity_matrix.txt";
-    myfile.open(filename);
-    for(int i=1; i<m;i++) {
-      for(int j=1;j<n;j++) {
-        myfile<<" { "<<sim_mat[i][j]<<" } ";
-      }
-      myfile<<"||"<<endl;
-    }
-    myfile.close();
-    }
-    
-    
-    // Print out GDVs into files
-    string gdv_file1 = "out_gdv_1_" + graph_tag1;
-    string gdv_file2 = "out_gdv_2_" + graph_tag2;
-    myfile.open(gdv_file1, ofstream::trunc);
-    for (int i = 0; i < graph1_GDV.size(); i++) {
-      for (int j = 0; j< graph1_GDV[i].GDV.size(); j++) {
-        myfile << graph1_GDV[i].GDV[j] << " ";
-      }
-      myfile << endl;
-    }
-    myfile.close();
-    myfile.open(gdv_file2, ofstream::trunc);
-    for (int i = 0; i < graph2_GDV.size(); i++) {
-      for (int j = 0; j< graph2_GDV[i].GDV.size(); j++) {
-        myfile << graph2_GDV[i].GDV[j] << " ";
-      }
-      myfile << endl;
-    }
-    myfile.close();
-  }
-}
 
 KOKKOS_INLINE_FUNCTION void 
 kokkos_Similarity_Metric_calculation_for_two_graphs(const matrix_type& graph1, 
@@ -564,31 +485,6 @@ if (rankm == 0) {
   report_output_time = (double)(MPI_Wtime() - report_tStart);
 }
 
-double GDV_distance_calculation(GDVMetric &gdvm1, GDVMetric &gdvm2)
-{   
-  double gdv1_score;
-  double gdv2_score;
-  metric_formula(gdvm1,&gdv1_score);
-  metric_formula(gdvm2,&gdv2_score);
-  
-  double similarity_score = abs(gdv1_score - gdv2_score);
-
-  return similarity_score;
-}
-
-void metric_formula(GDVMetric &gdvm, double* gdv_score)
-{
-  int sum=0;
-  //  Formula used here is the vector norm 2 or the l2 norm. 
-  //  We square each value and do summation. Now take a square root.
-  for(int x: gdvm.GDV)
-  {
-    int number;
-    number = x*x;
-    sum = sum + number;
-  }
-  *gdv_score = sqrt(sum);
-}
 
 template <class SubviewType>
 KOKKOS_INLINE_FUNCTION
@@ -1342,89 +1238,6 @@ kokkos_calculate_GDV(Kokkos::TeamPolicy<>::member_type team_member,
 //  printf("Thread %d at iteration %d\n", team_member.team_rank(), iter_counter);
 }
 
-void Calculate_GDV(int node,A_Network Graph,vector<OrbitMetric> &orbits, vector<GDVMetric> &gdvMetrics)
-{
-  GDV_functions gdvf;
-  vector<int> neighbours;
-  gdvf.find_neighbours(node,Graph,4,&neighbours);
-  int set[neighbours.size()]; 
-  std::copy( neighbours.begin(), neighbours.end(), set );
-  int numElements = sizeof(set)/sizeof(set[0]);
-  for (int node_count = 1; node_count < 5; node_count++)
-  {
-//    vector<vector<int>> combinationsList;
-//    gdvf.find_combinations(set, numElements,node_count,&combinationsList);
-    CombinationGeneratorVector generator(neighbours.size(), node_count);
-    vector<int> combination(node_count, 0);
-//    for (vector<int> &combination : combinationsList)
-//    {
-    while(!generator.done) {
-      generator.get_combination(neighbours, combination);
-      A_Network induced_sgraph;
-      vector<int> subgraph_degree_signature;
-      vector<int> subgraph_distance_signature;
-      bool is_connected = false;
-      combination.push_back(node);
-      gdvf.inducedSubgraph(Graph, combination, induced_sgraph);
-      gdvf.isConnected(induced_sgraph, is_connected);
-      if(is_connected)
-      {
-        gdvf.degree_signature(induced_sgraph,subgraph_degree_signature);
-        sort(subgraph_degree_signature.begin(), subgraph_degree_signature.end());
-        vector<OrbitMetric> filter_orbits;
-        gdvf.orbit_filter(orbits, node_count+1, filter_orbits);
-        for(int idx=0; idx<induced_sgraph.size(); idx++)
-        {
-          int v = induced_sgraph[idx].Row;
-          gdvf.distance_signature(v,induced_sgraph,subgraph_distance_signature);
-          for(OrbitMetric orbit: filter_orbits)
-          {
-            if( orbit.orbitDistance == subgraph_distance_signature && 
-                orbit.orbitDegree == subgraph_degree_signature)
-            {
-              gdvMetrics[v].GDV[orbit.orbitNumber] += 1;
-//              break;
-            }
-          }
-        }
-      }
-      generator.next();
-    }
-  }
-}
-
-//This method takes the file and converts it into orbits and saves in output
-void readin_orbits(ifstream *file,vector<OrbitMetric>* output )
-{
-  string line;
-  string signature_delimiter;
-  string internal_delimiter;
-  signature_delimiter = "/";
-  internal_delimiter= ",";
-  while(std::getline(*file,line))
-  {
-    string s= line;
-    size_t pos = 0;
-    vector<vector<int>> vector_line;
-    do
-    {
-      vector<int> segment; 
-      string token;
-      pos = s.find(signature_delimiter);
-      token = s.substr(0, pos);
-      token.erase(remove(token.begin(), token.end(), '['), token.end());
-      token.erase(remove(token.begin(), token.end(), ']'), token.end());
-      convert_string_vector_int(&token,&segment,internal_delimiter);
-      s.erase(0, pos + signature_delimiter.length());
-      vector_line.push_back(segment);
-    }
-    while (pos!= std::string::npos);
-
-    sort(vector_line[1].begin(), vector_line[1].end());
-    OrbitMetric orbMetric(vector_line[0][0],vector_line[1],vector_line[2]);
-    output->push_back(orbMetric);
-  }
-}
 
 //This method takes the file and converts it into orbits and saves in output
 KOKKOS_INLINE_FUNCTION void kokkos_readin_orbits(ifstream *file, Orbits& orbits )
@@ -1582,4 +1395,199 @@ KOKKOS_INLINE_FUNCTION void readin_graph(ifstream* file, matrix_type& graph)
                       vals.data(), rowmap.data(), cols.data());
   return;
 }
+
+/*
+void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network graph2,vector<OrbitMetric> orbits, string graph_tag1, string graph_tag2)
+{
+
+  //clock_t out_tStart = clock();
+  MPI_Barrier( MPI_COMM_WORLD );
+  #ifdef RUNTIME
+    double out_tStart = MPI_Wtime();
+  #endif
+
+  vector<GDVMetric> graph1_GDV;
+  vector<GDVMetric> graph2_GDV;
+  int rankm, numtasksm;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rankm);
+  MPI_Comm_size(MPI_COMM_WORLD, &numtasksm);
+
+  int graph_counter = 1;
+  GDV_vector_calculation(graph1, &graph1_GDV, orbits, "graph1", graph_counter); 
+
+  graph_counter = 2;
+  GDV_vector_calculation(graph2, &graph2_GDV, orbits, "graph2", graph_counter); 
+  MPI_Barrier(MPI_COMM_WORLD);
+
+  // Calculate Similarities in GDVs
+  int m = (int)graph1_GDV.size();
+  int n = (int)graph2_GDV.size();
+  double sim_mat[m][n];
+  for (GDVMetric &gdvm1: graph1_GDV) {
+    for(GDVMetric &gdvm2: graph2_GDV) {
+      sim_mat[gdvm1.node][gdvm2.node]= GDV_distance_calculation(gdvm1,gdvm2);
+    }
+  }
+
+
+  // Measure final total time 
+  #ifdef RUTNIME
+  total_time_taken = (double)(MPI_Wtime() - out_tStart);
+  #endif
+
+  #ifdef DEBUG
+    cout << "Finished similarity matrix calculation and prepped for fileIO on Rank: " << rankm << endl;
+  #endif
+
+  // Perform File I/O for Output Data
+  if (rankm == 0) {
+
+    // Start by Printing out Similarity Matrix into a file
+    ofstream myfile; 
+    if ( (m < SIM_MAT_CUTOFF) || (n < SIM_MAT_CUTOFF) ) {
+    string filename = "out_similarity_matrix.txt";
+    myfile.open(filename);
+    for(int i=1; i<m;i++) {
+      for(int j=1;j<n;j++) {
+        myfile<<" { "<<sim_mat[i][j]<<" } ";
+      }
+      myfile<<"||"<<endl;
+    }
+    myfile.close();
+    }
+    
+    
+    // Print out GDVs into files
+    string gdv_file1 = "out_gdv_1_" + graph_tag1;
+    string gdv_file2 = "out_gdv_2_" + graph_tag2;
+    myfile.open(gdv_file1, ofstream::trunc);
+    for (int i = 0; i < graph1_GDV.size(); i++) {
+      for (int j = 0; j< graph1_GDV[i].GDV.size(); j++) {
+        myfile << graph1_GDV[i].GDV[j] << " ";
+      }
+      myfile << endl;
+    }
+    myfile.close();
+    myfile.open(gdv_file2, ofstream::trunc);
+    for (int i = 0; i < graph2_GDV.size(); i++) {
+      for (int j = 0; j< graph2_GDV[i].GDV.size(); j++) {
+        myfile << graph2_GDV[i].GDV[j] << " ";
+      }
+      myfile << endl;
+    }
+    myfile.close();
+  }
+}
+
+double GDV_distance_calculation(GDVMetric &gdvm1, GDVMetric &gdvm2)
+{   
+  double gdv1_score;
+  double gdv2_score;
+  metric_formula(gdvm1,&gdv1_score);
+  metric_formula(gdvm2,&gdv2_score);
+  
+  double similarity_score = abs(gdv1_score - gdv2_score);
+
+  return similarity_score;
+}
+
+void metric_formula(GDVMetric &gdvm, double* gdv_score)
+{
+  int sum=0;
+  //  Formula used here is the vector norm 2 or the l2 norm. 
+  //  We square each value and do summation. Now take a square root.
+  for(int x: gdvm.GDV)
+  {
+    int number;
+    number = x*x;
+    sum = sum + number;
+  }
+  *gdv_score = sqrt(sum);
+}
+
+void Calculate_GDV(int node,A_Network Graph,vector<OrbitMetric> &orbits, vector<GDVMetric> &gdvMetrics)
+{
+  GDV_functions gdvf;
+  vector<int> neighbours;
+  gdvf.find_neighbours(node,Graph,4,&neighbours);
+  int set[neighbours.size()]; 
+  std::copy( neighbours.begin(), neighbours.end(), set );
+  int numElements = sizeof(set)/sizeof(set[0]);
+  for (int node_count = 1; node_count < 5; node_count++)
+  {
+//    vector<vector<int>> combinationsList;
+//    gdvf.find_combinations(set, numElements,node_count,&combinationsList);
+    CombinationGeneratorVector generator(neighbours.size(), node_count);
+    vector<int> combination(node_count, 0);
+//    for (vector<int> &combination : combinationsList)
+//    {
+    while(!generator.done) {
+      generator.get_combination(neighbours, combination);
+      A_Network induced_sgraph;
+      vector<int> subgraph_degree_signature;
+      vector<int> subgraph_distance_signature;
+      bool is_connected = false;
+      combination.push_back(node);
+      gdvf.inducedSubgraph(Graph, combination, induced_sgraph);
+      gdvf.isConnected(induced_sgraph, is_connected);
+      if(is_connected)
+      {
+        gdvf.degree_signature(induced_sgraph,subgraph_degree_signature);
+        sort(subgraph_degree_signature.begin(), subgraph_degree_signature.end());
+        vector<OrbitMetric> filter_orbits;
+        gdvf.orbit_filter(orbits, node_count+1, filter_orbits);
+        for(int idx=0; idx<induced_sgraph.size(); idx++)
+        {
+          int v = induced_sgraph[idx].Row;
+          gdvf.distance_signature(v,induced_sgraph,subgraph_distance_signature);
+          for(OrbitMetric orbit: filter_orbits)
+          {
+            if( orbit.orbitDistance == subgraph_distance_signature && 
+                orbit.orbitDegree == subgraph_degree_signature)
+            {
+              gdvMetrics[v].GDV[orbit.orbitNumber] += 1;
+//              break;
+            }
+          }
+        }
+      }
+      generator.next();
+    }
+  }
+}
+
+//This method takes the file and converts it into orbits and saves in output
+void readin_orbits(ifstream *file,vector<OrbitMetric>* output )
+{
+  string line;
+  string signature_delimiter;
+  string internal_delimiter;
+  signature_delimiter = "/";
+  internal_delimiter= ",";
+  while(std::getline(*file,line))
+  {
+    string s= line;
+    size_t pos = 0;
+    vector<vector<int>> vector_line;
+    do
+    {
+      vector<int> segment; 
+      string token;
+      pos = s.find(signature_delimiter);
+      token = s.substr(0, pos);
+      token.erase(remove(token.begin(), token.end(), '['), token.end());
+      token.erase(remove(token.begin(), token.end(), ']'), token.end());
+      convert_string_vector_int(&token,&segment,internal_delimiter);
+      s.erase(0, pos + signature_delimiter.length());
+      vector_line.push_back(segment);
+    }
+    while (pos!= std::string::npos);
+
+    sort(vector_line[1].begin(), vector_line[1].end());
+    OrbitMetric orbMetric(vector_line[0][0],vector_line[1],vector_line[2]);
+    output->push_back(orbMetric);
+  }
+}
+*/
+
 
