@@ -2,12 +2,17 @@ cmake_minimum_required(VERSION 3.15)
 
 find_package(MPI REQUIRED)
 
+set(TRACK_RUNTIME ON CACHE BOOL "")
+
+configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/fido_compile_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/fido_compile_config.h @ONLY)
+
 set(FIDO_HEADERS
     include/GDV_functions.hpp
     include/bfs.hpp
     include/class_definitions.hpp
     include/combinations.hpp
     include/print_disconnected_graph.hpp
+    include/fido_compile_config.h
 )
 
 add_executable(Fido src/main.cpp ${FIDO_HEADERS})

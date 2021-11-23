@@ -4,6 +4,8 @@ project(FIDO)
 
 set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "")
 
+#set(TRACK_RUNTIME OFF CACHE BOOL "")
+
 include(GNUInstallDirs)
 
 #add_subdirectory(ESSENS-master)

@@ -9,6 +9,7 @@
 #include "class_definitions.hpp"
 #include "combinations.hpp"
 #include "kokkos_functions.hpp"
+#include "fido_compile_config.h"
 #include <time.h>
 #include <stdlib.h>
 #include <ctime>
@@ -20,7 +21,9 @@
 #define CHUNK_SIZE 1
 #define SIM_MAT_CUTOFF 1000
 //#define DEBUG
-//#define RUNTIME
+//if (TRACK_RUNTIME) {
+#define RUNTIME TRACK_RUNTIME
+//}
 #define NUM_THREADS 1
 
 
@@ -39,7 +42,7 @@ struct node_id_order {
 };
 
 // Define variables for keeping track of time for load imbalancing tests.
-#ifdef RUNTIME
+#if RUNTIME
 double total_time_taken;
 double vec_calc_communication_time[2] = {};
 double pre_process_time;
@@ -74,7 +77,7 @@ int main(int argc, char *argv[]) {
   //  if (rank == 0) {
   //clock_t out_tStart = clock();
   time_t now = time(0);
-  #ifdef RUNTIME
+  #if RUNTIME
   double pre_tStart = MPI_Wtime();
   #endif
     //}
@@ -140,7 +143,7 @@ int main(int argc, char *argv[]) {
 
   // Allocate space for time recording by graph node
 
-#ifdef RUNTIME
+#if RUNTIME
   vec_calc_computation_time_X = new double[graphx.numRows()]();
   vec_calc_computation_time_Y = new double[graphy.numRows()]();
   vec_calc_proc_assign_X = new int[graphx.numRows()]();
@@ -174,7 +177,9 @@ int main(int argc, char *argv[]) {
   //vec_calc_communication_time = 0;
   //vec_calc_computation_time = 0;
 
+  #if RUNTIME
   pre_process_time = (double)(MPI_Wtime() - pre_tStart);
+  #endif
   // Perform Similarity Calculations
   Similarity_Metric_calculation_for_two_graphs(X,Y,orbits, graph_name1, graph_name2);
 
@@ -191,7 +196,7 @@ int main(int argc, char *argv[]) {
 //  }
 //  cout << "Runtime on rank " << rank << " for graph 1 = " << vec_calc_communication_time[0] << endl;
 //  cout << "Runtime on rank " << rank << " for graph 2 = " << vec_calc_communication_time[1] << endl;
-#ifdef RUNTIME
+#if RUNTIME
   send_times[0] = total_time_taken;
   send_times[1] = vec_calc_communication_time[0];
   send_times[2] = vec_calc_communication_time[1];
@@ -209,7 +214,7 @@ int main(int argc, char *argv[]) {
   #endif
 
   // Handle output of timing results
-  #ifdef RUNTIME
+  #if RUNTIME
   if (rank == 0) {
     
     // Get date of run
@@ -273,11 +278,12 @@ int main(int argc, char *argv[]) {
     }
     myfile.close();
   }
-
+  #endif
 
   //printf("Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
   //cout << "Time taken on rank " << rank << " = " << (double)(clock() - tStart)/CLOCKS_PER_SEC << endl;
   //MPI_Barrier( MPI_COMM_WORLD );
+  #if RUNTIME
   delete[] vec_calc_computation_time_X;
   delete[] vec_calc_computation_time_Y;
   delete[] vec_calc_proc_assign_X;
@@ -395,7 +401,7 @@ kokkos_Similarity_Metric_calculation_for_two_graphs(const matrix_type& graph1,
                                                     string graph_tag1, 
                                                     string graph_tag2) {
   //clock_t out_tStart = clock();
-  #ifdef RUNTIME
+  #if RUNTIME
   MPI_Barrier( MPI_COMM_WORLD );
   double out_tStart = MPI_Wtime();
   #endif
@@ -471,7 +477,7 @@ if(rankm == 0)
 //  });
 
   // Measure final total time 
-  #ifdef RUNTIME
+  #if RUNTIME
   total_time_taken = (double)(MPI_Wtime() - out_tStart);
   #endif
 
@@ -521,7 +527,9 @@ if(rankm == 0)
 
   }
 }*/
+  #if RUNTIME
   report_output_time = (double)(MPI_Wtime() - report_tStart);
+  #endif
 }
 
 double GDV_distance_calculation(GDVMetric &gdvm1, GDVMetric &gdvm2)
@@ -811,6 +819,8 @@ void GDV_vector_calculation(A_Network graph,vector<GDVMetric>* graph_GDV,  vecto
   #endif
 
 }
+=======
+>>>>>>> 7387cdd... Add framework for passing cmake variables to main
 
 void 
 kokkos_GDV_vector_calculation(const matrix_type& graph, 
@@ -836,7 +846,7 @@ cout << "# of processes : " << comm_size << endl;
   //graph_counter += 1;
   //cout << "Graph counter on rank " << rankn << " = " << graph_counter << endl;
 
-#ifdef RUNTIME
+#if RUNTIME
   double process_ends_communication;
   double vec_calc_computation_start;
   double vec_calc_computation_end;
@@ -1076,7 +1086,7 @@ chrono::  steady_clock::time_point t1 = chrono::steady_clock::now();
       	}
       } while (rec_count < graph_size);
 
-#ifdef RUNTIME
+#if RUNTIME
       process_ends_communication = MPI_Wtime();
       //vec_calc_prior_gather = MPI_Wtime() - vec_calc_start + vec_calc_prior_gather;
 #endif
@@ -1109,7 +1119,7 @@ chrono::  steady_clock::time_point t1 = chrono::steady_clock::now();
         cout << "Recieved node " << node_name << " at rank " << rankn << endl;
       #endif
       if (node_name == -1) {
-#ifdef RUNTIME
+#if RUNTIME
         process_ends_communication = MPI_Wtime();
 #endif
         //vec_calc_prior_gather = MPI_Wtime() - vec_calc_start + vec_calc_prior_gather;
@@ -1194,7 +1204,7 @@ cout << "Team size: " << policy.team_size() << endl;
   }
 
   //vec_calc_post_gather = MPI_Wtime() - vec_calc_start + vec_calc_post_gather;
-#ifdef RUNTIME
+#if RUNTIME
   vec_calc_communication_time[graph_counter - 1] = process_ends_communication - vec_calc_start;
 #endif
 //  cout << "Communication time on process " << rankn << " for graph " << graph_counter << " = " << vec_calc_communication_time[graph_counter - 1] << endl;
