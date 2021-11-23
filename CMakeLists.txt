@@ -5,6 +5,8 @@ project(FIDO)
 set(CMAKE_BUILD_TYPE RelWithDebInfo CACHE STRING "")
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
+#set(TRACK_RUNTIME OFF CACHE BOOL "")
+
 include(GNUInstallDirs)
 
 #add_subdirectory(ESSENS-master)
