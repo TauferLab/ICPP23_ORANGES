@@ -7,7 +7,7 @@
 #include "etl/murmur3.h"
 
 KOKKOS_INLINE_FUNCTION
-void generate_hashes(Kokkos::View<uint32_t**>& gdv, Kokkos::View<uint64_t*>& hashes, size_t blocksize) {
+void generate_hashes(Kokkos::View<uint32_t**> gdv, Kokkos::View<uint64_t*>& hashes, size_t blocksize) {
   size_t blocksize_elements = blocksize/4;
   if(hashes.size() != gdv.span()/(blocksize_elements)) {
     printf("Hashes destination does not match number of blocks\n");
@@ -29,5 +29,5 @@ void generate_hashes(Kokkos::View<uint32_t**>& gdv, Kokkos::View<uint64_t*>& has
   std::chrono::high_resolution_clock::time_point t2 = std::chrono::high_resolution_clock::now();
   std::chrono::duration<double> time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2-t1);
   time_span = std::chrono::duration_cast<std::chrono::duration<double>>(t2-t1);
-  printf("murmur3_64 hash (blocksize=%d) took \t\t%lf seconds\n", blocksize, time_span.count());
+//  printf("murmur3_64 hash (blocksize=%d) took \t\t%lf seconds\n", blocksize, time_span.count());
 }

@@ -23,23 +23,25 @@
 
 #define GDV_LENGTH 73
 #define CHUNK_SIZE 1
-#define NUM_THREADS 1
+#define NUM_THREADS 16
 #define MAX_SUBGRAPH 5
+#define ANALYSIS
 //#define DEBUG
 //#define INSTRUMENT
 //#define DIRTY_PAGE_TRACKING
 //#define RESILIENCE
-#define AUTO_CHECKPOINT
+//#define AUTO_CHECKPOINT
 //#define STANDARD
 //#define INCREMENTAL
 //#define HASH_DETECT
 //#define OUTPUT_MATRIX
-#define OUTPUT_GDV
+//#define OUTPUT_GDV
 //#define OUTPUT_MATRIX
 
 #ifdef AUTO_CHECKPOINT
 #include <resilience/Resilience.hpp>
 #include <resilience/CheckpointFilter.hpp>
+#include <veloc.h>
 #endif
 
 void Calculate_GDV(int ,A_Network ,vector<OrbitMetric>&, GDVMetric&);
@@ -424,7 +426,8 @@ kokkos_Similarity_Metric_calculation_for_two_graphs(const matrix_type& graph1,
   MPI_Comm_size(MPI_COMM_WORLD, &numtasksm);
 
   int graph_counter = 1;
-  kokkos_GDV_vector_calculation(graph1, graph1_GDV, orbits, "graph1", graph_counter); 
+//  kokkos_GDV_vector_calculation(graph1, graph1_GDV, orbits, "graph1", graph_counter); 
+  kokkos_GDV_vector_calculation(graph1, graph1_GDV, orbits, graph_tag1.c_str(), graph_counter); 
   MPI_Barrier(MPI_COMM_WORLD);
 
   if(rankm == 0)
@@ -444,8 +447,13 @@ kokkos_Similarity_Metric_calculation_for_two_graphs(const matrix_type& graph1,
   }
 #endif
 
+#ifdef AUTO_CHECKPOINT
+VELOC_Checkpoint_wait();
+#endif
+
   graph_counter = 2;
-  kokkos_GDV_vector_calculation(graph2, graph2_GDV, orbits, "graph2", graph_counter); 
+//  kokkos_GDV_vector_calculation(graph2, graph2_GDV, orbits, "graph2", graph_counter); 
+  kokkos_GDV_vector_calculation(graph2, graph2_GDV, orbits, graph_tag2.c_str(), graph_counter); 
   MPI_Barrier(MPI_COMM_WORLD);
 
   if(rankm == 0)
@@ -1211,7 +1219,7 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
   int tag = 11;
   uint32_t graph_size = graph.numRows();
   std::string label(graph_name);
-  label += "-Rank";
+  label += "_Rank";
   label += std::to_string(rankn);
 
 #ifdef DIRTY_PAGE_TRACKING
@@ -1231,8 +1239,11 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
 
   Kokkos::View<uint64_t*> num_combinations("Number of combinations", graph.numRows());
   Kokkos::View<uint32_t*> num_neighbors("Number of neighbors", graph.numRows());
-  uint64_t k_interval = 200000000;
+//  uint64_t k_interval = 2400000000;
+  uint64_t k_interval = 1000000000;
+//  uint64_t k_interval = 200000000;
 //  uint64_t k_interval = 4000000;
+//  uint64_t k_interval = 1000000;
 
   Kokkos::TeamPolicy<> team_policy(1, NUM_THREADS);
 #ifdef DEBUG
@@ -1404,6 +1415,13 @@ printf("Calculated # of combinations\n");
     Kokkos::UnorderedMap<std::pair<int,int>, int> prev_map(capacity);
     Kokkos::UnorderedMap<std::pair<int,int>, int> chkpt1_map(capacity);
 #endif
+#ifdef ANALYSIS
+    int checkpoint_num = 0;
+    uint64_t page_size = sysconf(_SC_PAGE_SIZE);
+//    uint64_t page_size = 4096;
+    Kokkos::View<uint64_t*> old_hashes("Old hashes", graph_GDV.span()*sizeof(uint32_t)/page_size);
+    Kokkos::View<uint64_t*> new_hashes("New hashes", graph_GDV.span()*sizeof(uint32_t)/page_size);
+#endif
     for(i; i<starts.extent(0)-1; i++) {
 
 #ifdef DIRTY_PAGE_TRACKING
@@ -1418,6 +1436,10 @@ printf("Calculated # of combinations\n");
       Kokkos::View<uint32_t**> chkpt1_view("Checkpoint 1", graph_GDV.extent(0), graph_GDV.extent(1));
       Kokkos::View<uint32_t**> chkpt2_view("Checkpoint 1", graph_GDV.extent(0), graph_GDV.extent(1));
 #endif 
+#ifdef ANALYSIS
+pid_t pid = getpid();
+reset_dirty_bit(pid);
+#endif
       chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
       Kokkos::TeamPolicy<Kokkos::Schedule<Kokkos::Dynamic>> bundle_policy(1, NUM_THREADS);
       Kokkos::parallel_for("Calcualte GDV bundle", bundle_policy, KOKKOS_LAMBDA(member_type team_member) {
@@ -1437,8 +1459,204 @@ printf("Calculated # of combinations\n");
 //          printf("Done with node: %d, time: %f\n", node, time_span.count());
         });
       });
+#ifdef ANALYSIS
+//auto gdv_access = metrics_sa.subview();
+//// Dirty page tracking
+//std::vector<uint64_t> pagelist;
+//get_dirty_pages(pid, reinterpret_cast<uintptr_t>(gdv_access.data()), reinterpret_cast<uintptr_t>(gdv_access.data()+gdv_access.span()), pagelist);
+//std::cout << "Dirty pages: ";
+//for(int page_id=0; page_id<pagelist.size(); page_id++) {
+//  std::cout << pagelist[page_id] << " ";
+//}
+//std::cout << std::endl;
+
+//int total_changes = 0;
+//int total_orbit_changes = 0;
+//int changes = 0;
+//Kokkos::View<int*> num_changes("Number of changes", graph_GDV.extent(0));
+//Kokkos::View<int*> num_orbit_changes("Number of changes", graph_GDV.extent(0));
+//Kokkos::deep_copy(num_changes, 0);
+//Kokkos::deep_copy(num_orbit_changes, 0);
+//for(int j=0; j<graph_GDV.extent(0); j++) {
+//  changes = 0;
+//  Kokkos::parallel_reduce("Count changes", graph_GDV.extent(1), KOKKOS_LAMBDA(const int& k, int& change_sum ) {
+//    change_sum += gdv_access(j, k);
+//  }, changes);
+//  num_changes(j) = changes;
+//  changes = 0;
+//  Kokkos::parallel_reduce("Count orbits", graph_GDV.extent(1), KOKKOS_LAMBDA(const int& k, int& change_sum ) {
+//    if(gdv_access(j,k) > 0)
+//      change_sum += 1;
+//  }, changes);
+//  num_orbit_changes(j) = changes;
+//}
+//Kokkos::parallel_reduce("Total changes", graph_GDV.extent(0), KOKKOS_LAMBDA(const int& j, int& change_sum) {
+//  change_sum += num_changes(j);
+//}, total_changes);
+//Kokkos::parallel_reduce("Total orbit changes", graph_GDV.extent(0), KOKKOS_LAMBDA(const int& j, int& change_sum) {
+//  change_sum += num_orbit_changes(j);
+//}, total_orbit_changes);
+//int contiguous_blocks = 0;
+//int contiguous_flag = 0;
+//std::vector<int> cont_block_starts;
+//std::vector<int> cont_block_ends;
+//for(int j=0; j<graph_GDV.span(); j++) {
+//  if(gdv_access.data()[j] > 0 && contiguous_flag == 0) {
+//    cont_block_starts.push_back(j);
+//    contiguous_flag += 1;
+//  } else if(gdv_access.data()[j] > 0) {
+//    contiguous_flag += 1;
+//  } else if(gdv_access.data()[j] == 0 && contiguous_flag > 1) {
+//    contiguous_blocks += 1;
+//    contiguous_flag = 0;
+//    cont_block_ends.push_back(j);
+//  } else if(gdv_access.data()[j] == 0 && contiguous_flag > 0) {
+//    contiguous_flag = 0;
+//    cont_block_starts.pop_back();
+//  }
+//}
+//std::map<uint64_t, int> std_hash_map;
+//etl::murmur3<uint64_t> murmur3_64_gen;
+//for(int j=0; j<graph_GDV.extent(0); j++) {
+//  murmur3_64_gen.add((uint8_t*)(gdv_access.data())+j*(graph_GDV.extent(1)*sizeof(GDVs::value_type)),
+//                      (uint8_t*)(gdv_access.data())+(j+1)*(graph_GDV.extent(1)*sizeof(GDVs::value_type)));
+//  uint64_t hash = murmur3_64_gen.value();
+//  auto pos = std_hash_map.find(hash);
+//  if(pos != std_hash_map.end()) {
+//    int old_val = pos->second;
+//    std_hash_map.erase(pos);
+//    std_hash_map[hash] = old_val+1;
+//  } else {
+//    std_hash_map[hash] = 1;
+//  }
+//  murmur3_64_gen.reset();
+//}
+//
+//std::cout << "Total number of changes: " << total_changes << ", Total number of updated orbits: " << total_orbit_changes << ", number of contiguous blocks > 2: " << contiguous_blocks << std::endl;
+//for(int j=0; j<graph_GDV.extent(0); j++) {
+//  if(num_changes(j) > 0) {
+//    std::cout << j << ": " << num_changes(j) << ", Updated orbits: " << num_orbit_changes(j) << std::endl;
+//  }
+//}
+//std::cout << std::endl;
+//std::cout << "Contiguous blocks: ";
+//uint64_t offset_counter = 0;
+//for(int j=0; j<cont_block_starts.size(); j++) {
+//  if(cont_block_starts[j] >= offset_counter) {
+//    std::cout << "\nNode " << cont_block_starts[j]/graph_GDV.extent(1) << ": ";
+//    offset_counter = (cont_block_starts[j]/graph_GDV.extent(1)+1)*graph_GDV.extent(1);
+//  }
+//  std::cout << "[" << cont_block_starts[j] << "," << cont_block_ends[j] << ") ";
+//}
+//std::cout << std::endl;
+//std::cout << "Number of vertices with shared identical GDVs" << std::endl;
+//for(std::map<uint64_t, int>::iterator it=std_hash_map.begin(); it!=std_hash_map.end(); ++it)
+//  std::cout << "Hash " << it->first << " is shared by " << it->second << " nodes\n";
+//
+//// Print GDVs
+//for(int j=0; j<graph_GDV.extent(0); j++) {
+//  int n_changes = 0;
+//  for(int k=0; k<graph_GDV.extent(1); k++) {
+//    n_changes += gdv_access(j,k);
+//  }
+//  if(n_changes > 0) {
+//    std::cout << j << ": ";
+//    for(int k=0; k<24; k++) {
+//      std::cout << gdv_access(j,k) << " ";
+//    }
+//    std::cout << std::endl;
+//  }
+//}
+#endif
       Kokkos::Experimental::contribute(graph_GDV, metrics_sa);
       metrics_sa.reset();
+#ifdef ANALYSIS
+std::string region_log("region-data-graph-");
+region_log = region_log + std::string(graph_name) + std::string(".log");
+std::fstream fs(region_log, std::fstream::out|std::fstream::app);
+// Hash based change tracking
+uint32_t num_changed = 0;
+generate_hashes(graph_GDV, new_hashes, page_size);
+fs << "Number of blocks: " << new_hashes.size() << std::endl;
+fs << "Changed blocks: ";
+bool flag = false;
+for(int idx = 0; idx<new_hashes.size(); idx++) {
+  if(old_hashes(idx) != new_hashes(idx))
+  {
+    num_changed += 1;
+    if(!flag) {
+      fs << "[" << idx << ",";
+      flag = true;
+    }
+  } else {
+    if(flag) {
+      fs << idx << ") ";
+      flag = false;
+    }
+  }
+}
+if(flag)
+  fs << new_hashes.size() << ")";
+//std::cout << std::endl;
+//std::cout << num_changed << "/" << new_hashes.size() << " blocks changed " << std::endl;
+fs << std::endl;
+fs << num_changed << "/" << new_hashes.size() << " blocks changed " << std::endl;
+// Find contiguous regions
+std::map<int, int> contiguous_regions;
+int largest_region = 1;
+int region_size_counter = 0;
+for(int idx=0; idx<new_hashes.size(); idx++) {
+  if(old_hashes(idx) != new_hashes(idx))
+  {
+    region_size_counter += 1;
+  }
+  else 
+  {
+    if(region_size_counter > largest_region)
+    {
+      largest_region = region_size_counter;
+    }
+    if(region_size_counter > 0) {
+      auto pos = contiguous_regions.find(region_size_counter);
+      if(pos != contiguous_regions.end())
+      {
+        pos->second = pos->second + 1;
+      }
+      else
+      {
+        contiguous_regions.insert(std::pair<int,int>(region_size_counter, 1));
+      }
+    }
+    region_size_counter = 0;
+  }
+}
+if(region_size_counter > largest_region)
+{
+  largest_region = region_size_counter;
+}
+if(region_size_counter > 0) {
+  auto pos = contiguous_regions.find(region_size_counter);
+  if(pos != contiguous_regions.end())
+  {
+    pos->second = pos->second + 1;
+  }
+  else
+  {
+    contiguous_regions.insert(std::pair<int,int>(region_size_counter, 1));
+  }
+}
+//std::cout << "Largest region: " << largest_region << std::endl;
+//std::cout << "Region map\n";
+fs << "Largest region: " << largest_region << std::endl;
+fs << "Region map\n";
+for(auto itr = contiguous_regions.begin(); itr != contiguous_regions.end(); ++itr)
+{
+//  std::cout << itr->second << " regions of size " << itr->first << std::endl;
+  fs << itr->second << " regions of size " << itr->first << std::endl;
+}
+Kokkos::deep_copy(old_hashes, new_hashes);
+Kokkos::deep_copy(new_hashes, 0);
+#endif
 
 #ifdef DIRTY_PAGE_TRACKING
       uintptr_t start_addr = reinterpret_cast<uintptr_t>(graph_GDV.data());
@@ -1518,9 +1736,9 @@ printf("Calculated # of combinations\n");
 #endif
       chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
       chrono::duration<double> time_span = chrono::duration_cast<chrono::duration<double>>(t2-t1);
-#ifdef DEBUG
+//#ifdef DEBUG
       printf("Done with chunk: %d, time: %f\n", i, time_span.count());
-#endif
+//#endif
 
 #ifdef AUTO_CHECKPOINT
 }, filt);
@@ -1529,12 +1747,29 @@ printf("Calculated # of combinations\n");
   }
   else
   {
+#ifdef ANALYSIS
+    int checkpoint_num = 0;
+//    uint64_t page_size = sysconf(_SC_PAGE_SIZE);
+    uint64_t page_size = 4096;
+    Kokkos::View<uint64_t*> old_hashes("Old hashes", graph_GDV.span()*sizeof(uint32_t)/page_size);
+    Kokkos::View<uint64_t*> new_hashes("New hashes", graph_GDV.span()*sizeof(uint32_t)/page_size);
+#endif
     Kokkos::deep_copy(graph_GDV, 0);
     uint32_t intervals_per_rank = num_intervals/comm_size;
-    uint32_t start_index = intervals_per_rank*rankn;
-    if(rankn == comm_size-1) {
-      intervals_per_rank += num_intervals - (comm_size*intervals_per_rank);
-    }
+    uint32_t remaining_intervals = num_intervals%comm_size;
+    if(rankn < remaining_intervals)
+      intervals_per_rank += 1;
+    uint32_t start_index = 0;
+    if(rankn < remaining_intervals)
+      start_index = intervals_per_rank*rankn;
+    if(rankn >= remaining_intervals)
+      start_index = (intervals_per_rank+1)*remaining_intervals+intervals_per_rank*(rankn-remaining_intervals);
+    if(start_index+intervals_per_rank > num_intervals)
+      intervals_per_rank = num_intervals - start_index;
+printf("Rank %d start index: %d, intervals per rank: %d\n", rankn, start_index, intervals_per_rank);
+//    if(rankn == comm_size-1) {
+//      intervals_per_rank += num_intervals - (comm_size*intervals_per_rank);
+//    }
 #ifdef DEBUG
 printf("Rank %d start index: %d, intervals per rank: %d\n", rankn, start_index, intervals_per_rank);
 #endif
@@ -1767,6 +2002,94 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
       Kokkos::Experimental::contribute(graph_GDV, metrics_sa);
       metrics_sa.reset();
       Kokkos::fence();
+#ifdef ANALYSIS
+std::string region_log("Rank-");
+region_log = region_log + std::to_string(rankn) + std::string("-region-data-graph-");
+region_log = region_log + std::string(graph_name) + std::string(".log");
+std::fstream fs(region_log, std::fstream::out|std::fstream::app);
+// Hash based change tracking
+uint32_t num_changed = 0;
+generate_hashes(graph_GDV, new_hashes, page_size);
+fs << "Number of blocks: " << new_hashes.size() << std::endl;
+fs << "Changed blocks: ";
+bool flag = false;
+for(int idx = 0; idx<new_hashes.size(); idx++) {
+  if(old_hashes(idx) != new_hashes(idx))
+  {
+    num_changed += 1;
+    if(!flag) {
+      fs << "[" << idx << ",";
+      flag = true;
+    }
+  } else {
+    if(flag) {
+      fs << idx << ") ";
+      flag = false;
+    }
+  }
+}
+if(flag)
+  fs << new_hashes.size() << ")";
+//std::cout << std::endl;
+//std::cout << num_changed << "/" << new_hashes.size() << " blocks changed " << std::endl;
+fs << std::endl;
+fs << num_changed << "/" << new_hashes.size() << " blocks changed " << std::endl;
+// Find contiguous regions
+std::map<int, int> contiguous_regions;
+int largest_region = 1;
+int region_size_counter = 0;
+for(int idx=0; idx<new_hashes.size(); idx++) {
+  if(old_hashes(idx) != new_hashes(idx))
+  {
+    region_size_counter += 1;
+  }
+  else 
+  {
+    if(region_size_counter > largest_region)
+    {
+      largest_region = region_size_counter;
+    }
+    if(region_size_counter > 0) {
+      auto pos = contiguous_regions.find(region_size_counter);
+      if(pos != contiguous_regions.end())
+      {
+        pos->second = pos->second + 1;
+      }
+      else
+      {
+        contiguous_regions.insert(std::pair<int,int>(region_size_counter, 1));
+      }
+    }
+    region_size_counter = 0;
+  }
+}
+if(region_size_counter > largest_region)
+{
+  largest_region = region_size_counter;
+}
+if(region_size_counter > 0) {
+  auto pos = contiguous_regions.find(region_size_counter);
+  if(pos != contiguous_regions.end())
+  {
+    pos->second = pos->second + 1;
+  }
+  else
+  {
+    contiguous_regions.insert(std::pair<int,int>(region_size_counter, 1));
+  }
+}
+//std::cout << "Largest region: " << largest_region << std::endl;
+//std::cout << "Region map\n";
+fs << "Largest region: " << largest_region << std::endl;
+fs << "Region map\n";
+for(auto itr = contiguous_regions.begin(); itr != contiguous_regions.end(); ++itr)
+{
+//  std::cout << itr->second << " regions of size " << itr->first << std::endl;
+  fs << itr->second << " regions of size " << itr->first << std::endl;
+}
+Kokkos::deep_copy(old_hashes, new_hashes);
+Kokkos::deep_copy(new_hashes, 0);
+#endif
 #ifdef DIRTY_PAGE_TRACKING
       uintptr_t start_addr = reinterpret_cast<uintptr_t>(graph_GDV.data());
       uintptr_t end_addr = reinterpret_cast<uintptr_t>(graph_GDV.data() + graph_GDV.span());

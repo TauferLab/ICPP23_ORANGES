@@ -109,11 +109,13 @@ bool address_range_dirty(pid_t pid, uintptr_t start_addr, uintptr_t end_addr) {
   return false;
 }
 
-bool get_dirty_pages(pid_t pid, uintptr_t start_addr, uintptr_t end_addr, uint64_t* page_list) {
+bool get_dirty_pages(pid_t pid, uintptr_t start_addr, uintptr_t end_addr, std::vector<uint64_t>& page_list) {
   char pagemap_file[BUFSIZ];
   int pagemap_fd;
   uintptr_t current = start_addr;
   uint64_t page_size = sysconf(_SC_PAGE_SIZE);
+
+  page_list.clear();
 
   snprintf(pagemap_file, sizeof(pagemap_file), "/proc/%ju/pagemap", static_cast<uintmax_t>(pid));
   pagemap_fd = open(pagemap_file, O_RDONLY);
@@ -129,8 +131,9 @@ bool get_dirty_pages(pid_t pid, uintptr_t start_addr, uintptr_t end_addr, uint64
     if(ret)
       printf("Something bad happened when getting the pagemap entry\n");
     if(entry.soft_dirty) {
-//      return true;
-      page_list[page_counter++] = (current/page_size);
+//      page_list[page_counter++] = (current/page_size);
+      page_list.push_back(current/page_size);
+      page_counter += 1;
     }
 //    printf("0x%016" PRIXPTR "\n", entry);
     current += page_size;
@@ -139,9 +142,10 @@ bool get_dirty_pages(pid_t pid, uintptr_t start_addr, uintptr_t end_addr, uint64
   if(ret)
     printf("Something bad happened when getting the pagemap entry\n");
   if(entry.soft_dirty) {
-    page_list[page_counter] = (end_addr/page_size);
+//    page_list[page_counter] = (end_addr/page_size);
+    page_list.push_back(end_addr/page_size);
+    page_counter += 1;
 //    printf("0x%016" PRIXPTR "\n", entry);
-//    return true;
   }
 
   close(pagemap_fd);
@@ -150,7 +154,6 @@ bool get_dirty_pages(pid_t pid, uintptr_t start_addr, uintptr_t end_addr, uint64
   } else {
     return false;
   }
-//  return false;
 }
 
 void reset_dirty_bit(pid_t pid) {
