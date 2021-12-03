@@ -25,8 +25,9 @@
 //#define DEBUG
 //if (TRACK_RUNTIME) {
 #define RUNTIME TRACK_RUNTIME
+#define RUNTIME_VAL 1
 //}
-#define NUM_THREADS 1
+#define NUM_THREADS THREAD_COUNT
 
 /*void Calculate_GDV(int ,A_Network ,vector<OrbitMetric>&, GDVMetric&);
 void Calculate_GDV(int node,A_Network Graph,vector<OrbitMetric> &orbits, vector<GDVMetric> &gdvMetrics);
@@ -73,7 +74,7 @@ struct node_id_order {
 };
 
 // Define variables for keeping track of time for load imbalancing tests.
-#if RUNTIME
+#if RUNTIME == RUNTIME_VAL
 double total_time_taken;
 double vec_calc_communication_time[2] = {};
 double pre_process_time;
@@ -100,7 +101,7 @@ int main(int argc, char *argv[]) {
   //  if (rank == 0) {
   //clock_t out_tStart = clock();
   time_t now = time(0);
-  #if RUNTIME
+  #if RUNTIME == RUNTIME_VAL
   double pre_tStart = MPI_Wtime();
   #endif
     //}
@@ -184,7 +185,7 @@ if(rank == 0)
   printf("Comm size: %d\n", numtasks);
 
   // Allocate space for time recording by graph node
-#if RUNTIME
+#if RUNTIME == RUNTIME_VAL
   vec_calc_computation_time_X = new double[graphx.numRows()]();
   vec_calc_computation_time_Y = new double[graphy.numRows()]();
   vec_calc_proc_assign_X = new int[graphx.numRows()]();
@@ -222,7 +223,7 @@ if(rank == 0) {
   cout << "# of vertices: " << graphy.numRows() << endl;
 }
 
-  #if RUNTIME
+  #if RUNTIME == RUNTIME_VAL
   pre_process_time = (double)(MPI_Wtime() - pre_tStart);
   #endif
   // Perform Similarity Calculations
@@ -242,7 +243,7 @@ if(rank == 0) {
 //  }
 //  cout << "Runtime on rank " << rank << " for graph 1 = " << vec_calc_communication_time[0] << endl;
 //  cout << "Runtime on rank " << rank << " for graph 2 = " << vec_calc_communication_time[1] << endl;
-#if RUNTIME
+#if RUNTIME == RUNTIME_VAL
   send_times[0] = total_time_taken;
   send_times[1] = vec_calc_communication_time[0];
   send_times[2] = vec_calc_communication_time[1];
@@ -260,7 +261,7 @@ if(rank == 0) {
   #endif
 
   // Handle output of timing results
-  #if RUNTIME
+  #if RUNTIME == RUNTIME_VAL
   if (rank == 0) {
     
     // Get date of run
@@ -327,7 +328,7 @@ if(rank == 0) {
   //printf("Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
   //cout << "Time taken on rank " << rank << " = " << (double)(clock() - tStart)/CLOCKS_PER_SEC << endl;
   //MPI_Barrier( MPI_COMM_WORLD );
-  #if RUNTIME
+  #if RUNTIME == RUNTIME_VAL
   delete[] vec_calc_computation_time_X;
   delete[] vec_calc_computation_time_Y;
   delete[] vec_calc_proc_assign_X;
@@ -347,7 +348,7 @@ kokkos_Similarity_Metric_calculation_for_two_graphs(const matrix_type& graph1,
                                                     string graph_tag1, 
                                                     string graph_tag2) {
   //clock_t out_tStart = clock();
-  #if RUNTIME
+  #if RUNTIME == RUNTIME_VAL
   MPI_Barrier( MPI_COMM_WORLD );
   double out_tStart = MPI_Wtime();
   #endif
@@ -439,7 +440,7 @@ if (rankm == 0) {
 //  });
 
   // Measure final total time 
-  #if RUNTIME
+  #if RUNTIME == RUNTIME_VAL
   total_time_taken = (double)(MPI_Wtime() - out_tStart);
   #endif
 
@@ -488,7 +489,7 @@ if (rankm == 0) {
     myfile.close();
 
   }
-  #if RUNTIME
+  #if RUNTIME == RUNTIME_VAL
   report_output_time = (double)(MPI_Wtime() - report_tStart);
   #endif
 }
@@ -544,7 +545,7 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
   //graph_counter += 1;
   //cout << "Graph counter on rank " << rankn << " = " << graph_counter << endl;
 
-#if RUNTIME
+#if RUNTIME == RUNTIME_VAL
   double process_ends_communication;
   double vec_calc_computation_start;
   double vec_calc_computation_end;
@@ -798,7 +799,7 @@ chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
       	}
       } while (rec_count < graph_size);
 
-#if RUNTIME
+#if RUNTIME == RUNTIME_VAL
       process_ends_communication = MPI_Wtime();
       //vec_calc_prior_gather = MPI_Wtime() - vec_calc_start + vec_calc_prior_gather;
 #endif
@@ -832,7 +833,7 @@ chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
         cout << "Recieved node " << node_name << " at rank " << rankn << endl;
       #endif
       if (node_name == -1) {
-#if RUNTIME
+#if RUNTIME == RUNTIME_VAL
         process_ends_communication = MPI_Wtime();
 #endif
         //vec_calc_prior_gather = MPI_Wtime() - vec_calc_start + vec_calc_prior_gather;
@@ -927,7 +928,7 @@ std::cout << "Rank " << rankn << " finished chunk " << node_name << std::endl;
   }
 
   //vec_calc_post_gather = MPI_Wtime() - vec_calc_start + vec_calc_post_gather;
-#if RUNTIME
+#if RUNTIME == RUNTIME_VAL
   vec_calc_communication_time[graph_counter - 1] = process_ends_communication - vec_calc_start;
 #endif
 //  cout << "Communication time on process " << rankn << " for graph " << graph_counter << " = " << vec_calc_communication_time[graph_counter - 1] << endl;

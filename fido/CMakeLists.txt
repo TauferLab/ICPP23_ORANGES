@@ -6,7 +6,8 @@ find_package(KokkosKernels REQUIRED)
 #find_package(resilience REQUIRED)
 #find_package(VeloC)
 
-set(TRACK_RUNTIME ON CACHE BOOL "")
+set(TRACK_RUNTIME 1 CACHE STRING "Variable to define whether or not to record runtimes")
+set(THREAD_COUNT 4 CACHE STRING "Number of threads for shared memory kokkos paralellization")
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/fido_compile_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/fido_compile_config.h @ONLY)
 
