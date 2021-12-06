@@ -1,6 +1,13 @@
 #!/usr/bin/env bash
 
 
+while [ -n "$1" ]; do
+        case "$1" in
+		-r) track_runtime_cmake=$2; shift; shift ;;
+		-t) num_threads_cmake=$2; shift; shift ;;
+	esac
+done
+
 build_dir=build/
 project_root=$(pwd)
 #kokkos_path=/work2/08092/tg873913/stampede2/spack/opt/spack/linux-centos7-skylake_avx512/intel-19.1.1.217/kokkos-3.3.01-4ct54q7mxt37js5622iokn63yrviwyjz/
@@ -14,6 +21,24 @@ for i in `seq 1 ${n_columns}`;
 do
     progress_delimiter+="-"
 done
+
+
+## Process User Input
+#echo 
+#echo ${progress_delimiter}
+#echo "Processing User Input"
+#echo ${progress_delimiter}
+#echo
+#if [[ "${track_runtime}" == "True" ]]; then
+#        track_runtime_cmake=1
+#else
+#        track_runtime_cmake=0
+#fi
+#echo
+#echo ${progress_delimiter}
+#echo "Done Processing User Input"
+#echo ${progress_delimiter}
+#echo
 
 
 ## Update Git Submodules
@@ -86,7 +111,7 @@ echo ${progress_delimiter}
 echo "Installing Fido..."
 echo ${progress_delimiter}
 echo
-. ./install/install_fido.sh
+. ./install/install_fido.sh ${track_runtime_cmake} ${num_threads_cmake}
 echo
 echo ${progress_delimiter}
 echo "Done Installing Fido"
