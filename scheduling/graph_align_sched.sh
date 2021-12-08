@@ -2,16 +2,17 @@
 
 
 n_procs=$1
-n_nodes=$2
-input_graph1=$3
-input_graph2=$4
-paths_dir=$5
-results_path=$6
+n_threads=$2
+n_nodes=$3
+input_graph1=$4
+input_graph2=$5
+paths_dir=$6
+results_path=$7
 #sims=1
-scheduler=$7
-sched_queue=$8
-sched_time_limit=$9
-load_assignment=${10}
+scheduler=$8
+sched_queue=$9
+sched_time_limit=${10}
+load_assignment=${11}
 
 function join_by { local d=$1; shift; local f=$1; shift; printf %s "$f" "${@/#/$d}"; }
 
@@ -40,13 +41,13 @@ unq_job=$(date +%s)
 n_procs_per_node=$((n_procs/n_nodes))
 
 if [ "${scheduler}" == "slurm" ]; then
-	sbatch -o ${output_file} -e ${error_file} -N ${n_nodes} --ntasks-per-node=$((n_procs_per_node+1)) --wait -J fido_job -p ${sched_queue} -n ${n_procs} -t ${sched_time_limit} ${graph_align_job_script} ${n_procs} ${input_graph1} ${input_graph2} ${load_assignment} ${paths_dir} ${results_path}
+	sbatch -o ${output_file} -e ${error_file} -N ${n_nodes} --ntasks-per-node=$((n_procs_per_node+1)) --wait -J fido_job -p ${sched_queue} -n ${n_procs} -t ${sched_time_limit} ${graph_align_job_script} ${n_procs} ${n_threads} ${input_graph1} ${input_graph2} ${load_assignment} ${paths_dir} ${results_path}
 fi
 if [ "${scheduler}" == "lsf" ]; then
-	bsub -o ${output_file} -e ${error_file} -n ${n_procs} -J "fidojobs_${unq_job}" -R "span[ptile=$((n_procs_per_node+1))]" -q ${sched_queue} -W ${sched_time_limit} ${graph_align_job_script} ${n_procs} ${input_graph1} ${input_graph2} ${load_assignment} ${paths_dir} ${results_path}
+	bsub -o ${output_file} -e ${error_file} -n ${n_procs} -J "fidojobs_${unq_job}" -R "span[ptile=$((n_procs_per_node+1))]" -q ${sched_queue} -W ${sched_time_limit} ${graph_align_job_script} ${n_procs} ${n_threads} ${input_graph1} ${input_graph2} ${load_assignment} ${paths_dir} ${results_path}
 fi
 if [ "${scheduler}" == "none" ]; then
-	bash > ${output_file} 2> ${error_file} ${graph_align_job_script} ${n_procs} ${input_graph1} ${input_graph2} ${load_assignment} ${paths_dir} ${results_path}
+	bash > ${output_file} 2> ${error_file} ${graph_align_job_script} ${n_procs} ${n_threads} ${input_graph1} ${input_graph2} ${load_assignment} ${paths_dir} ${results_path}
 fi
 
 #echo "" >> ${root_path}/parallel_graph_align/time_results.txt

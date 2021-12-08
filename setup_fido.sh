@@ -5,6 +5,7 @@ while [ -n "$1" ]; do
         case "$1" in
 		-r) track_runtime_cmake=$2; shift; shift ;;
 		-t) num_threads_cmake=$2; shift; shift ;;
+		-s) sim_mat_cutoff=$2; shift; shift ;;
 	esac
 done
 
@@ -111,7 +112,7 @@ echo ${progress_delimiter}
 echo "Installing Fido..."
 echo ${progress_delimiter}
 echo
-. ./install/install_fido.sh ${track_runtime_cmake} ${num_threads_cmake}
+. ./install/install_fido.sh ${track_runtime_cmake} ${num_threads_cmake} ${sim_mat_cutoff}
 echo
 echo ${progress_delimiter}
 echo "Done Installing Fido"

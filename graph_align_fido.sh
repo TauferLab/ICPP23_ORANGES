@@ -7,6 +7,7 @@ Help() {
 	echo "The following command line switches can be used to define parameters for your job submission:"
 	echo ""
 	echo "[-p]    Defines the number of mpi processes used when parallelizing graph alignment. (Default 2 MPI processes)"
+	echo "[-c]    Defines the number of shared memory threads to parallelize across. (Default 1 thread)"
 	echo "[-n]    The number of compute nodes requested for parallelizing graph alignment. (Default 1 node)"
 	echo "        If you're running on an unscheduled system, this value should be set to 1."
 	echo "[-sc]   Used to define which schedule system is currently in use. (Code will request this if not set)"
@@ -28,6 +29,7 @@ Help() {
 while [ -n "$1" ]; do
 	case "$1" in
 		-p)  n_procs=$2; shift; shift ;;
+		-c)  n_threads=$2; shift; shift ;;
 		-n)  n_nodes=$2; shift; shift ;;
 		-q)  queue=$2; shift; shift ;;
 		-t)  time_limit=$2; shift; shift;;
@@ -58,6 +60,7 @@ fido_sched_script=${fido_project_root}/scheduling/graph_align_sched.sh
 
 # Assign Default Values
 n_procs="${n_procs:=2}"
+n_threads="${n_threads:=1}"
 scheduler="${scheduler:="none"}"
 n_nodes="${n_nodes:=1}"
 graph_one="${graph_one:="$(pwd)/fido/test_graphs/sgraph1.txt"}"
@@ -78,6 +81,11 @@ while (( $(echo "$n_nodes < 1" |bc -l) )) || ! [[ "$n_nodes" =~ ^[0-9]+$ ]] || [
 	echo "Number of compute nodes: ${n_nodes} was set too low or is not an integer."
 	echo "Please set number of compute nodes to an integer greater than 0. We recommend using at least 2 if available."
 	read -p "Number of compute nodes requested: " n_nodes
+done
+while (( $(echo "$n_threads < 1" |bc -l) )) || ! [[ "$n_threads" =~ ^[0-9]+$ ]] || [ -z "$n_threads" ] ; do
+        echo "Number of shared memory threads: ${n_threads} was set too low or is not an integer."
+        echo "Please set number of threads to an integer greater than 0."
+        read -p "Number of threads requested: " n_threads
 done
 
 # Ensure the graph files are valid full paths with files.
@@ -130,7 +138,7 @@ cd ${project_path}
 
 
 ## Start fido jobs
-bash ${fido_sched_script} ${n_procs} ${n_nodes} ${graph_one} ${graph_two} ${paths_dir} ${results_path} ${scheduler} ${queue} ${time_limit} ${load_balancer}
+bash ${fido_sched_script} ${n_procs} ${n_threads} ${n_nodes} ${graph_one} ${graph_two} ${paths_dir} ${results_path} ${scheduler} ${queue} ${time_limit} ${load_balancer}
 
 
 echo ""

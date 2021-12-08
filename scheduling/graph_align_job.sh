@@ -2,11 +2,12 @@
 
 
 n_procs=$1
-input_graph1=$2
-input_graph2=$3
-load_assignment=$4
-paths_dir=$5
-results_path=$6
+n_threads=$2
+input_graph1=$3
+input_graph2=$4
+load_assignment=$5
+paths_dir=$6
+results_path=$7
 
 #echo ${results_path}
 #echo $#
@@ -53,7 +54,8 @@ echo "======================================================================"
 echo "Starting Fido alignment of ${input_graph1} with ${input_graph2} on ${n_procs} processes"
     	#mpirun -np ${n_procs} > ${run_path}/graph_align_out.txt 2> ${run_path}/graph_align_err.txt valgrind --leak-check=full --error-limit=no --log-file="valgrind_out.txt" --suppressions=${val_mpi_suppr2} --suppressions=${val_mpi_suppr} --suppressions=/home/pnbell/Src_GraphAlignment/GRAAL/parallel_graph_align/mpi_supp_samp.supp --gen-suppressions=all ${g_align} ${input_graph1} ${input_graph2} ${orbit_file} ${time_keeping}
 	#mpirun -np ${n_procs} > ${run_path}/graph_align_out.txt 2> ${run_path}/graph_align_err.txt valgrind --leak-check=full --error-limit=no --log-file="valgrind_out.txt" --suppressions=${val_mpi_suppr2} --suppressions=${val_mpi_suppr} --suppressions=/home/pnbell/Src_GraphAlignment/GRAAL/parallel_graph_align/mpi_supp_samp.supp ${g_align} ${input_graph1} ${input_graph2} ${orbit_file} ${time_keeping}
-mpirun -np ${n_procs} > ${debug_path}/graph_align_out.txt 2> ${debug_path}/graph_align_err.txt ${g_align} ${input_graph1} ${input_graph2} ${orbit_file} --kokkos-threads=1
+#mpirun -np ${n_procs} > ${debug_path}/graph_align_out.txt 2> ${debug_path}/graph_align_err.txt ${g_align} ${input_graph1} ${input_graph2} ${orbit_file} --kokkos-threads=1
+mpirun -np ${n_procs} > ${debug_path}/graph_align_out.txt 2> ${debug_path}/graph_align_err.txt ${g_align} ${input_graph1} ${input_graph2} ${orbit_file} ${n_threads}
 	#mpirun -np ${n_procs} > ${run_path}/deg_count_out.txt 2> ${run_path}/deg_count_err.txt ${deg_count} ${input_graph1} ${input_graph2}
 	#mpirun -np ${n_procs} > graph_align_out.txt 2> graph_align_err.txt ${g_align} ${input_graph1} ${input_graph2} ${orbit_file} ${time_keeping}
 echo "======================================================================"

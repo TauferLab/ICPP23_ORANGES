@@ -1,0 +1,12 @@
+
+#ifndef FIDO_COMPILE_CONFIG_H_IN
+#define FIDO_COMPILE_CONFIG_H_IN
+
+
+#define TRACK_RUNTIME 1
+#define THREAD_COUNT 1
+#define SIM_MAT_CUT 100
+
+
+#endif // FIDO_COMPILE_CONFIG_H_IN
+

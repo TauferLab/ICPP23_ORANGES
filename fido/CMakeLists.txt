@@ -8,6 +8,7 @@ find_package(KokkosKernels REQUIRED)
 
 set(TRACK_RUNTIME 1 CACHE STRING "Variable to define whether or not to record runtimes")
 set(THREAD_COUNT 4 CACHE STRING "Number of threads for shared memory kokkos paralellization")
+set(SIM_MAT_CUT 100 CACHE STRING "Maximum similarity matrix size that will be printed to file")
 
 configure_file(${CMAKE_CURRENT_SOURCE_DIR}/config/fido_compile_config.h.in ${CMAKE_CURRENT_SOURCE_DIR}/include/fido_compile_config.h @ONLY)
 
