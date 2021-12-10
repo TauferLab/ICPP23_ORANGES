@@ -70,9 +70,9 @@ kokkos_calculate_GDV(Kokkos::TeamPolicy<>::member_type team_member,
 
 // Functions to add
 //void record_calculated_results();
-void dynamic_serial_work(const matrix_type&, GDVs&, const Orbits&, Kokkos::View<unsigned long int*>, Kokkos::View<unsigned long int*>, int);
+void dynamic_serial_work(const matrix_type&, GDVs&, const Orbits&, Kokkos::View<unsigned long int*>, Kokkos::View<unsigned long int*>, int, int);
 void dynamic_master_work(GDVs&, int, int);
-void dynamic_worker_work(const matrix_type&, const Orbits&, int);
+void dynamic_worker_work(const matrix_type&, const Orbits&, int, int);
 
 struct node_id_order {
   inline bool operator() (const GDVMetric& gdv_met_1, const GDVMetric& gdv_met_2) {
@@ -88,8 +88,14 @@ double pre_process_time;
 double report_output_time;
 double* vec_calc_computation_time_X;
 double* vec_calc_computation_time_Y;
+int* vec_calc_thread_assign_X;
+int* vec_calc_thread_assign_Y;
 int* vec_calc_proc_assign_X;
 int* vec_calc_proc_assign_Y;
+double* chunk_gdvs_computation_time_X;
+double* chunk_gdvs_computation_time_Y;
+int* chunk_gdvs_proc_assign_X;
+int* chunk_gdvs_proc_assign_Y;
 void record_runtimes(const matrix_type&, const matrix_type&, double*, int, time_t, int, int);
 #endif
 //double vec_calc_prior_gather;
@@ -196,8 +202,14 @@ if(rank == 0)
 #if RUNTIME == RUNTIME_VAL
   vec_calc_computation_time_X = new double[graphx.numRows()]();
   vec_calc_computation_time_Y = new double[graphy.numRows()]();
+  vec_calc_thread_assign_X = new int[graphx.numRows()]();
+  vec_calc_thread_assign_Y = new int[graphy.numRows()]();
   vec_calc_proc_assign_X = new int[graphx.numRows()]();
   vec_calc_proc_assign_Y = new int[graphy.numRows()]();
+  chunk_gdvs_computation_time_X = new double[graphx.numRows()/CHUNK_SIZE + 1]();
+  chunk_gdvs_computation_time_Y = new double[graphy.numRows()/CHUNK_SIZE + 1]();
+  chunk_gdvs_proc_assign_X = new int[graphx.numRows()/CHUNK_SIZE + 1]();
+  chunk_gdvs_proc_assign_Y = new int[graphy.numRows()/CHUNK_SIZE + 1]();
 #endif
 
   // Get data on graph names
@@ -279,8 +291,14 @@ if(rank == 0) {
   #if RUNTIME == RUNTIME_VAL
   delete[] vec_calc_computation_time_X;
   delete[] vec_calc_computation_time_Y;
+  delete[] vec_calc_thread_assign_X;
+  delete[] vec_calc_thread_assign_Y;
   delete[] vec_calc_proc_assign_X;
   delete[] vec_calc_proc_assign_Y;
+  delete[] chunk_gdvs_computation_time_X;
+  delete[] chunk_gdvs_computation_time_Y;
+  delete[] chunk_gdvs_proc_assign_X;
+  delete[] chunk_gdvs_proc_assign_Y;
   #endif
   }
   Kokkos::finalize();
@@ -561,7 +579,11 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
   if(comm_size == 1)
   {
 //    Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace, Kokkos::Schedule<Kokkos::Dynamic>> policy(1, Kokkos::AUTO());
-    dynamic_serial_work(graph, graph_GDV, orbits, starts, ends, num_threads);
+    dynamic_serial_work(graph, graph_GDV, orbits, starts, ends, num_threads, graph_counter);
+
+#if RUNTIME == RUNTIME_VAL
+    process_ends_communication = MPI_Wtime();
+#endif
   }
   else if (rankn == 0) 
   {
@@ -588,7 +610,7 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
   }
   else // Instructions for work processes
   { 
-    dynamic_worker_work(graph, orbits, num_threads);
+    dynamic_worker_work(graph, orbits, num_threads, graph_counter);
 //    graph_GDV->clear();
     #if RUNTIME == RUNTIME_VAL
         process_ends_communication = MPI_Wtime();
@@ -685,8 +707,9 @@ kokkos_calculate_GDV(Kokkos::TeamPolicy<>::member_type team_member,
 }
 
 
-void dynamic_serial_work(const matrix_type& graph, GDVs& graph_GDV, const Orbits& orbits, Kokkos::View<unsigned long int*> starts, Kokkos::View<unsigned long int*> ends, int num_threads) {
+void dynamic_serial_work(const matrix_type& graph, GDVs& graph_GDV, const Orbits& orbits, Kokkos::View<unsigned long int*> starts, Kokkos::View<unsigned long int*> ends, int num_threads, int graph_counter) {
     int tag = 11;
+
     Kokkos::TeamPolicy<> policy(1, num_threads);
     using member_type = Kokkos::TeamPolicy<>::member_type;
 
@@ -707,6 +730,11 @@ void dynamic_serial_work(const matrix_type& graph, GDVs& graph_GDV, const Orbits
     Kokkos::View<int**> queue("BFS queue", policy.team_size(), 5);
     Kokkos::View<int**> distance("BFS distance", policy.team_size(), 5);
 
+#if RUNTIME == RUNTIME_VAL
+    // Start measuring time for shared memory parallelism
+    double chunk_gdvs_computation_start = MPI_Wtime();
+#endif
+
     int i=0;
     for(i; i<starts.extent(0); i++) {
       Kokkos::parallel_for("Calcualte GDV bundle", policy, KOKKOS_LAMBDA(member_type team_member) {
@@ -724,8 +752,27 @@ void dynamic_serial_work(const matrix_type& graph, GDVs& graph_GDV, const Orbits
 #ifdef DEBUG
 chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
 #endif
+
+#if RUNTIME == RUNTIME_VAL
+        double vec_calc_computation_start = MPI_Wtime();
+#endif
+     
           kokkos_calculate_GDV(team_member, node, graph, orbits, neighbor_subview, indices_subview, combination_subview, sgraph_dist_subview, sgraph_deg_subview, subgraph_subview, visited_subview, queue_subview, distance_subview, combination_counter,
                               metrics_sa);
+
+#if RUNTIME == RUNTIME_VAL
+        if (graph_counter == 1) {
+          vec_calc_computation_time_X[node] = MPI_Wtime() - vec_calc_computation_start;
+          vec_calc_thread_assign_X[node] = team_member.team_rank();
+	  vec_calc_proc_assign_X[node] = 0;
+        }
+        if (graph_counter == 2) {
+          vec_calc_computation_time_Y[node] = MPI_Wtime() - vec_calc_computation_start;
+          vec_calc_thread_assign_Y[node] = team_member.team_rank();
+	  vec_calc_proc_assign_Y[node] = 0;
+        }
+#endif
+
 #ifdef DEBUG
           chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
           chrono::duration<double> time_span = chrono::duration_cast<chrono::duration<double>>(t2-t1);
@@ -733,9 +780,23 @@ chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
 #endif
         });
       });
+
       Kokkos::Experimental::contribute(graph_GDV, metrics_sa);
       metrics_sa.reset();
     }
+
+#if RUNTIME == RUNTIME_VAL
+    // End time recording for shared memory parallelism
+    if (graph_counter == 1) {
+      chunk_gdvs_computation_time_X[0] = MPI_Wtime() - chunk_gdvs_computation_start;
+      chunk_gdvs_proc_assign_X[0] = 0;
+    }
+    if (graph_counter == 2) {
+      chunk_gdvs_computation_time_Y[0] = MPI_Wtime() - chunk_gdvs_computation_start;
+      chunk_gdvs_proc_assign_Y[0] = 0;
+    }
+#endif
+
 }
 
 void dynamic_master_work(GDVs& graph_GDV, int graph_size, int comm_size) {
@@ -759,13 +820,18 @@ void dynamic_master_work(GDVs& graph_GDV, int graph_size, int comm_size) {
 
       // First get each process busy
       int send_node; // Corresponds to index of node to send
+      int chunk_index = 0;
+      int node_chunk_package[2];
       int rcv_node;  // Corresponds to name of graph node recieved from worker rank
       for (i = 1; i < comm_size; i++) {
               send_node = (i-1) * CHUNK_SIZE;
+	      node_chunk_package[0] = send_node;
+	      node_chunk_package[1] = chunk_index;
         #ifdef DEBUG
           cout << "Sending node " << send_node << " to rank " << i << endl;
         #endif
-        MPI_Send(&send_node, 1, MPI_INT, i, tag, MPI_COMM_WORLD);
+        MPI_Send(node_chunk_package, 2, MPI_INT, i, tag, MPI_COMM_WORLD);
+	chunk_index += 1;
       }
 //cout << "Sent initial batch of nodes\n";
 
@@ -811,11 +877,16 @@ void dynamic_master_work(GDVs& graph_GDV, int graph_size, int comm_size) {
 //                      cout << "Sending node " << graph[send_node].Row << " to rank " << i << endl;
                 cout << "Sending node " << send_node << " to rank " << i << endl;
               #endif
-              MPI_Send(&send_node, 1, MPI_INT, i, tag, MPI_COMM_WORLD);
+              node_chunk_package[0] = send_node;
+              node_chunk_package[1] = chunk_index;
+              MPI_Send(node_chunk_package, 2, MPI_INT, i, tag, MPI_COMM_WORLD);
+	      chunk_index += 1;
               send_node += CHUNK_SIZE;
             } else { // Send termination
               flag = -1;
-              MPI_Send(&flag, 1, MPI_INT, i, tag, MPI_COMM_WORLD);
+	      node_chunk_package[0] = flag;
+              node_chunk_package[1] = chunk_index;
+              MPI_Send(node_chunk_package, 2, MPI_INT, i, tag, MPI_COMM_WORLD);
             }
 //cout << "Send new batch of nodes to " << i << endl;
           }
@@ -842,16 +913,24 @@ void dynamic_master_work(GDVs& graph_GDV, int graph_size, int comm_size) {
     }
 }
 
-void dynamic_worker_work(const matrix_type& graph, const Orbits& orbits, int num_threads) {
+void dynamic_worker_work(const matrix_type& graph, const Orbits& orbits, int num_threads, int graph_counter) {
+
+    int comm_size, rankn;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rankn);
+    MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
     int tag = 11;
     int node_name;
+    int chunk_index;
+    int node_chunk_array[2];
     MPI_Status worker_status;
 
     do {
 
       //cout << "About to do MPI_Recv on rank " << rankn << endl;
 //cout << "Starting worker thread\n";
-      MPI_Recv(&node_name, 1, MPI_INT, 0, tag, MPI_COMM_WORLD, &worker_status);
+      MPI_Recv(node_chunk_array, 2, MPI_INT, 0, tag, MPI_COMM_WORLD, &worker_status);
+      node_name = node_chunk_array[0];
+      chunk_index = node_chunk_array[1];
 //cout << "Got new batch of nodes starting at " << node_name << "\n";
       #ifdef DEBUG
         cout << "Recieved node " << node_name << " at rank " << rankn << endl;
@@ -902,6 +981,11 @@ cout << "Team size: " << policy.team_size() << endl;
 #ifdef DEBUG
 chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
 #endif
+
+#if RUNTIME == RUNTIME_VAL
+  double chunk_gdvs_computation_start = MPI_Wtime();
+#endif
+
 //      Kokkos::View<int[1]> node_counter("Node counter");
 //      node_counter(0) = node_name;
       Kokkos::parallel_for("Calculate GDV", policy, KOKKOS_LAMBDA(member_type team_member) {
@@ -919,17 +1003,50 @@ chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
           auto visited_subview = Kokkos::subview(visited, team_member.team_rank(), Kokkos::ALL());
           auto queue_subview = Kokkos::subview(queue, team_member.team_rank(), Kokkos::ALL());
           auto distance_subview = Kokkos::subview(distance, team_member.team_rank(), Kokkos::ALL());
-          kokkos_calculate_GDV(team_member, node, graph, orbits, neighbor_subview, indices_subview, combination_subview, sgraph_dist_subview, sgraph_deg_subview, subgraph_subview, visited_subview, queue_subview, distance_subview, combination_counter,
+
+#if RUNTIME == RUNTIME_VAL
+        double vec_calc_computation_start = MPI_Wtime();
+#endif
+
+	kokkos_calculate_GDV(team_member, node, graph, orbits, neighbor_subview, indices_subview, combination_subview, sgraph_dist_subview, sgraph_deg_subview, subgraph_subview, visited_subview, queue_subview, distance_subview, combination_counter,
                                 metrics_sa);
+
+#if RUNTIME == RUNTIME_VAL
+        if (graph_counter == 1) {
+          vec_calc_computation_time_X[node] = MPI_Wtime() - vec_calc_computation_start;
+	  vec_calc_thread_assign_X[node] = rankn;
+          vec_calc_proc_assign_X[node] = rankn;
+        }
+        if (graph_counter == 2) {
+          vec_calc_computation_time_Y[node] = MPI_Wtime() - vec_calc_computation_start;
+	  vec_calc_thread_assign_Y[node] = rankn;
+          vec_calc_proc_assign_Y[node] = rankn;
+        }
+#endif
+
         });
       });
+
 #ifdef DEBUG
 chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
 chrono::duration<double> time_span = chrono::duration_cast<chrono::duration<double>>(t2-t1);
 printf("Done with node chunk: %d, time: %f\n", node_name, time_span.count());
 std::cout << "Rank " << rankn << " finished chunk " << node_name << std::endl;
 #endif
+
       Kokkos::Experimental::contribute(metrics, metrics_sa);
+#if RUNTIME == RUNTIME_VAL
+      // End time recording for shared memory parallelism
+    if (graph_counter == 1) {
+      chunk_gdvs_computation_time_X[chunk_index] = MPI_Wtime() - chunk_gdvs_computation_start;
+      chunk_gdvs_proc_assign_X[chunk_index] = rankn;
+    }
+    if (graph_counter == 2) {
+      chunk_gdvs_computation_time_Y[chunk_index] = MPI_Wtime() - chunk_gdvs_computation_start;
+      chunk_gdvs_proc_assign_Y[chunk_index] = rankn;
+    }
+#endif
+
       Kokkos::View<int*> gdv_array("Send buffer for GDV", GDV_LENGTH+1);
       for(int idx=0; idx<nrows; idx++) {
         for(int j=0; j<GDV_LENGTH; j++) {
@@ -1008,6 +1125,7 @@ KOKKOS_INLINE_FUNCTION void kokkos_readin_orbits(ifstream *file, Orbits& orbits 
   orbits.start_indices(6) = num_orbits;
 }
 
+#if RUNTIME == RUNTIME_VAL
 void record_runtimes(const matrix_type& graphx, const matrix_type& graphy, double* time_buffer, int num_times, time_t now, int mpi_rank, int numtasks) {
 
   if (mpi_rank == 0) {
@@ -1048,31 +1166,55 @@ void record_runtimes(const matrix_type& graphx, const matrix_type& graphy, doubl
     myfile.close();
   }
 
-  string computation_time_file_x = "runtime_data/runtimes_rec_x_" + to_string(mpi_rank) + ".txt";
-  string computation_time_file_y = "runtime_data/runtimes_rec_y_" + to_string(mpi_rank) + ".txt";
+  string thread_computation_time_file_x = "runtime_data/runtimes_rec_for_nodes_x_" + to_string(mpi_rank) + ".txt";
+  string thread_computation_time_file_y = "runtime_data/runtimes_rec_for_nodes_y_" + to_string(mpi_rank) + ".txt";
   ofstream myfile;
-  myfile.open(computation_time_file_x, ofstream::trunc);
+  myfile.open(thread_computation_time_file_x, ofstream::trunc);
   if (!myfile.is_open()) {
     cout << "INPUT ERROR:: Could not open the local time recording file\n";
   }
   if (myfile.is_open()) {
     for (int i = 0; i < graphx.numRows(); i++) {
-      myfile << i << " " << vec_calc_proc_assign_X[i] << " " << vec_calc_computation_time_X[i] << endl;
+      myfile << i << " " << vec_calc_proc_assign_X[i] << " " << vec_calc_thread_assign_X[i] << " " << vec_calc_computation_time_X[i] << endl;
     }
     myfile.close();
   }
-  myfile.open(computation_time_file_y, ofstream::trunc);
+  myfile.open(thread_computation_time_file_y, ofstream::trunc);
   if (!myfile.is_open()) {
     cout << "INPUT ERROR:: Could not open the local time recording file\n";
   }
   if (myfile.is_open()) {
     for (int i = 0; i < graphy.numRows(); i++) {
-      myfile << i << " " << vec_calc_proc_assign_Y[i] << " " << vec_calc_computation_time_Y[i] << endl;
+      myfile << i << " " << vec_calc_proc_assign_Y[i] << " " << vec_calc_thread_assign_Y[i] << " " << vec_calc_computation_time_Y[i] << endl;
+    }
+    myfile.close();
+  }
+
+  string chunk_computation_time_file_x = "runtime_data/runtimes_rec_for_chunks_x_" + to_string(mpi_rank) + ".txt";
+  string chunk_computation_time_file_y = "runtime_data/runtimes_rec_for_chunks_y_" + to_string(mpi_rank) + ".txt";
+  myfile.open(chunk_computation_time_file_x, ofstream::trunc);
+  if (!myfile.is_open()) {
+    cout << "INPUT ERROR:: Could not open the local time recording file\n";
+  }
+  if (myfile.is_open()) {
+    for (int i = 0; i < ((graphx.numRows()/CHUNK_SIZE)+1); i++) {
+      myfile << i << " " << chunk_gdvs_proc_assign_X[i] << " " << chunk_gdvs_computation_time_X << " " << endl;
+    }
+    myfile.close();
+  }
+  myfile.open(chunk_computation_time_file_y, ofstream::trunc);
+  if (!myfile.is_open()) {
+    cout << "INPUT ERROR:: Could not open the local time recording file\n";
+  }
+  if (myfile.is_open()) {
+    for (int i = 0; i < ((graphy.numRows()/CHUNK_SIZE)+1); i++) {
+      myfile << i << " " << chunk_gdvs_proc_assign_Y[i] << " " << chunk_gdvs_computation_time_Y << " " << endl;
     }
     myfile.close();
   }
 
 }
+#endif
 
 //This method converts a string containing integers to a vector of integers
 void convert_string_vector_int(string* str, vector<int>* output,string delimiter)
