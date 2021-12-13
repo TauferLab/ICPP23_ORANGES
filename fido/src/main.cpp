@@ -96,7 +96,7 @@ double* chunk_gdvs_computation_time_X;
 double* chunk_gdvs_computation_time_Y;
 int* chunk_gdvs_proc_assign_X;
 int* chunk_gdvs_proc_assign_Y;
-void record_runtimes(const matrix_type&, const matrix_type&, double*, int, time_t, int, int);
+void record_runtimes(const matrix_type&, const matrix_type&, double*, int, int, int);
 #endif
 //double vec_calc_prior_gather;
 //double vec_calc_post_gather;
@@ -282,7 +282,7 @@ if(rank == 0) {
 
   // Handle output of timing results
   #if RUNTIME == RUNTIME_VAL
-    record_runtimes(graphx, graphy, time_buff, num_times, now, rank, numtasks);
+    record_runtimes(graphx, graphy, time_buff, num_times, rank, numtasks);
   #endif
 
   //printf("Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
@@ -1014,12 +1014,12 @@ chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
 #if RUNTIME == RUNTIME_VAL
         if (graph_counter == 1) {
           vec_calc_computation_time_X[node] = MPI_Wtime() - vec_calc_computation_start;
-	  vec_calc_thread_assign_X[node] = rankn;
+	  vec_calc_thread_assign_X[node] = team_member.team_rank();
           vec_calc_proc_assign_X[node] = rankn;
         }
         if (graph_counter == 2) {
           vec_calc_computation_time_Y[node] = MPI_Wtime() - vec_calc_computation_start;
-	  vec_calc_thread_assign_Y[node] = rankn;
+	  vec_calc_thread_assign_Y[node] = team_member.team_rank();
           vec_calc_proc_assign_Y[node] = rankn;
         }
 #endif
@@ -1126,11 +1126,12 @@ KOKKOS_INLINE_FUNCTION void kokkos_readin_orbits(ifstream *file, Orbits& orbits 
 }
 
 #if RUNTIME == RUNTIME_VAL
-void record_runtimes(const matrix_type& graphx, const matrix_type& graphy, double* time_buffer, int num_times, time_t now, int mpi_rank, int numtasks) {
+void record_runtimes(const matrix_type& graphx, const matrix_type& graphy, double* time_buffer, int num_times, int mpi_rank, int numtasks) {
 
   if (mpi_rank == 0) {
 
     // Get date of run
+    time_t now = time(0);
     tm *ltm = localtime(&now);
     int year = 1900 + ltm->tm_year;
     int month = 1 + ltm->tm_mon;
@@ -1198,7 +1199,7 @@ void record_runtimes(const matrix_type& graphx, const matrix_type& graphy, doubl
   }
   if (myfile.is_open()) {
     for (int i = 0; i < ((graphx.numRows()/CHUNK_SIZE)+1); i++) {
-      myfile << i << " " << chunk_gdvs_proc_assign_X[i] << " " << chunk_gdvs_computation_time_X << " " << endl;
+      myfile << i << " " << chunk_gdvs_proc_assign_X[i] << " " << chunk_gdvs_computation_time_X[i] << " " << endl;
     }
     myfile.close();
   }
@@ -1208,7 +1209,7 @@ void record_runtimes(const matrix_type& graphx, const matrix_type& graphy, doubl
   }
   if (myfile.is_open()) {
     for (int i = 0; i < ((graphy.numRows()/CHUNK_SIZE)+1); i++) {
-      myfile << i << " " << chunk_gdvs_proc_assign_Y[i] << " " << chunk_gdvs_computation_time_Y << " " << endl;
+      myfile << i << " " << chunk_gdvs_proc_assign_Y[i] << " " << chunk_gdvs_computation_time_Y[i] << " " << endl;
     }
     myfile.close();
   }
