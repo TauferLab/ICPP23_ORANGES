@@ -6,6 +6,8 @@ while [ -n "$1" ]; do
 		-r) track_runtime_cmake=$2; shift; shift ;;
 		#-t) num_threads_cmake=$2; shift; shift ;;
 		-s) sim_mat_cutoff=$2; shift; shift ;;
+		-l) library_type=$2; shift; shift ;;
+		-c) num_chunks=$2; shift; shift ;;
 	esac
 done
 
@@ -97,7 +99,7 @@ echo ${progress_delimiter}
 echo
 kokkos_kernels_build_dir=${project_root}/submodules/kokkos-kernels/${build_dir}
 cd submodules/kokkos-kernels/
-. ${project_root}/install/install_kokkos-kernels.sh ${kokkos_build_dir}
+. ${project_root}/install/install_kokkos-kernels.sh ${kokkos_build_dir} ${library_type}
 cd ../../
 echo
 echo ${progress_delimiter}
@@ -112,7 +114,7 @@ echo ${progress_delimiter}
 echo "Installing Fido..."
 echo ${progress_delimiter}
 echo
-. ./install/install_fido.sh ${track_runtime_cmake} ${sim_mat_cutoff}
+. ./install/install_fido.sh ${track_runtime_cmake} ${sim_mat_cutoff} ${num_chunks} ${library_type}
 echo
 echo ${progress_delimiter}
 echo "Done Installing Fido"

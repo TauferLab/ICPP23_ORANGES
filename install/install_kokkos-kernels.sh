@@ -3,7 +3,9 @@
 
 build_dir=build
 kokkos_build_dir=$1
-sys_lib=lib
+library_type=$2
+
+sys_lib="${library_type:="lib"}"
 
 rm -rf ${build_dir}
 mkdir -p ${build_dir}

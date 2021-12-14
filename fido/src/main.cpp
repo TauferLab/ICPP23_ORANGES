@@ -21,7 +21,7 @@
 #include <Kokkos_ScatterView.hpp>
 
 #define GDV_LENGTH 73
-#define CHUNK_SIZE 64
+#define CHUNK_SIZE USER_CHUNK_COUNT
 #define SIM_MAT_CUTOFF SIM_MAT_CUT
 //#define DEBUG
 //if (TRACK_RUNTIME) {
@@ -90,13 +90,15 @@ double* vec_calc_computation_time_X;
 double* vec_calc_computation_time_Y;
 int* vec_calc_thread_assign_X;
 int* vec_calc_thread_assign_Y;
+int* vec_calc_chunk_assign_X;
+int* vec_calc_chunk_assign_Y;
 int* vec_calc_proc_assign_X;
 int* vec_calc_proc_assign_Y;
 double* chunk_gdvs_computation_time_X;
 double* chunk_gdvs_computation_time_Y;
 int* chunk_gdvs_proc_assign_X;
 int* chunk_gdvs_proc_assign_Y;
-void record_runtimes(const matrix_type&, const matrix_type&, double*, int, int, int);
+void record_runtimes(const matrix_type&, const matrix_type&, double*, int, int, int, int, int);
 #endif
 //double vec_calc_prior_gather;
 //double vec_calc_post_gather;
@@ -190,7 +192,7 @@ int main(int argc, char *argv[]) {
 
   //clock_t out_tStart = clock();
 
-  int numtasks, rank, dest, source, rc, count, tag=0;
+  int numtasks, rank, num_chunks_x, num_chunks_y, dest, source, rc, count, tag=0;
   MPI_Status Stat;   // required variable for receive routines                                                                                                                                                                          
 
   MPI_Comm_size(MPI_COMM_WORLD, &numtasks);
@@ -198,18 +200,28 @@ int main(int argc, char *argv[]) {
 if(rank == 0) 
   printf("Comm size: %d\n", numtasks);
 
+  if (numtasks == 1) {
+    num_chunks_x = 1;
+    num_chunks_y = 1;
+  } else {
+    num_chunks_x = graphx.numRows()/CHUNK_SIZE + 1;
+    num_chunks_y = graphy.numRows()/CHUNK_SIZE + 1;
+  }
+
   // Allocate space for time recording by graph node
 #if RUNTIME == RUNTIME_VAL
   vec_calc_computation_time_X = new double[graphx.numRows()]();
   vec_calc_computation_time_Y = new double[graphy.numRows()]();
   vec_calc_thread_assign_X = new int[graphx.numRows()]();
   vec_calc_thread_assign_Y = new int[graphy.numRows()]();
+  vec_calc_chunk_assign_X = new int[graphx.numRows()]();
+  vec_calc_chunk_assign_Y = new int[graphy.numRows()]();
   vec_calc_proc_assign_X = new int[graphx.numRows()]();
   vec_calc_proc_assign_Y = new int[graphy.numRows()]();
-  chunk_gdvs_computation_time_X = new double[graphx.numRows()/CHUNK_SIZE + 1]();
-  chunk_gdvs_computation_time_Y = new double[graphy.numRows()/CHUNK_SIZE + 1]();
-  chunk_gdvs_proc_assign_X = new int[graphx.numRows()/CHUNK_SIZE + 1]();
-  chunk_gdvs_proc_assign_Y = new int[graphy.numRows()/CHUNK_SIZE + 1]();
+  chunk_gdvs_computation_time_X = new double[num_chunks_x]();
+  chunk_gdvs_computation_time_Y = new double[num_chunks_y]();
+  chunk_gdvs_proc_assign_X = new int[num_chunks_x]();
+  chunk_gdvs_proc_assign_Y = new int[num_chunks_y]();
 #endif
 
   // Get data on graph names
@@ -274,6 +286,36 @@ if(rank == 0) {
   }
   //cout << "Rank " << rank << " made it to last gather." << endl;
   MPI_Gather(send_times, num_times, MPI_DOUBLE, time_buff, num_times, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+
+  if (rank == 0) {
+    MPI_Reduce(MPI_IN_PLACE, vec_calc_computation_time_X, graphx.numRows(), MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, vec_calc_thread_assign_X, graphx.numRows(), MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, vec_calc_chunk_assign_X, graphx.numRows(), MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, vec_calc_proc_assign_X, graphx.numRows(), MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, vec_calc_computation_time_Y, graphy.numRows(), MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, vec_calc_thread_assign_Y, graphy.numRows(), MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, vec_calc_chunk_assign_Y, graphy.numRows(), MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, vec_calc_proc_assign_Y, graphy.numRows(), MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+
+    MPI_Reduce(MPI_IN_PLACE, chunk_gdvs_computation_time_X, graphx.numRows(), MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, chunk_gdvs_proc_assign_X, graphx.numRows(), MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, chunk_gdvs_computation_time_Y, graphy.numRows(), MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(MPI_IN_PLACE, chunk_gdvs_proc_assign_Y, graphy.numRows(), MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+  } else {
+    MPI_Reduce(vec_calc_computation_time_X, vec_calc_computation_time_X, graphx.numRows(), MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(vec_calc_thread_assign_X, vec_calc_thread_assign_X, graphx.numRows(), MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(vec_calc_chunk_assign_X, vec_calc_chunk_assign_X, graphx.numRows(), MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(vec_calc_proc_assign_X, vec_calc_proc_assign_X, graphx.numRows(), MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(vec_calc_computation_time_Y, vec_calc_computation_time_Y, graphy.numRows(), MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(vec_calc_thread_assign_Y, vec_calc_thread_assign_Y, graphy.numRows(), MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(vec_calc_chunk_assign_Y, vec_calc_chunk_assign_Y, graphy.numRows(), MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(vec_calc_proc_assign_Y, vec_calc_proc_assign_Y, graphy.numRows(), MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+
+    MPI_Reduce(chunk_gdvs_computation_time_X, chunk_gdvs_computation_time_X, graphx.numRows(), MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(chunk_gdvs_proc_assign_X, chunk_gdvs_proc_assign_X, graphx.numRows(), MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(chunk_gdvs_computation_time_Y, chunk_gdvs_computation_time_Y, graphy.numRows(), MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
+    MPI_Reduce(chunk_gdvs_proc_assign_Y, chunk_gdvs_proc_assign_Y, graphy.numRows(), MPI_INT, MPI_MAX, 0, MPI_COMM_WORLD);
+  }
 #endif
 
   #ifdef DEBUG
@@ -282,7 +324,7 @@ if(rank == 0) {
 
   // Handle output of timing results
   #if RUNTIME == RUNTIME_VAL
-    record_runtimes(graphx, graphy, time_buff, num_times, rank, numtasks);
+    record_runtimes(graphx, graphy, time_buff, num_times, rank, numtasks, num_chunks_x, num_chunks_y);
   #endif
 
   //printf("Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
@@ -293,6 +335,8 @@ if(rank == 0) {
   delete[] vec_calc_computation_time_Y;
   delete[] vec_calc_thread_assign_X;
   delete[] vec_calc_thread_assign_Y;
+  delete[] vec_calc_chunk_assign_X;
+  delete[] vec_calc_chunk_assign_Y;
   delete[] vec_calc_proc_assign_X;
   delete[] vec_calc_proc_assign_Y;
   delete[] chunk_gdvs_computation_time_X;
@@ -764,11 +808,13 @@ chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
         if (graph_counter == 1) {
           vec_calc_computation_time_X[node] = MPI_Wtime() - vec_calc_computation_start;
           vec_calc_thread_assign_X[node] = team_member.team_rank();
+          vec_calc_chunk_assign_X[node] = 0;
 	  vec_calc_proc_assign_X[node] = 0;
         }
         if (graph_counter == 2) {
           vec_calc_computation_time_Y[node] = MPI_Wtime() - vec_calc_computation_start;
           vec_calc_thread_assign_Y[node] = team_member.team_rank();
+          vec_calc_chunk_assign_Y[node] = 0;
 	  vec_calc_proc_assign_Y[node] = 0;
         }
 #endif
@@ -1015,11 +1061,13 @@ chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
         if (graph_counter == 1) {
           vec_calc_computation_time_X[node] = MPI_Wtime() - vec_calc_computation_start;
 	  vec_calc_thread_assign_X[node] = team_member.team_rank();
+          vec_calc_chunk_assign_X[node] = chunk_index;
           vec_calc_proc_assign_X[node] = rankn;
         }
         if (graph_counter == 2) {
           vec_calc_computation_time_Y[node] = MPI_Wtime() - vec_calc_computation_start;
 	  vec_calc_thread_assign_Y[node] = team_member.team_rank();
+          vec_calc_chunk_assign_Y[node] = chunk_index;
           vec_calc_proc_assign_Y[node] = rankn;
         }
 #endif
@@ -1126,7 +1174,7 @@ KOKKOS_INLINE_FUNCTION void kokkos_readin_orbits(ifstream *file, Orbits& orbits 
 }
 
 #if RUNTIME == RUNTIME_VAL
-void record_runtimes(const matrix_type& graphx, const matrix_type& graphy, double* time_buffer, int num_times, int mpi_rank, int numtasks) {
+void record_runtimes(const matrix_type& graphx, const matrix_type& graphy, double* time_buffer, int num_times, int mpi_rank, int numtasks, int num_chunks_x, int num_chunks_y) {
 
   if (mpi_rank == 0) {
 
@@ -1154,7 +1202,7 @@ void record_runtimes(const matrix_type& graphx, const matrix_type& graphy, doubl
     }*/
 
     // Print out rank specific runtime data
-    string time_file = "runtime_data/runtimes_rec_over.txt";
+    string time_file = "runtime_data/runtime_over.txt";
     myfile.open(time_file, ofstream::trunc);
     if (!myfile.is_open()) {
       cout << "INPUT ERROR:: Could not open the local time recording file\n";
@@ -1165,18 +1213,18 @@ void record_runtimes(const matrix_type& graphx, const matrix_type& graphy, doubl
       myfile << i << " " << time_buffer[num_times*i+3] << " " << time_buffer[num_times*i+4] << " " << time_buffer[num_times*i+1] << " " << time_buffer[num_times*i+2] << " " << time_buffer[num_times*i] << " \n";
     }
     myfile.close();
-  }
+  
 
-  string thread_computation_time_file_x = "runtime_data/runtimes_rec_for_nodes_x_" + to_string(mpi_rank) + ".txt";
-  string thread_computation_time_file_y = "runtime_data/runtimes_rec_for_nodes_y_" + to_string(mpi_rank) + ".txt";
-  ofstream myfile;
+  string thread_computation_time_file_x = "runtime_data/runtime_per_node_x.txt";
+  string thread_computation_time_file_y = "runtime_data/runtime_per_node_y.txt";
+  //ofstream myfile;
   myfile.open(thread_computation_time_file_x, ofstream::trunc);
   if (!myfile.is_open()) {
     cout << "INPUT ERROR:: Could not open the local time recording file\n";
   }
   if (myfile.is_open()) {
     for (int i = 0; i < graphx.numRows(); i++) {
-      myfile << i << " " << vec_calc_proc_assign_X[i] << " " << vec_calc_thread_assign_X[i] << " " << vec_calc_computation_time_X[i] << endl;
+      myfile << i << " " << vec_calc_proc_assign_X[i] << " " << vec_calc_chunk_assign_X[i] << " " << vec_calc_thread_assign_X[i] << " " << vec_calc_computation_time_X[i] << endl;
     }
     myfile.close();
   }
@@ -1186,19 +1234,19 @@ void record_runtimes(const matrix_type& graphx, const matrix_type& graphy, doubl
   }
   if (myfile.is_open()) {
     for (int i = 0; i < graphy.numRows(); i++) {
-      myfile << i << " " << vec_calc_proc_assign_Y[i] << " " << vec_calc_thread_assign_Y[i] << " " << vec_calc_computation_time_Y[i] << endl;
+      myfile << i << " " << vec_calc_proc_assign_Y[i] << " " << vec_calc_chunk_assign_Y[i] << " " << vec_calc_thread_assign_Y[i] << " " << vec_calc_computation_time_Y[i] << endl;
     }
     myfile.close();
   }
 
-  string chunk_computation_time_file_x = "runtime_data/runtimes_rec_for_chunks_x_" + to_string(mpi_rank) + ".txt";
-  string chunk_computation_time_file_y = "runtime_data/runtimes_rec_for_chunks_y_" + to_string(mpi_rank) + ".txt";
+  string chunk_computation_time_file_x = "runtime_data/runtime_per_chunk_x.txt";
+  string chunk_computation_time_file_y = "runtime_data/runtime_per_chunk_y.txt";
   myfile.open(chunk_computation_time_file_x, ofstream::trunc);
   if (!myfile.is_open()) {
     cout << "INPUT ERROR:: Could not open the local time recording file\n";
   }
   if (myfile.is_open()) {
-    for (int i = 0; i < ((graphx.numRows()/CHUNK_SIZE)+1); i++) {
+    for (int i = 0; i < num_chunks_x; i++) {
       myfile << i << " " << chunk_gdvs_proc_assign_X[i] << " " << chunk_gdvs_computation_time_X[i] << " " << endl;
     }
     myfile.close();
@@ -1208,10 +1256,12 @@ void record_runtimes(const matrix_type& graphx, const matrix_type& graphy, doubl
     cout << "INPUT ERROR:: Could not open the local time recording file\n";
   }
   if (myfile.is_open()) {
-    for (int i = 0; i < ((graphy.numRows()/CHUNK_SIZE)+1); i++) {
+    for (int i = 0; i < num_chunks_y; i++) {
       myfile << i << " " << chunk_gdvs_proc_assign_Y[i] << " " << chunk_gdvs_computation_time_Y[i] << " " << endl;
     }
     myfile.close();
+  }
+
   }
 
 }

@@ -28,7 +28,7 @@ output_file=${results_path}/sched_output.txt
 error_file=${results_path}/sched_error.txt
 
 # Clean and Compile for New Run  
-cd ${root_path}/parallel_graph_align
+#cd ${root_path}/parallel_graph_align
 #make clean
 #make all
 #make deg
