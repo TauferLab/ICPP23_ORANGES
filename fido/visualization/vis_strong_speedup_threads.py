@@ -10,19 +10,21 @@ def main( filepath , run_min , run_max , vis_type ):
     #runtimes_prior_gather_2d = []*int(run_max);
     #runtimes_post_gather_2d = []*int(run_max);
     #runtimes_total_2d = []*int(run_max);
-    run_scales = [2, 4, 8, 16, 32]
+
+    n_procs = 1
+    thread_scales = [1, 2, 4, 8, 16, 32]
     n_runs = (int(run_max)+1)-int(run_min)
-    runtime_data = np.zeros((n_runs , len(run_scales)))
+    runtime_data = np.zeros((n_runs , len(thread_scales)))
 
     run_index = 0
     for run_num in range(int(run_min), int(run_max)+1):
         proc_index = 0
-        for n_procs in run_scales:
+        for num_threads in thread_scales:
 
             if (run_num < 10):
-                filename = filepath + "/run_00" + str(run_num) + "/procs_" + str(n_procs) + "/runtime_data/runtimes_rec_over.txt";
+                filename = filepath + "/run_00" + str(run_num) + "/procs_" + str(n_procs) + "/threads_per_proc_" + str(num_threads) + "/runtime_data/runtime_over.txt"
             if (run_num >= 10 and run_num < 100):
-                filename = filepath + "/run_0" + str(run_num) + "/procs_" + str(n_procs) + "/runtime_data/runtimes_rec_over.txt";
+                filename = filepath + "/run_0" + str(run_num) + "/procs_" + str(n_procs) + "/threads_per_proc_" + str(num_threads) + "/runtime_data/runtime_over.txt"
             with open(filename, "r") as file:
 
                 #runtimes_prior_gather = [];                                                                                                                                                                                              
@@ -73,7 +75,7 @@ def main( filepath , run_min , run_max , vis_type ):
     #post_gather_avg = np.mean(post_gather, axis=ax);
     #total_time_avg = np.mean(total_time, axis=ax);
     #x_vals = np.array(range(0, len(runtimes_total)));
-    x_vals = run_scales
+    x_vals = thread_scales
     #print(total_time_avg);
     #gather_addition = np.subtract(post_gather_avg, prior_gather_avg);
     #print(gather_addition)
