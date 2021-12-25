@@ -32,6 +32,7 @@ class subgraph
 {
     public:
     int root;
+    int no_of_nodes;
     vector<graph_combination> list;
     vector<int> list_of_nodes;
     vector<int> end_nodes;
@@ -61,54 +62,65 @@ void generate_combinations(vector<graph_combination> &list_to_generate_combinati
     }
 
 }
+
+void make_subgraph_of_degree_one(subgraph &temp_subgraph, int parent_node, int child_node)
+{
+    // making root
+    temp_subgraph.root = parent_node;
+    temp_subgraph.no_of_nodes = 2;
+    // making parent-child combination
+    graph_combination temp_list;
+    temp_list.parent = parent_node;
+    temp_list.child = child_node;
+    temp_subgraph.list.push_back(temp_list);
+    //making end nodes
+    temp_subgraph.end_nodes.push_back(child_node);
+    //making list of nodes
+    temp_subgraph.list_of_nodes.push_back(parent_node);
+    temp_subgraph.list_of_nodes.push_back(child_node);
+    //making adjacency list
+    ADJ_Bundle item;
+    item.Row = parent_node;
+    int_double temp_ListW;
+    temp_ListW.first = child_node;
+    temp_ListW.second = 1;
+    item.ListW.push_back(temp_ListW);
+    //pushing 1 node
+    temp_subgraph.adj_list.push_back(item);
+    //making adjlist of 2nd node
+    ADJ_Bundle item1;
+    item1.Row = child_node;
+    int_double temp_ListW1;
+    temp_ListW1.first = parent_node;
+    temp_ListW1.second = 1;
+    item1.ListW.push_back(temp_ListW1);
+    //pushing node 2
+    temp_subgraph.adj_list.push_back(item1);
+    // checking if subgraph is valid
+    if(child_node > parent_node)
+    {
+        temp_subgraph.is_subgraph = 1;
+    }
+    else
+    {
+        temp_subgraph.is_subgraph = 0;
+    }
+}
 void subgraph_enumeration(A_Network graph, vector<subgraph> &subgraph_combinations)
 {
     for(int i = 0; i < graph.size(); i++)
     {
         ADJ_Bundle node = graph[i];
+        int root = node.Row;
         //vector<subgraph> sub_graph_combinations;
         for(int j=0; j<node.ListW.size(); j++)
         {
             subgraph temp_subgraph;
             // making root
-            temp_subgraph.root = i;
-            // making parent-child combination
-            graph_combination temp_list;
-            temp_list.parent = i;
-            temp_list.child = node.ListW[j].first;
-            temp_subgraph.list.push_back(temp_list);
-            //making end nodes
-            temp_subgraph.end_nodes.push_back(node.ListW[j].first);
-            temp_subgraph.list_of_nodes.push_back(i);
-            temp_subgraph.list_of_nodes.push_back(node.ListW[j].first);
-            //making adjacency list
-            ADJ_Bundle item;
-            item.Row = i;
-            int_double temp_ListW;
-            temp_ListW.first = node.ListW[j].first;
-            temp_ListW.second = 1;
-            item.ListW.push_back(temp_ListW);
-            //pushing 1 node
-            temp_subgraph.adj_list.push_back(item);
-            //making adjlist of 2nd node
-            ADJ_Bundle item1;
-            item1.Row = node.ListW[j].first;
-            int_double temp_ListW1;
-            temp_ListW1.first = i;
-            temp_ListW1.second = 1;
-            item1.ListW.push_back(temp_ListW1);
-            temp_subgraph.adj_list.push_back(item1);
-            // checking if subgraph is valid
-            if(node.ListW[j].first > i)
-            {
-                temp_subgraph.is_subgraph = 1;
-            }
-            else
-            {
-                temp_subgraph.is_subgraph = 0;
-            }
+            make_subgraph_of_degree_one(temp_subgraph,root,node.ListW[j].first);
             subgraph_combinations.push_back(temp_subgraph);
         }
+
 
     }
 
