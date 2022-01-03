@@ -7,7 +7,7 @@
 #include "etl/murmur3.h"
 
 KOKKOS_INLINE_FUNCTION
-void generate_hashes(Kokkos::View<uint32_t**> gdv, Kokkos::View<uint64_t*>& hashes, size_t blocksize) {
+void generate_hashes(GDVs gdv, Kokkos::View<uint64_t*>& hashes, size_t blocksize) {
   size_t blocksize_elements = blocksize/4;
   if(hashes.size() != gdv.span()/(blocksize_elements)) {
     printf("Hashes destination does not match number of blocks\n");
