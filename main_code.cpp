@@ -11,6 +11,7 @@
 #include <time.h>
 #include <math.h>
 #include <omp.h>
+#include <algorithm>
 
 void Calculate_GDV(int ,A_Network ,vector<OrbitMetric>&, GDVMetric&);
 void readin_orbits(  ifstream* ,vector<OrbitMetric>* );
@@ -32,12 +33,14 @@ class subgraph
 {
     public:
     int root;
+    int no_of_nodes; 
     vector<graph_combination> list;
     vector<int> list_of_nodes;
     vector<int> end_nodes;
     A_Network adj_list;
     bool is_subgraph;
 };
+// combinations needs to be done only for child
 void generate_combinations(vector<graph_combination> &list_to_generate_combinations ,vector<vector<graph_combination>> &combination_list)
 {
     long int size_of_list = list_to_generate_combinations.size();
@@ -61,81 +64,119 @@ void generate_combinations(vector<graph_combination> &list_to_generate_combinati
     }
 
 }
+
+void make_subgraph_of_degree_one(subgraph &temp_subgraph, int parent_node, int child_node)
+{
+    //making root
+    temp_subgraph.root = parent_node;
+    //no of nodes
+    temp_subgraph.no_of_nodes = 2;
+    //making parent-child combination
+    graph_combination temp_list;
+    temp_list.parent = parent_node;
+    temp_list.child = child_node;
+    temp_subgraph.list.push_back(temp_list);
+    //making end nodes
+    temp_subgraph.end_nodes.push_back(child_node);
+    //making list of nodes
+    temp_subgraph.list_of_nodes.push_back(parent_node);
+    temp_subgraph.list_of_nodes.push_back(child_node);
+    //making adjacency list
+    ADJ_Bundle item;
+    item.Row = parent_node;
+    int_double temp_ListW;
+    temp_ListW.first = child_node;
+    temp_ListW.second = 1;
+    item.ListW.push_back(temp_ListW);
+    //pushing 1 node
+    temp_subgraph.adj_list.push_back(item);
+    //making adjlist of 2nd node
+    ADJ_Bundle item1;
+    item1.Row = child_node;
+    int_double temp_ListW1;
+    temp_ListW1.first = parent_node;
+    temp_ListW1.second = 1;
+    item1.ListW.push_back(temp_ListW1);
+    //pushing node 2
+    temp_subgraph.adj_list.push_back(item1);
+    // checking if subgraph is valid
+    if(child_node > parent_node)
+    {
+        temp_subgraph.is_subgraph = 1;
+    }
+    else
+    {
+        temp_subgraph.is_subgraph = 0;
+    }
+}
 void subgraph_enumeration(A_Network graph, vector<subgraph> &subgraph_combinations)
 {
     for(int i = 0; i < graph.size(); i++)
     {
         ADJ_Bundle node = graph[i];
+        int root = node.Row;
         //vector<subgraph> sub_graph_combinations;
         for(int j=0; j<node.ListW.size(); j++)
         {
             subgraph temp_subgraph;
-            // making root
-            temp_subgraph.root = i;
-            // making parent-child combination
-            graph_combination temp_list;
-            temp_list.parent = i;
-            temp_list.child = node.ListW[j].first;
-            temp_subgraph.list.push_back(temp_list);
-            //making end nodes
-            temp_subgraph.end_nodes.push_back(node.ListW[j].first);
-            temp_subgraph.list_of_nodes.push_back(i);
-            temp_subgraph.list_of_nodes.push_back(node.ListW[j].first);
-            //making adjacency list
-            ADJ_Bundle item;
-            item.Row = i;
-            int_double temp_ListW;
-            temp_ListW.first = node.ListW[j].first;
-            temp_ListW.second = 1;
-            item.ListW.push_back(temp_ListW);
-            //pushing 1 node
-            temp_subgraph.adj_list.push_back(item);
-            //making adjlist of 2nd node
-            ADJ_Bundle item1;
-            item1.Row = node.ListW[j].first;
-            int_double temp_ListW1;
-            temp_ListW1.first = i;
-            temp_ListW1.second = 1;
-            item1.ListW.push_back(temp_ListW1);
-            temp_subgraph.adj_list.push_back(item1);
-            // checking if subgraph is valid
-            if(node.ListW[j].first > i)
-            {
-                temp_subgraph.is_subgraph = 1;
-            }
-            else
-            {
-                temp_subgraph.is_subgraph = 0;
-            }
+            // graph of degree 1
+            make_subgraph_of_degree_one(temp_subgraph,root,node.ListW[j].first);
             subgraph_combinations.push_back(temp_subgraph);
         }
-
     }
-
-    for(subgraph element1 : subgraph_combinations)
+    /*for(subgraph element1 : subgraph_combinations)
+    {
+        cout<<element1.list[0].parent;
+        cout<<element1.list[0].child;
+        cout<<endl;
+    }*/
+   for(subgraph element1 : subgraph_combinations) 
     {
         for(int k= 0; k< element1.end_nodes.size(); k++)
         {
             vector<vector<graph_combination>> combination_list;
             vector<graph_combination> temp_combination;
             int end_node_item;
+            //getting end node
             end_node_item = element1.end_nodes[k];
+            // list of end_node // check whether end node is right
             ADJ_Bundle node_temp = graph[end_node_item];
             for(int p = 0; p<node_temp.ListW.size(); p++)
             {
+              int child_node = node_temp.ListW[p].first;
+              // checking if element is not repeated
+              if(std::find(element1.list_of_nodes.begin(), element1.list_of_nodes.end(), child_node) != element1.list_of_nodes.end())
+              {
+                continue;
+              }
               graph_combination temp_comb;
               temp_comb.parent = element1.end_nodes[k];
-              temp_comb.child = node_temp.ListW[p].first;
+              temp_comb.child = child_node;
               temp_combination.push_back(temp_comb);
             }
+            //need to eleminate previous nodes in the graph
             generate_combinations(temp_combination, combination_list);
             for(vector<graph_combination> element : combination_list)
             {
-              subgraph temp_element = element1;
+              subgraph temp_element;
+              temp_element = element1;
+              //cout<<temp_element.root;
+              //cout<<"*****************************"<<endl;
+              //cout<<temp_element.root;
+              //cout<<"|||||||||||||||||||||||||||||"<<endl;
               for(graph_combination element_2 : element)
               {
                 int quantity1 = element_2.parent;
                 int quantity2 = element_2.child;
+                //adding list of nodes
+                temp_element.list_of_nodes.push_back(quantity2);
+                //making graph combination
+                graph_combination temp_list;
+                temp_list.parent = quantity1;
+                temp_list.child = quantity2;
+                temp_element.list.push_back(temp_list);
+                //making end nodes
+                temp_element.end_nodes.push_back(quantity2);
                 //making adjacency list
                 ADJ_Bundle item;
                 item.Row = quantity1;
@@ -153,18 +194,26 @@ void subgraph_enumeration(A_Network graph, vector<subgraph> &subgraph_combinatio
                 temp_ListW1.second = 1;
                 item1.ListW.push_back(temp_ListW1);
                 temp_element.adj_list.push_back(item1);
-
-                //cout << element_2.parent;
-                //cout <<"||";
-                //cout << element_2.child;
-                //cout <<" ";
+                // is sub_graph 
+                if(quantity2 > temp_element.root)
+                {
+                    temp_element.is_subgraph = 1;
+                }
+                else
+               { 
+                    temp_element.is_subgraph = 0;
+               }
+                cout << element_2.parent;
+                cout <<"||";
+                cout << element_2.child;
+                cout <<" ";
               }
               cout <<endl;
             }
         }
 
     }
-
+    
 } 
 
 int main(int argc, char *argv[]) {
