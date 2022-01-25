@@ -78,18 +78,18 @@ class CombinationGenerator
 
     KOKKOS_INLINE_FUNCTION CombinationGenerator() {}
 
-    KOKKOS_INLINE_FUNCTION CombinationGenerator(int num_elements, int combo_size)
-    {
-      n = num_elements;
-      k = combo_size;
-      num_comb = 1;
-      done =  n<1 || k>n;
-      k_combination = Kokkos::View<int*>("Combination indices", k);
-      for(int i=0; i<k; i++) 
-      {
-        k_combination(i) = i;
-      }
-    }
+//    KOKKOS_INLINE_FUNCTION CombinationGenerator(int num_elements, int combo_size)
+//    {
+//      n = num_elements;
+//      k = combo_size;
+//      num_comb = 1;
+//      done =  n<1 || k>n;
+//      k_combination = Kokkos::View<int*>("Combination indices", k);
+//      for(int i=0; i<k; i++) 
+//      {
+//        k_combination(i) = i;
+//      }
+//    }
 
     template<class IndexView>
 //    KOKKOS_INLINE_FUNCTION CombinationGenerator(int num_elements, int combo_size, Kokkos::View<int*>& indices)

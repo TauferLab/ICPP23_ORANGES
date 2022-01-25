@@ -85,7 +85,6 @@ bool address_range_dirty(pid_t pid, uintptr_t start_addr, uintptr_t end_addr) {
     return true;
   }
 
-  int page_counter = 0;
   PagemapEntry entry;
   while(current < end_addr) {
     int ret = pagemap_get_entry(entry, pagemap_fd, current);
@@ -157,12 +156,12 @@ bool get_dirty_pages(pid_t pid, uintptr_t start_addr, uintptr_t end_addr, std::v
 }
 
 void reset_dirty_bit(pid_t pid) {
-  int fd, ret;
+  int fd;
   char clear_command[] = "4";
   char clear_file[BUFSIZ];
   snprintf(clear_file, sizeof(clear_file), "/proc/%ju/clear_refs", static_cast<uintmax_t>(pid));
   fd = open(clear_file, O_WRONLY);
-  ret = write(fd, clear_command, sizeof(clear_command));
+  write(fd, clear_command, sizeof(clear_command));
   close(fd);
   return;
 }

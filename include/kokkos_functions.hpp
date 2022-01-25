@@ -5,8 +5,6 @@
 #include <iterator>
 #include <iostream>
 #include <stdio.h>
-//#include "ADJ/network_defs.hpp"
-//#include "ADJ/create_network.hpp"
 #include <Kokkos_Core.hpp>
 #include <KokkosSparse_CrsMatrix.hpp>
 
@@ -43,7 +41,6 @@ get_approx_num_neighbors(const matrix_type& graph, int node, int distance) {
   }
   return num_neighbors;
 }
-
 
 template<class IndexView>
 KOKKOS_INLINE_FUNCTION void combination_from_position(IndexView& indices, int64_t position, int size, int k) {
@@ -84,6 +81,13 @@ KOKKOS_INLINE_FUNCTION void combination_from_position(IndexView& indices, int64_
   return;
 }
 
+void transpose_gdvs(GDVs& src, Kokkos::View<uint32_t**, Kokkos::LayoutLeft>& dst) {
+  Kokkos::MDRangePolicy<Kokkos::Rank<2>> mdrange({0,0}, {src.extent(0), src.extent(1)});
+  Kokkos::parallel_for("Transpose", mdrange, KOKKOS_LAMBDA(const int x, const int y) {
+    dst(y,x) = src(x,y);
+  });
+}
+
 template<class IndexView, class SetView, class CombinationView>
 KOKKOS_INLINE_FUNCTION void kokkos_get_combination(IndexView& indices, 
                                                     const SetView& set, 
@@ -97,19 +101,19 @@ KOKKOS_INLINE_FUNCTION void kokkos_get_combination(IndexView& indices,
   return;
 }
 
-KOKKOS_INLINE_FUNCTION Kokkos::View<uint32_t**, Kokkos::LayoutLeft> make_layout_left(GDVs gdv) {
-  Kokkos::View<uint32_t**, Kokkos::LayoutLeft> new_gdv("new gdv", gdv.extent(0), gdv.extent(1));
-  if(std::is_same<Kokkos::LayoutLeft,  GDVs::array_layout>::value) {
-//    return gdv;
-  } else {
-    for(int i=0; i<gdv.extent(0); i++) {
-      for(int j=0; j<gdv.extent(1); j++) {
-        new_gdv(i,j) = gdv(i,j);
-      }
-    }
-    return new_gdv;
-  }
-}
+//KOKKOS_INLINE_FUNCTION Kokkos::View<uint32_t**, Kokkos::LayoutLeft> make_layout_left(GDVs gdv) {
+//  Kokkos::View<uint32_t**, Kokkos::LayoutLeft> new_gdv("new gdv", gdv.extent(0), gdv.extent(1));
+//  if(std::is_same<Kokkos::LayoutLeft,  GDVs::array_layout>::value) {
+////    return gdv;
+//  } else {
+//    for(int i=0; i<gdv.extent(0); i++) {
+//      for(int j=0; j<gdv.extent(1); j++) {
+//        new_gdv(i,j) = gdv(i,j);
+//      }
+//    }
+//    return new_gdv;
+//  }
+//}
 
 
 namespace EssensKokkos {
@@ -328,36 +332,36 @@ namespace EssensKokkos {
     return edge_count;
   }
 
-  // Check if a graph is connected with BFS.
-  KOKKOS_INLINE_FUNCTION
-  bool isConnected(const matrix_type& graph)
-  {
-    int connected_nodes = 0;
-    Kokkos::View<bool*> visited("Visited nodes", graph.numRows());
-    Kokkos::View<int*> queue("BFS queue", graph.numRows());
-    int queue_length = 0;
-    visited(0) = true;
-    queue(0) = 0;
-    queue_length = 1;
-    connected_nodes++;
-    while(queue_length > 0) {
-      int node = queue(queue_length-1);
-      queue_length -= 1;
-      auto row = graph.row(node);
-      for(int i=0; i<row.length; i++) {
-        if(!visited(row.colidx(i))) {
-          visited(row.colidx(i)) = true;
-          queue(queue_length) = row.colidx(i);
-          queue_length++;
-          connected_nodes++;
-        }
-      }
-    }
-    if(connected_nodes == graph.numRows()) {
-      return true;
-    }
-    return false;
-  }
+//  // Check if a graph is connected with BFS.
+//  KOKKOS_INLINE_FUNCTION
+//  bool isConnected(const matrix_type& graph)
+//  {
+//    int connected_nodes = 0;
+//    Kokkos::View<bool*> visited("Visited nodes", graph.numRows());
+//    Kokkos::View<int*> queue("BFS queue", graph.numRows());
+//    int queue_length = 0;
+//    visited(0) = true;
+//    queue(0) = 0;
+//    queue_length = 1;
+//    connected_nodes++;
+//    while(queue_length > 0) {
+//      int node = queue(queue_length-1);
+//      queue_length -= 1;
+//      auto row = graph.row(node);
+//      for(int i=0; i<row.length; i++) {
+//        if(!visited(row.colidx(i))) {
+//          visited(row.colidx(i)) = true;
+//          queue(queue_length) = row.colidx(i);
+//          queue_length++;
+//          connected_nodes++;
+//        }
+//      }
+//    }
+//    if(connected_nodes == graph.numRows()) {
+//      return true;
+//    }
+//    return false;
+//  }
   
 //  // Check if a graph is connected with BFS.
 //  template<class GraphType, class VisitedView, class QueueView>
@@ -432,7 +436,7 @@ namespace EssensKokkos {
   void calc_degree_signature(const GraphType& graph, ViewType& deg_sig)
   {
     if(deg_sig.size() != graph.extent(0)) {
-      std::cout << "Warning: Degree signature View does not match # of subgraph nodes." << endl;
+      printf("Warning: Degree signature View does not match # of subgraph nodes.\n");
     } else {
       for(size_t i=0; i<deg_sig.size(); i++) {
         deg_sig(i) = 0;
@@ -624,9 +628,9 @@ namespace EssensKokkos {
     return;
   }
 
-  template<class Signature>
+  template<class SignatureA, class SignatureB>
   KOKKOS_INLINE_FUNCTION
-  bool compare_signatures(const Signature& sig1, const Signature& sig2) {
+  bool compare_signatures(const SignatureA& sig1, const SignatureB& sig2) {
     for(size_t i=0; i<sig1.size(); i++) {
       if(sig1(i) != sig2(i)) 
         return false;

@@ -1,16 +1,10 @@
-// Required directives are to be added from ESSENS to use the functionality 
-
-//#include "structure_defs.hpp"
-//#include "input_to_network.hpp"
-//#include "printout_others.hpp"
-//#include "printout_network.hpp"
-//#include "ADJ/find_Xneighbors.hpp"
-//#include "GDV_functions.hpp"
 #include "class_definitions.hpp"
 #include "combinations.hpp"
 #include "kokkos_functions.hpp"
 #include "dirty_page_tracking.hpp"
 #include "hash_change_detection.hpp"
+#include "update_pattern_analysis.hpp"
+#include "io.hpp"
 #include <time.h>
 #include <stdlib.h>
 #include <ctime>
@@ -22,21 +16,19 @@
 #include <Kokkos_UnorderedMap.hpp>
 
 #define GDV_LENGTH 73
-#define CHUNK_SIZE 1
 //#define NUM_THREADS Kokkos::AUTO
-#define NUM_THREADS 2
+#define NUM_THREADS 4
 #define MAX_SUBGRAPH 5
 //#define ANALYSIS
 //#define HASH_ANALYSIS
 //#define SCAN_ANALYSIS
 //#define DEBUG
 //#define DIRTY_PAGE_TRACKING
-//#define RESILIENCE
-//#define AUTO_CHECKPOINT
+#define AUTO_CHECKPOINT
 //#define OUTPUT_MATRIX
 //#define OUTPUT_GDV
-#define LAYOUT Kokkos::LayoutLeft
-//#define DETAILED_TIMERS
+//#define LAYOUT Kokkos::LayoutLeft
+#define DETAILED_TIMERS
 
 #ifdef AUTO_CHECKPOINT
 #include <resilience/Resilience.hpp>
@@ -44,10 +36,7 @@
 #include <veloc.h>
 #endif
 
-void convert_string_vector_int(string* , vector<int>* ,string );
-void kokkos_readin_orbits(ifstream *file, Orbits& orbits );
-void readin_graph(ifstream* file, matrix_type& graph);
-void kokkos_Similarity_Metric_calculation_for_two_graphs(const matrix_type&, const matrix_type&, const Orbits&, string, string);
+void kokkos_similarity_metric_calculation_for_two_graphs(const matrix_type&, const matrix_type&, const Orbits&, string, string);
 template <class SubviewType>
 KOKKOS_INLINE_FUNCTION double kokkos_GDV_distance_calculation(SubviewType&, SubviewType&);
 template <class SubviewType>
@@ -89,23 +78,11 @@ kokkos_calculate_GDV(Kokkos::TeamPolicy<>::member_type team_member,
                       Scatter gdvMetrics_sa
                     );
 
-struct node_id_order {
-  inline bool operator() (const GDVMetric& gdv_met_1, const GDVMetric& gdv_met_2) {
-    return (gdv_met_1.node < gdv_met_2.node);
-  }
-};
-
 // Define variables for keeping track of time for load imbalancing tests.
 double total_time_taken;
 double vec_calc_communication_time[2] = {};
 double pre_process_time;
 double report_output_time;
-double* vec_calc_computation_time_X;
-double* vec_calc_computation_time_Y;
-int* vec_calc_proc_assign_X;
-int* vec_calc_proc_assign_Y;
-//double vec_calc_prior_gather;
-//double vec_calc_post_gather;
 int vec_calc_avg_node_deg;
 
 using namespace std;
@@ -114,16 +91,9 @@ int main(int argc, char *argv[]) {
   int numtasks, rank, dest, source, rc, count, tag=0;
 
   MPI_Init(&argc,&argv);
-//  int provided;
-//  MPI_Init_thread(&argc, &argv, MPI_THREAD_SINGLE, &provided); 
   Kokkos::initialize(argc, argv);
   {
-  //  if (rank == 0) {
-  //clock_t out_tStart = clock();
   time_t now = time(0);
-    //}
-  clock_t tStart = clock();
-  clock_t q, q1, q2,t;
   double pre_tStart = MPI_Wtime();
   double start_time, end_time;
   /* Accepts file as input. 
@@ -171,13 +141,7 @@ int main(int argc, char *argv[]) {
     printf("Time spent reading data: %lf\n", end_time-start_time);
   }
 
-  MPI_Status Stat;   // required variable for receive routines                                                                                                                                                                          
-
-  // Allocate space for time recording by graph node
-  vec_calc_computation_time_X = new double[graphx.numRows()]();
-  vec_calc_computation_time_Y = new double[graphy.numRows()]();
-  vec_calc_proc_assign_X = new int[graphx.numRows()]();
-  vec_calc_proc_assign_Y = new int[graphy.numRows()]();
+  MPI_Status Stat;   // required variable for receive routines
 
   // Get data on graph names
   string delimiter = "/";
@@ -203,8 +167,6 @@ int main(int argc, char *argv[]) {
     cout << "Starting Similarity Metric Calculation on Rank: " << rank << endl;
   #endif
 
-  //vec_calc_communication_time = 0;
-  //vec_calc_computation_time = 0;
   if(rank == 0) {
     cout << "Graph 1: # of vertices: " << graphx.numRows() << endl;
     cout << "Graph 2: # of vertices: " << graphy.numRows() << endl;
@@ -216,7 +178,7 @@ int main(int argc, char *argv[]) {
   }
 
   // Perform Similarity Calculations
-  kokkos_Similarity_Metric_calculation_for_two_graphs(graphx, graphy, k_orbits, graph_name1, graph_name2);
+  kokkos_similarity_metric_calculation_for_two_graphs(graphx, graphy, k_orbits, graph_name1, graph_name2);
   
   if(rank == 0) {
     end_time = MPI_Wtime();
@@ -266,25 +228,20 @@ int main(int argc, char *argv[]) {
     Kokkos::TeamPolicy<> team_policy(1, NUM_THREADS);
   
     if (myfile.is_open()) {
-      myfile << month << "/" << day << "/" << year << "\t" << numtasks << "\t" << team_policy.team_size() << "\t" << graph_name1 << "\t" << graph_name2 << "\t" << graphx.numRows() << "\t\t" << total_time_taken << " \n";
+      size_t team_size = team_policy.team_size();
+      if(team_size > 0) {
+        myfile << month << "/" << day << "/" << year << "\t" << numtasks << "\t" << team_policy.team_size() << "\t" << graph_name1 << "\t" << graph_name2 << "\t" << graphx.numRows() << "\t\t" << total_time_taken << " \n";
+      } else {
+        myfile << month << "/" << day << "/" << year << "\t" << numtasks << "\t" << "AUTO" << "\t" << graph_name1 << "\t" << graph_name2 << "\t" << graphx.numRows() << "\t\t" << total_time_taken << " \n";
+      }
       myfile.close();
-    }
-    else { 
+    } else { 
       cout << "Out File Did Not Open";
     }
 
     // Print out rank specific runtime data
     string time_file = "runtime_data/runtimes_rec_over.txt";
     myfile.open(time_file, ofstream::trunc);
-    /*if (!myfile.is_open()) {
-      cout << "INPUT ERROR:: Could not open the local time recording file\n";
-    }
-    myfile << "Time Taken in Similarity Metric Calculation = " << " \n";
-    myfile << "Rank\tGraph 1\tGraph 2\tTotal\n";
-    for (int i = 0; i < numtasks; i++) {
-      myfile << i << " " << time_buff[num_times*i+1] << " " << time_buff[num_times*i+2] << " " << time_buff[num_times*i] << " \n";
-    }
-    myfile.close();*/
     if (!myfile.is_open()) {
       cout << "INPUT ERROR:: Could not open the local time recording file\n";
     }
@@ -294,7 +251,6 @@ int main(int argc, char *argv[]) {
       myfile << i << " " << time_buff[num_times*i+3] << " " << time_buff[num_times*i+4] << " " << time_buff[num_times*i+1] << " " << time_buff[num_times*i+2] << " " << time_buff[num_times*i] << " \n";
     }
     myfile.close();
-
   }
 
   end_time = MPI_Wtime();
@@ -302,11 +258,6 @@ int main(int argc, char *argv[]) {
     printf("Time spent on output: %lfs\n", end_time-start_time);
   }
 
-
-  delete[] vec_calc_computation_time_X;
-  delete[] vec_calc_computation_time_Y;
-  delete[] vec_calc_proc_assign_X;
-  delete[] vec_calc_proc_assign_Y;
   if(rank == 0)
     printf("Time spent overall: %lf\n", MPI_Wtime()-pre_tStart);
   }
@@ -315,8 +266,8 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
-KOKKOS_INLINE_FUNCTION void 
-kokkos_Similarity_Metric_calculation_for_two_graphs(const matrix_type& graph1, 
+void 
+kokkos_similarity_metric_calculation_for_two_graphs(const matrix_type& graph1, 
                                                     const matrix_type& graph2, 
                                                     const Orbits& orbits, 
                                                     string graph_tag1, 
@@ -328,6 +279,8 @@ kokkos_Similarity_Metric_calculation_for_two_graphs(const matrix_type& graph1,
   int num_orbits = orbits.degree.extent(0);
   GDVs graph1_GDV("GDV for graph1", graph1.numRows(), num_orbits);
   GDVs graph2_GDV("GDV for graph2", graph2.numRows(), num_orbits);
+  GDVs::HostMirror graph1_GDV_host = Kokkos::create_mirror_view(graph1_GDV);
+  GDVs::HostMirror graph2_GDV_host = Kokkos::create_mirror_view(graph1_GDV);
 
   int rankm, numtasksm;
   MPI_Comm_rank(MPI_COMM_WORLD, &rankm);
@@ -337,22 +290,21 @@ kokkos_Similarity_Metric_calculation_for_two_graphs(const matrix_type& graph1,
   if(rankm == 0)
     start = MPI_Wtime();
   int graph_counter = 1;
-//  kokkos_GDV_vector_calculation(graph1, graph1_GDV, orbits, "graph1", graph_counter); 
   kokkos_GDV_vector_calculation(graph1, graph1_GDV, orbits, graph_tag1.c_str(), graph_counter); 
   MPI_Barrier(MPI_COMM_WORLD);
-  if(rankm == 0) 
+  if(rankm == 0) {
     printf("Time spent calculating GDVs of graph 1: %lf\n", MPI_Wtime()-start);
-
-  if(rankm == 0)
     cout << "Done with GDV calculation for graph 1\n";
+  }
 
 #ifdef DEBUG
+  Kokkos::deep_copy(graph1_GDV_host, graph1_GDV);
   if(rankm == 0) {
     cout << "Post kokkos_GDV_vector_calculation: graph 1" << endl;
     for(int i=0; i<graph1_GDV.extent(0); i++) {
       cout << "Node " << i << ": ";
-      for(int j=0; j<graph1_GDV.extent(1); j++) {
-        cout << graph1_GDV(i,j) << " ";
+      for(int j=0; j<graph1_GDV_host.extent(1); j++) {
+        cout << graph1_GDV_host(i,j) << " ";
       }
       cout << endl;
     }
@@ -369,19 +321,19 @@ kokkos_Similarity_Metric_calculation_for_two_graphs(const matrix_type& graph1,
   graph_counter = 2;
   kokkos_GDV_vector_calculation(graph2, graph2_GDV, orbits, graph_tag2.c_str(), graph_counter); 
   MPI_Barrier(MPI_COMM_WORLD);
-  if(rankm == 0) 
+  if(rankm == 0) {
     printf("Time spent calculating GDVs of graph 1: %lf\n", MPI_Wtime()-start);
-
-  if(rankm == 0)
     cout << "Done with GDV calculation for graph 2\n";
+  }
 
 #ifdef DEBUG
+  Kokkos::deep_copy(graph2_GDV_host, graph2_GDV);
   if(rankm == 0) {
     cout << "Post kokkos_GDV_vector_calculation: graph 2" << endl;
     for(int i=0; i<graph2_GDV.extent(0); i++) {
       cout << "Node " << i << ": ";
       for(int j=0; j<graph2_GDV.extent(1); j++) {
-        cout << graph2_GDV(i,j) << " ";
+        cout << graph2_GDV_host(i,j) << " ";
       }
       cout << endl;
     }
@@ -420,11 +372,13 @@ kokkos_Similarity_Metric_calculation_for_two_graphs(const matrix_type& graph1,
     // Start by Printing out Similarity Matrix into a file
     ofstream myfile; 
 #ifdef OUTPUT_MATRIX
+    Kokkos::View<double**>::HostMirror sim_mat_host = Kokkos::create_mirror_view(sim_mat);
+    Kokkos::deep_copy(sim_mat_host, sim_mat);
     string filename = "out_similarity_matrix.txt";
     myfile.open(filename);
     for(int i=1; i<m;i++) {
       for(int j=1;j<n;j++) {
-        myfile<<" { "<<sim_mat(i,j)<<" } ";
+        myfile<<" { "<<sim_mat_host(i,j)<<" } ";
       }
       myfile<<"||"<<endl;
     }
@@ -433,12 +387,14 @@ kokkos_Similarity_Metric_calculation_for_two_graphs(const matrix_type& graph1,
     
 #ifdef OUTPUT_GDV    
     // Print out GDVs into files
+    Kokkos::deep_copy(graph1_GDV_host, graph1_GDV);
+    Kokkos::deep_copy(graph2_GDV_host, graph2_GDV);
     string gdv_file1 = "out_gdv_1_" + graph_tag1 + ".txt";
     string gdv_file2 = "out_gdv_2_" + graph_tag2 + ".txt";
     myfile.open(gdv_file1, ofstream::trunc);
-    for (int i = 0; i < graph1_GDV.extent(0); i++) {
-      for (int j = 0; j< graph1_GDV.extent(1); j++) {
-        myfile << graph1_GDV(i,j) << " ";
+    for (int i = 0; i < graph1_GDV_host.extent(0); i++) {
+      for (int j = 0; j< graph1_GDV_host.extent(1); j++) {
+        myfile << graph1_GDV_host(i,j) << " ";
       }
       myfile << endl;
     }
@@ -486,7 +442,7 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
                               const Orbits& orbits, 
                               const char* graph_name, 
                               int graph_counter) {
-  // Set up parallelization               
+  // Set up MPI parallelization               
   int comm_size, rankn;
   MPI_Comm_rank(MPI_COMM_WORLD, &rankn);
   MPI_Comm_size(MPI_COMM_WORLD, &comm_size);
@@ -507,19 +463,21 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
 #endif
 
   double process_ends_communication;
-  double vec_calc_computation_start;
-  double vec_calc_computation_end;
   double vec_calc_start = MPI_Wtime();
 
   Kokkos::View<uint64_t*> num_combinations("Number of combinations", graph.numRows());
   Kokkos::View<uint32_t*> num_neighbors("Number of neighbors", graph.numRows());
   uint64_t k_interval = 1000000000;
 
-  Kokkos::TeamPolicy<> team_policy(1, NUM_THREADS);
+  typedef Kokkos::DefaultExecutionSpace::scratch_memory_space ScratchSpace;
+  typedef Kokkos::View<int*, ScratchSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> scratch_int_view;
+  Kokkos::TeamPolicy<> team_policy = Kokkos::TeamPolicy<>(1, 1).set_scratch_size(1, Kokkos::PerThread(400));
+  using team_member_type = Kokkos::TeamPolicy<>::member_type;
 #ifdef DEBUG
   printf("Number of threads: %d\n", team_policy.team_size());
 #endif
-  using team_member_type = Kokkos::TeamPolicy<Kokkos::Schedule<Kokkos::Dynamic>>::member_type;
+//  using team_member_type = Kokkos::TeamPolicy<Kokkos::Schedule<Kokkos::Dynamic>>::member_type;
+//  printf("Num threads: %d, num rows: %d\n", team_policy.team_size(), graph.numRows());
   Kokkos::View<int**> neighbor_scratch("Neighbors", team_policy.team_size(), graph.numRows());
 #ifdef DEBUG
   printf("Starting combination counter kernel\n");
@@ -539,7 +497,7 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
     running_count += vertices_per_proc;
   }
   recv_count[size_t (comm_size-1)] = graph.numRows()-(comm_size-1)*vertices_per_proc;
-  displs[static_cast<size_t>(comm_size-1)] = running_count;
+  displs[comm_size-1] = running_count;
 #ifdef DEBUG
   for(int i=0; i<comm_size; i++) {
     printf("(%d,%d) ", recv_count[i], displs[i]);
@@ -553,31 +511,41 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
       auto neighbor_subview = Kokkos::subview(neighbor_scratch, team_member.team_rank(), Kokkos::ALL());
       uint32_t n_neighbors = 0;
       n_neighbors = EssensKokkos::get_num_neighbors(graph, node, 4, neighbor_subview);
-//      n_neighbors = get_approx_num_neighbors(graph, node, 4);
       num_neighbors(node) = n_neighbors;
       for(int i=1; i<5; i++) {
         num_combinations(node) += get_num_combinations(n_neighbors, i);
       }
     });
   });
-#ifdef DEBUG
-  printf("Calculated # of combinations\n");
-#endif
+  Kokkos::fence();
+
+  // Find the maximum number of neighbors within distance 4
+  uint32_t max_neighbors = 0;
+  Kokkos::parallel_reduce("Find max neighbors", graph.numRows(), KOKKOS_LAMBDA(const uint32_t& x, uint32_t& deg) {
+    if(num_neighbors(x) > deg)
+      deg = num_neighbors(x);
+  }, Kokkos::Max<uint32_t>(max_neighbors));
+  printf("Max degree: %d\n", max_neighbors);
+
+  // Get the total # of combinations of potential subgraphs
   uint64_t total_combinations = 0;
   uint64_t local_combinations = 0;
   Kokkos::parallel_reduce("Number of combinations", end_offset-start_offset, 
   KOKKOS_LAMBDA(const int i, uint64_t& update) {
     update += num_combinations(i+start_offset);
   }, local_combinations);
-
   Kokkos::View<uint64_t*> send_comb("Send buffer", end_offset-start_offset);
+  Kokkos::View<uint64_t*>::HostMirror send_comb_host = Kokkos::create_mirror_view(send_comb);
   auto s_view = Kokkos::subview(num_combinations, Kokkos::make_pair(start_offset, end_offset));
   Kokkos::deep_copy(send_comb, s_view);
+  Kokkos::deep_copy(send_comb_host, send_comb);
+  Kokkos::View<uint64_t*>::HostMirror num_combinations_host = Kokkos::create_mirror_view(num_combinations);
+  Kokkos::deep_copy(num_combinations_host, num_combinations);
   MPI_Barrier(MPI_COMM_WORLD);
-  MPI_Allgatherv(send_comb.data(), 
+  MPI_Allgatherv(send_comb_host.data(), 
                   end_offset-start_offset, 
                   MPI_UNSIGNED_LONG, 
-                  num_combinations.data(), 
+                  num_combinations_host.data(), 
                   recv_count, 
                   displs, 
                   MPI_UNSIGNED_LONG, 
@@ -585,28 +553,9 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
   delete[] recv_count, displs;
   MPI_Allreduce(&local_combinations, &total_combinations, 1, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
   MPI_Barrier(MPI_COMM_WORLD);
+  Kokkos::deep_copy(num_combinations, num_combinations_host);
 
-//  Kokkos::parallel_for("Get # combinations", team_policy, KOKKOS_LAMBDA(team_member_type team_member) {
-//    Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, graph.numRows()), [=] (int node) {
-//      auto neighbor_subview = Kokkos::subview(neighbor_scratch, team_member.team_rank(), Kokkos::ALL());
-//      uint32_t n_neighbors = 0;
-//      n_neighbors = EssensKokkos::get_num_neighbors(graph, node, 4, neighbor_subview);
-//      num_neighbors(node) = n_neighbors;
-//      for(int i=1; i<5; i++) {
-//        num_combinations(node) += get_num_combinations(n_neighbors, i);
-//      }
-//    });
-//  });
-//printf("Calculated # of combinations\n");
-//  for(int i=0; i<num_combinations.extent(0); i++) {
-//    printf("%ld ", num_combinations(i));
-//  }
-//  printf("\n");
-//  uint64_t total_combinations = 0;
-//  Kokkos::parallel_reduce("Number of combinations", graph.numRows(), 
-//  KOKKOS_LAMBDA(const int i, uint64_t& update) {
-//    update += num_combinations(i);
-//  }, total_combinations);
+  // Split combinations into intervals
   uint64_t num_intervals = total_combinations/k_interval;
   if(num_intervals*k_interval < total_combinations) {
     num_intervals++;
@@ -615,50 +564,42 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
     printf("Computed # of combinations: (%lu) split into %d groups\n", total_combinations, num_intervals);
   }
   Kokkos::View<uint32_t*> starts("Start indices", num_intervals+1);
-  starts(0) = 0;
-  Kokkos::parallel_for("Find starts", Kokkos::RangePolicy<>(0, starts.extent(0)-1), KOKKOS_LAMBDA(const int i) {
-    uint64_t threshold = i*k_interval;
-    uint64_t counter = 0;
-    for(uint32_t j=0; j<num_combinations.extent(0); j++) {
-      counter += num_combinations(j);
-      if(counter > threshold) {
-        starts(i) = j;
-        break;
+  Kokkos::View<uint32_t*>::HostMirror starts_host = Kokkos::create_mirror_view(starts);
+  Kokkos::deep_copy(starts, 0);
+  Kokkos::deep_copy(starts_host, 0);
+  Kokkos::parallel_for("Find starts", Kokkos::RangePolicy<>(0, starts.extent(0)), KOKKOS_LAMBDA(const int i) {
+    if(i == starts.extent(0)-1) {
+      starts(i) = graph.numRows();
+    } else {
+      uint64_t threshold = i*k_interval;
+      uint64_t counter = 0;
+      for(uint32_t j=0; j<num_combinations.extent(0); j++) {
+        counter += num_combinations(j);
+        if(counter > threshold) {
+          starts(i) = j;
+          break;
+        }
       }
     }
   });
-  starts(starts.extent(0)-1) = graph.numRows();
+  Kokkos::fence();
+  Kokkos::deep_copy(starts_host, starts);
+  Kokkos::fence();
 #ifdef DEBUG
   printf("Rank %d: ", rankn);
   for(uint32_t i=0; i<starts.extent(0); i++) {
-    printf("%ld ", starts(i));
+    printf("%ld ", starts_host(i));
   }
   printf("\n");
 #endif
 
+  // Calculate GDVs
   if(comm_size == 1)
   {
     Kokkos::TeamPolicy<Kokkos::Schedule<Kokkos::Dynamic>> policy(1, NUM_THREADS);
     using member_type = Kokkos::TeamPolicy<Kokkos::Schedule<Kokkos::Dynamic>>::member_type;
 
-#ifdef DEBUG
-    cout << "Team size: " << policy.team_size() << endl;
-#endif
-    Kokkos::View<int**> all_neighbors("Neighbor scratch", policy.team_size(), graph.numRows());
-//    Kokkos::Experimental::ScatterView<uint32_t**> metrics_sa(graph_GDV);
     Kokkos::Experimental::ScatterView<uint32_t**, LAYOUT> metrics_sa(graph_GDV);
-
-    Kokkos::View<int**> indices("Index", policy.team_size(), 5);
-    Kokkos::View<int**> combination_view("combination", policy.team_size(), 5);
-    Kokkos::View<int**> sgraph_distance_signature("dist sig", policy.team_size(), orbits.distance.extent(0));
-    Kokkos::View<int**> sgraph_degree_signature("Degree signature", policy.team_size(), 5);
-    Kokkos::View<int*[5][5]> induced_subgraph("Subgraph", policy.team_size());
-    Kokkos::View<bool** > visited("BFS visited", policy.team_size(), 5);
-    Kokkos::View<int**> queue("BFS queue", policy.team_size(), 5);
-    Kokkos::View<int**> distance("BFS distance", policy.team_size(), 5);
-#ifdef DEBUG
-    cout << "Allocated data\n";
-#endif
 
     int i=0;
 #ifdef AUTO_CHECKPOINT
@@ -700,26 +641,82 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
 #ifdef DETAILED_TIMERS
       chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
 #endif
-      Kokkos::TeamPolicy<Kokkos::Schedule<Kokkos::Dynamic>> bundle_policy(1, NUM_THREADS);
+
+      // Divide work into different leagues
+      const int num_leagues = 64;
+      int per_league = (starts_host(i+1)-starts_host(i))/num_leagues;
+      if(per_league*num_leagues < starts_host(i+1)-starts_host(i))
+        per_league += 1;
+#ifdef DEBUG
+      printf("start: %d, end: %d\n", starts_host(i), starts_host(i+1));
+      printf("Num leagues: %d, per league: %d\n", num_leagues, per_league);
+#endif
+
+      typedef Kokkos::DefaultExecutionSpace::scratch_memory_space ScratchSpace;
+      typedef Kokkos::View<int*, ScratchSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> scratch_int_view;
+      typedef Kokkos::View<int**, ScratchSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> scratch_subgraph_view;
+      typedef Kokkos::View<bool*, ScratchSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> scratch_bool_view;
+
+      int num_bytes = (8+max_neighbors+55+orbits.distance.span())*sizeof(int);
+      Kokkos::TeamPolicy<> bundle_policy = Kokkos::TeamPolicy<>(num_leagues, NUM_THREADS).set_scratch_size(0, Kokkos::PerThread((num_bytes)));
+
+      Kokkos::View<int**> neighbor_view("Neighbor scratch", bundle_policy.team_size(), max_neighbors);
+      Kokkos::View<int**> indices_view("Indices scratch", bundle_policy.team_size(), 5);
+      Kokkos::View<int**> combination_view("Combination scratch", bundle_policy.team_size(), 5);
+      Kokkos::View<int**> sgraph_dist_view("Subgraph Distance scratch", bundle_policy.team_size(), orbits.distance.extent(0));
+      Kokkos::View<int**> sgraph_deg_view("Degree scratch", bundle_policy.team_size(), 5);
+      Kokkos::View<int**> queue_view("Queue scratch", bundle_policy.team_size(), 5);
+      Kokkos::View<int**> distance_view("Distance scratch", bundle_policy.team_size(), 5);
+      Kokkos::View<int***> subgraph_view("Subgraph scratch", bundle_policy.team_size(), 5, 5);
+      Kokkos::View<bool**> visited_view("Visited scratch", bundle_policy.team_size(), 5);
+
       Kokkos::parallel_for("Calcualte GDV bundle", bundle_policy, KOKKOS_LAMBDA(member_type team_member) {
-        Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, starts(i+1)-starts(i)), [=] (int n_offset) {
+
+        auto neighbor_subview    = Kokkos::subview(neighbor_view,    team_member.team_rank(), Kokkos::ALL());
+        auto indices_subview     = Kokkos::subview(indices_view,     team_member.team_rank(), Kokkos::ALL());
+        auto combination_subview = Kokkos::subview(combination_view, team_member.team_rank(), Kokkos::ALL());
+        auto sgraph_dist_subview = Kokkos::subview(sgraph_dist_view, team_member.team_rank(), Kokkos::ALL());
+        auto sgraph_deg_subview  = Kokkos::subview(sgraph_deg_view,  team_member.team_rank(), Kokkos::ALL());
+        auto queue_subview       = Kokkos::subview(queue_view,       team_member.team_rank(), Kokkos::ALL());
+        auto distance_subview    = Kokkos::subview(distance_view,    team_member.team_rank(), Kokkos::ALL());
+        auto subgraph_subview    = Kokkos::subview(subgraph_view,    team_member.team_rank(), Kokkos::ALL(), Kokkos::ALL());
+        auto visited_subview     = Kokkos::subview(visited_view,     team_member.team_rank(), Kokkos::ALL());
+
+//        scratch_int_view neighbor_subview(team_member.thread_scratch(0), max_neighbors);
+//        scratch_int_view indices_subview(team_member.thread_scratch(0), 5);
+//        scratch_int_view combination_subview(team_member.thread_scratch(0), 5);
+//        scratch_int_view sgraph_dist_subview(team_member.thread_scratch(0), orbits.distance.extent(0));
+//        scratch_int_view sgraph_deg_subview(team_member.thread_scratch(0), 5);
+//        scratch_int_view queue_subview(team_member.thread_scratch(0), 5);
+//        scratch_int_view distance_subview(team_member.thread_scratch(0), 5);
+//        scratch_subgraph_view subgraph_subview(team_member.thread_scratch(0), 5, 5);
+//        scratch_bool_view visited_subview(team_member.thread_scratch(0), 5);
+
+        Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, per_league), [=] (int n_) {
+          int n_offset = team_member.league_rank()*per_league + n_;
           int node = starts(i) + n_offset;
-          auto neighbor_subview = Kokkos::subview(all_neighbors, team_member.team_rank(), Kokkos::ALL());
-          auto indices_subview = Kokkos::subview(indices, team_member.team_rank(), Kokkos::ALL());
-          auto combination_subview = Kokkos::subview(combination_view, team_member.team_rank(), Kokkos::ALL());
-          auto sgraph_dist_subview = Kokkos::subview(sgraph_distance_signature, team_member.team_rank(), Kokkos::ALL());
-          auto sgraph_deg_subview = Kokkos::subview(sgraph_degree_signature, team_member.team_rank(), Kokkos::ALL());
-          auto subgraph_subview = Kokkos::subview(induced_subgraph, team_member.team_rank(), Kokkos::ALL(), Kokkos::ALL());
-          auto visited_subview = Kokkos::subview(visited, team_member.team_rank(), Kokkos::ALL());
-          auto queue_subview = Kokkos::subview(queue, team_member.team_rank(), Kokkos::ALL());
-          auto distance_subview = Kokkos::subview(distance, team_member.team_rank(), Kokkos::ALL());
-          kokkos_calculate_GDV(team_member, node, graph, orbits, neighbor_subview, indices_subview, combination_subview, sgraph_dist_subview, sgraph_deg_subview, subgraph_subview, visited_subview, queue_subview, distance_subview, metrics_sa);
-//          kokkos_calculate_GDV(team_member, node, graph, orbits, neighbor_subview, indices_subview, combination_subview, sgraph_dist_subview, sgraph_deg_subview, subgraph_subview, visited_subview, queue_subview, distance_subview, graph_GDV);
-//          printf("Done with node: %d, time: %f\n", node, time_span.count());
+          if(node < starts(i+1)) {
+            kokkos_calculate_GDV( team_member, 
+                                  node, 
+                                  graph, 
+                                  orbits, 
+                                  neighbor_subview, 
+                                  indices_subview, 
+                                  combination_subview, 
+                                  sgraph_dist_subview, 
+                                  sgraph_deg_subview, 
+                                  subgraph_subview, 
+                                  visited_subview, 
+                                  queue_subview, 
+                                  distance_subview, 
+                                  metrics_sa);
+          }
         });
       });
+      Kokkos::fence();
       Kokkos::Experimental::contribute(graph_GDV, metrics_sa);
-      metrics_sa.reset();
+      metrics_sa.reset_except(graph_GDV);
+      Kokkos::fence();
 #ifdef ANALYSIS
 std::string region_log("region-data-graph-");
 region_log = region_log + std::string(graph_name) + std::string(".log");
@@ -731,88 +728,83 @@ uint32_t num_changed = 0;
 //generate_hashes(test, new_hashes, page_size);
 generate_hashes(graph_GDV, new_hashes, page_size);
 #endif
-//fs << "Number of blocks: " << new_hashes.size() << std::endl;
-fs << "Number of blocks: " << new_data.size() << std::endl;
-fs << "Changed blocks: ";
-bool flag = false;
-//for(int idx = 0; idx<new_hashes.size(); idx++) {
-//  if(old_hashes(idx) != new_hashes(idx))
-for(int idx = 0; idx<new_data.size(); idx++) {
-  if(old_data.data()[idx] != new_data.data()[idx])
-  {
-    num_changed += 1;
-    if(!flag) {
-      fs << "[" << idx << ",";
-      flag = true;
-    }
-  } else {
-    if(flag) {
-      fs << idx << ") ";
-      flag = false;
-    }
-  }
-}
-if(flag)
-  fs << new_data.size() << ")";
-//  fs << new_hashes.size() << ")";
-fs << std::endl;
-fs << num_changed << "/" << new_data.size() << " blocks changed " << std::endl;
-//fs << num_changed << "/" << new_hashes.size() << " blocks changed " << std::endl;
-// Find contiguous regions
-std::map<int, int> contiguous_regions;
-int largest_region = 1;
-int region_size_counter = 0;
-//for(int idx=0; idx<new_hashes.size(); idx++) {
-//  if(old_hashes(idx) != new_hashes(idx))
-for(int idx=0; idx<new_data.size(); idx++) {
-  if(old_data.data()[idx] != new_data.data()[idx])
-  {
-    region_size_counter += 1;
-  }
-  else 
-  {
-    if(region_size_counter > largest_region)
-    {
-      largest_region = region_size_counter;
-    }
-    if(region_size_counter > 0) {
-      auto pos = contiguous_regions.find(region_size_counter);
-      if(pos != contiguous_regions.end())
-      {
-        pos->second = pos->second + 1;
-      }
-      else
-      {
-        contiguous_regions.insert(std::pair<int,int>(region_size_counter, 1));
-      }
-    }
-    region_size_counter = 0;
-  }
-}
-if(region_size_counter > largest_region)
-{
-  largest_region = region_size_counter;
-}
-if(region_size_counter > 0) {
-  auto pos = contiguous_regions.find(region_size_counter);
-  if(pos != contiguous_regions.end())
-  {
-    pos->second = pos->second + 1;
-  }
-  else
-  {
-    contiguous_regions.insert(std::pair<int,int>(region_size_counter, 1));
-  }
-}
-fs << "Largest region: " << largest_region << std::endl;
-fs << "Region map\n";
-for(auto itr = contiguous_regions.begin(); itr != contiguous_regions.end(); ++itr)
-{
-  fs << itr->second << " regions of size " << itr->first << std::endl;
-}
+num_changed = print_changed_blocks(fs, new_data, old_data);
+auto contiguous_regions = print_contiguous_regions(fs, new_data, old_data);
+
+//fs << "Number of blocks: " << new_data.size() << std::endl;
+//fs << "Changed blocks: ";
+//bool flag = false;
+//for(int idx = 0; idx<new_data.size(); idx++) {
+//  if(old_data.data()[idx] != new_data.data()[idx])
+//  {
+//    num_changed += 1;
+//    if(!flag) {
+//      fs << "[" << idx << ",";
+//      flag = true;
+//    }
+//  } else {
+//    if(flag) {
+//      fs << idx << ") ";
+//      flag = false;
+//    }
+//  }
+//}
+//if(flag)
+//  fs << new_data.size() << ")";
+////  fs << new_hashes.size() << ")";
+//fs << std::endl;
+//fs << num_changed << "/" << new_data.size() << " blocks changed " << std::endl;
+//// Find contiguous regions
+//std::map<int, int> contiguous_regions;
+//int largest_region = 1;
+//int region_size_counter = 0;
+//for(int idx=0; idx<new_data.size(); idx++) {
+//  if(old_data.data()[idx] != new_data.data()[idx])
+//  {
+//    region_size_counter += 1;
+//  }
+//  else 
+//  {
+//    if(region_size_counter > largest_region)
+//    {
+//      largest_region = region_size_counter;
+//    }
+//    if(region_size_counter > 0) {
+//      auto pos = contiguous_regions.find(region_size_counter);
+//      if(pos != contiguous_regions.end())
+//      {
+//        pos->second = pos->second + 1;
+//      }
+//      else
+//      {
+//        contiguous_regions.insert(std::pair<int,int>(region_size_counter, 1));
+//      }
+//    }
+//    region_size_counter = 0;
+//  }
+//}
+//if(region_size_counter > largest_region)
+//{
+//  largest_region = region_size_counter;
+//}
+//if(region_size_counter > 0) {
+//  auto pos = contiguous_regions.find(region_size_counter);
+//  if(pos != contiguous_regions.end())
+//  {
+//    pos->second = pos->second + 1;
+//  }
+//  else
+//  {
+//    contiguous_regions.insert(std::pair<int,int>(region_size_counter, 1));
+//  }
+//}
+//fs << "Largest region: " << largest_region << std::endl;
+//fs << "Region map\n";
+//for(auto itr = contiguous_regions.begin(); itr != contiguous_regions.end(); ++itr)
+//{
+//  fs << itr->second << " regions of size " << itr->first << std::endl;
+//}
 #ifdef HASH_ANALYSIS
-//Kokkos::deep_copy(old_hashes, new_hashes);
-//Kokkos::deep_copy(new_hashes, 0);
 Kokkos::deep_copy(old_data, new_data);
 Kokkos::deep_copy(new_data, 0);
 #endif
@@ -858,10 +850,19 @@ Kokkos::deep_copy(old_data, new_data);
   {
 #ifdef ANALYSIS
     int checkpoint_num = 0;
+#ifdef HASH_ANALYSIS
 //    uint64_t page_size = sysconf(_SC_PAGE_SIZE);
     uint64_t page_size = 4096;
     Kokkos::View<uint64_t*> old_hashes("Old hashes", graph_GDV.span()*sizeof(uint32_t)/page_size);
     Kokkos::View<uint64_t*> new_hashes("New hashes", graph_GDV.span()*sizeof(uint32_t)/page_size);
+    auto& old_data = old_hashes;
+    auto& new_data = new_hashes;
+#endif
+#ifdef SCAN_ANALYSIS
+    GDVs old_updates("Old updates", graph_GDV.layout());
+    auto& old_data = old_updates;
+    auto& new_data = graph_GDV;
+#endif
 #endif
     Kokkos::deep_copy(graph_GDV, 0);
     uint32_t intervals_per_rank = num_intervals/comm_size;
@@ -875,21 +876,12 @@ Kokkos::deep_copy(old_data, new_data);
       start_index = (intervals_per_rank+1)*remaining_intervals+intervals_per_rank*(rankn-remaining_intervals);
     if(start_index+intervals_per_rank > num_intervals)
       intervals_per_rank = num_intervals - start_index;
-//    printf("Rank %d start index: %d, intervals per rank: %d\n", rankn, start_index, intervals_per_rank);
-//    if(rankn == comm_size-1) {
-//      intervals_per_rank += num_intervals - (comm_size*intervals_per_rank);
-//    }
     int offset = 0;
+printf("Rank %d: start_index: %d, intervals_per_rank: %d\n", rankn, start_index, intervals_per_rank);
     Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace> policy(1, NUM_THREADS);
     using member_type = Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace>::member_type;
 
     Kokkos::Experimental::ScatterView<uint32_t**, LAYOUT> metrics_sa(graph_GDV);
-//    Kokkos::Experimental::ScatterView<GDVs::data_type, 
-//                                      GDVs::array_layout, 
-//                                      GDVs::execution_space, 
-//                                      Kokkos::Experimental::ScatterSum, 
-//                                      Kokkos::Experimental::ScatterNonDuplicated, 
-//                                      Kokkos::Experimental::ScatterAtomic> metrics_sa(graph_GDV);
 
     Kokkos::View<int**> all_neighbors("Neighbor scratch", policy.team_size(), graph.numRows());
     Kokkos::View<int**> indices("Index", policy.team_size(), 5);
@@ -900,6 +892,16 @@ Kokkos::deep_copy(old_data, new_data);
     Kokkos::View<bool** > visited("BFS visited", policy.team_size(), 5);
     Kokkos::View<int**> queue("BFS queue", policy.team_size(), 5);
     Kokkos::View<int**> distance("BFS distance", policy.team_size(), 5);
+
+    typedef Kokkos::DefaultExecutionSpace::scratch_memory_space ScratchSpace;
+    typedef Kokkos::View<int*, ScratchSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> scratch_int_view;
+    typedef Kokkos::View<int**, ScratchSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> scratch_subgraph_view;
+    typedef Kokkos::View<bool*, ScratchSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> scratch_bool_view;
+
+    const int num_leagues = 2;
+    int num_bytes = (8+max_neighbors+55+orbits.distance.span())*sizeof(int);
+    Kokkos::TeamPolicy<> team_policy = Kokkos::TeamPolicy<>(num_leagues, NUM_THREADS).set_scratch_size(0, Kokkos::PerThread((num_bytes)));
+
 #ifdef DEBUG
 printf("Rank %d allocated memory\n", rankn);
 #endif
@@ -915,11 +917,7 @@ printf("Rank %d allocated memory\n", rankn);
     printf("Got latest counter %d\n", offset);
 #endif
 
-
-
     while(offset < intervals_per_rank) {
-//printf("Offset %u\n", offset);
-//printf("Rank %d, offset %d\n", rankn, offset);
 #ifdef DETAILED_TIMERS
       chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
 #endif
@@ -931,19 +929,38 @@ KokkosResilience::checkpoint(*ctx, label, offset, [=] () mutable {
 #ifdef DIRTY_PAGE_TRACKING
       reset_dirty_bit(pid);
 #endif
-      bool multi_node = (chunk_idx+1 == starts.extent(0) || starts(chunk_idx+1) != starts(chunk_idx)) && 
-                        (chunk_idx==0 || starts(chunk_idx-1) != starts(chunk_idx));
+      bool multi_node = (chunk_idx+1 == starts.extent(0) || starts_host(chunk_idx+1) != starts_host(chunk_idx)) && 
+                        (chunk_idx==0 || starts_host(chunk_idx-1) != starts_host(chunk_idx));
+#ifdef DEBUG
+      printf("Rank %d: Multi node chunk: %d\n", rankn, multi_node);
+#endif
       if(multi_node) {
-        int start_node = starts(chunk_idx);
+printf("Multi node\n");
+        int start_node = starts_host(chunk_idx);
         int end_node;
         if(chunk_idx+1 == starts.extent(0)) {
           end_node = graph.numRows();
         } else {
-          end_node = starts(chunk_idx+1);
+          end_node = starts_host(chunk_idx+1);
         }
-        Kokkos::parallel_for("Calculate GDV", policy, KOKKOS_LAMBDA(member_type team_member) {
-          Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, end_node-start_node), [=] (int n) {
-            int node = start_node + n;
+
+        int per_league = (end_node-start_node)/num_leagues;
+        if(per_league*num_leagues < end_node-start_node)
+          per_league += 1;
+printf("Per league: %d\n", per_league);
+
+        Kokkos::parallel_for("Calculate GDV", team_policy, KOKKOS_LAMBDA(member_type team_member) {
+//          scratch_int_view neighbor_subview(team_member.thread_scratch(0), max_neighbors);
+//          scratch_int_view indices_subview(team_member.thread_scratch(0), 5);
+//          scratch_int_view combination_subview(team_member.thread_scratch(0), 5);
+//          scratch_int_view sgraph_dist_subview(team_member.thread_scratch(0), orbits.distance.extent(0));
+//          scratch_int_view sgraph_deg_subview(team_member.thread_scratch(0), 5);
+//          scratch_int_view queue_subview(team_member.thread_scratch(0), 5);
+//          scratch_int_view distance_subview(team_member.thread_scratch(0), 5);
+//          scratch_subgraph_view subgraph_subview(team_member.thread_scratch(0), 5, 5);
+//          scratch_bool_view visited_subview(team_member.thread_scratch(0), 5);
+          Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, per_league), [=] (int n) {
+//            int node = start_node + n;
             auto neighbor_subview = Kokkos::subview(all_neighbors, team_member.team_rank(), Kokkos::ALL());
             auto indices_subview = Kokkos::subview(indices, team_member.team_rank(), Kokkos::ALL());
             auto combination_subview = Kokkos::subview(combination_view, team_member.team_rank(), Kokkos::ALL());
@@ -960,8 +977,24 @@ KokkosResilience::checkpoint(*ctx, label, offset, [=] () mutable {
             auto visited_subview = Kokkos::subview(visited, team_member.team_rank(), Kokkos::ALL());
             auto queue_subview = Kokkos::subview(queue, team_member.team_rank(), Kokkos::ALL());
             auto distance_subview = Kokkos::subview(distance, team_member.team_rank(), Kokkos::ALL());
-            kokkos_calculate_GDV(team_member, node, graph, orbits, neighbor_subview, indices_subview, combination_subview, sgraph_dist_subview, sgraph_deg_subview, subgraph_subview, visited_subview, queue_subview, distance_subview, metrics_sa);
-//            kokkos_calculate_GDV(team_member, node, graph, orbits, neighbor_subview, indices_subview, combination_subview, sgraph_dist_subview, sgraph_deg_subview, subgraph_subview, visited_subview, queue_subview, distance_subview, graph_GDV);
+            int n_offset = team_member.league_rank()*per_league + n;
+            int node = start_node + n_offset;
+            if(node < end_node) {
+              kokkos_calculate_GDV( team_member, 
+                                    node, 
+                                    graph, 
+                                    orbits, 
+                                    neighbor_subview, 
+                                    indices_subview, 
+                                    combination_subview, 
+                                    sgraph_dist_subview, 
+                                    sgraph_deg_subview, 
+                                    subgraph_subview, 
+                                    visited_subview, 
+                                    queue_subview, 
+                                    distance_subview, 
+                                    metrics_sa);
+            }
           });
         });
 #ifdef DEBUG
@@ -969,7 +1002,7 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
 #endif
       } else {
         auto neighbor_scratch = Kokkos::subview(all_neighbors, 0, Kokkos::ALL());
-        int n_neighbors = EssensKokkos::find_neighbours(starts(chunk_idx), graph, 4, neighbor_scratch);
+        int n_neighbors = EssensKokkos::find_neighbours(starts_host(chunk_idx), graph, 4, neighbor_scratch);
 
         size_t start_combination;
         size_t end_combination;
@@ -979,23 +1012,23 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
         end_comb_subgraph[0] = 0;
         int start_chunk = 0;
         for(int j=0; j<chunk_idx; j++) {
-          if(starts(j) == starts(chunk_idx))
+          if(starts_host(j) == starts_host(chunk_idx))
             start_chunk++;
         }
         bool first_chunk=false, middle_chunk=false, last_chunk=false;
         first_chunk = ((chunk_idx == 0) || 
-                            starts(chunk_idx-1) != starts(chunk_idx)) && 
-                            starts(chunk_idx+1) == starts(chunk_idx);
+                            starts_host(chunk_idx-1) != starts_host(chunk_idx)) && 
+                            starts_host(chunk_idx+1) == starts_host(chunk_idx);
         if(!first_chunk) {
-          last_chunk = starts(chunk_idx-1) == starts(chunk_idx) && 
-                            starts(chunk_idx+1) != starts(chunk_idx);
-          middle_chunk = starts(chunk_idx-1) == starts(chunk_idx) && 
-                              starts(chunk_idx+1) == starts(chunk_idx);
+          last_chunk = starts_host(chunk_idx-1) == starts_host(chunk_idx) && 
+                       starts_host(chunk_idx+1) != starts_host(chunk_idx);
+          middle_chunk = starts_host(chunk_idx-1) == starts_host(chunk_idx) && 
+                         starts_host(chunk_idx+1) == starts_host(chunk_idx);
         }
         if(last_chunk) {
           // Last chunk
           start_combination = start_chunk*k_interval;
-          end_combination = num_combinations(starts(chunk_idx));
+          end_combination = num_combinations_host(starts_host(chunk_idx));
           int64_t counter = end_combination;
           for(int j=4; j>0; j--) {
             int64_t n_comb = get_num_combinations(n_neighbors, j);
@@ -1044,7 +1077,7 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
           }
         }
         
-        int node = starts(chunk_idx);
+        int node = starts_host(chunk_idx);
         Kokkos::TeamPolicy<Kokkos::DefaultExecutionSpace> team_policy(1, NUM_THREADS);
         Kokkos::View<int**> scratch_block("Indices scratch", team_policy.team_size(), graph.numRows());
         for(int node_count = 1; node_count < 5; node_count++) {
@@ -1076,7 +1109,6 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
                     combination_subview(j) = neighbor_scratch(scratch_view(j));
                 }
                 combination_subview(node_count) = node;
-//                kokkos_calculate_GDV(team_member, node, node_count, graph, orbits, neighbor_subview, combination_subview, sgraph_dist_subview, sgraph_deg_subview, subgraph_subview, visited_subview, queue_subview, distance_subview, metrics_sa);
                 kokkos_calculate_GDV(team_member, node, node_count, graph, orbits, neighbor_scratch, num_neighbors(starts(chunk_idx)), combination_subview, sgraph_dist_subview, sgraph_deg_subview, subgraph_subview, visited_subview, queue_subview, distance_subview, metrics_sa);
               });
             });
@@ -1096,86 +1128,94 @@ region_log = region_log + std::string(graph_name) + std::string(".log");
 std::fstream fs(region_log, std::fstream::out|std::fstream::app);
 // Hash based change tracking
 uint32_t num_changed = 0;
+#ifdef HASH_ANALYSIS
+//auto test = make_layout_left(graph_GDV);
+//generate_hashes(test, new_hashes, page_size);
 generate_hashes(graph_GDV, new_hashes, page_size);
-fs << "Number of blocks: " << new_hashes.size() << std::endl;
-fs << "Changed blocks: ";
-bool flag = false;
-for(int idx = 0; idx<new_hashes.size(); idx++) {
-  if(old_hashes(idx) != new_hashes(idx))
-  {
-    num_changed += 1;
-    if(!flag) {
-      fs << "[" << idx << ",";
-      flag = true;
-    }
-  } else {
-    if(flag) {
-      fs << idx << ") ";
-      flag = false;
-    }
-  }
-}
-if(flag)
-  fs << new_hashes.size() << ")";
-//std::cout << std::endl;
-//std::cout << num_changed << "/" << new_hashes.size() << " blocks changed " << std::endl;
-fs << std::endl;
-fs << num_changed << "/" << new_hashes.size() << " blocks changed " << std::endl;
-// Find contiguous regions
-std::map<int, int> contiguous_regions;
-int largest_region = 1;
-int region_size_counter = 0;
-for(int idx=0; idx<new_hashes.size(); idx++) {
-  if(old_hashes(idx) != new_hashes(idx))
-  {
-    region_size_counter += 1;
-  }
-  else 
-  {
-    if(region_size_counter > largest_region)
-    {
-      largest_region = region_size_counter;
-    }
-    if(region_size_counter > 0) {
-      auto pos = contiguous_regions.find(region_size_counter);
-      if(pos != contiguous_regions.end())
-      {
-        pos->second = pos->second + 1;
-      }
-      else
-      {
-        contiguous_regions.insert(std::pair<int,int>(region_size_counter, 1));
-      }
-    }
-    region_size_counter = 0;
-  }
-}
-if(region_size_counter > largest_region)
-{
-  largest_region = region_size_counter;
-}
-if(region_size_counter > 0) {
-  auto pos = contiguous_regions.find(region_size_counter);
-  if(pos != contiguous_regions.end())
-  {
-    pos->second = pos->second + 1;
-  }
-  else
-  {
-    contiguous_regions.insert(std::pair<int,int>(region_size_counter, 1));
-  }
-}
-//std::cout << "Largest region: " << largest_region << std::endl;
-//std::cout << "Region map\n";
-fs << "Largest region: " << largest_region << std::endl;
-fs << "Region map\n";
-for(auto itr = contiguous_regions.begin(); itr != contiguous_regions.end(); ++itr)
-{
-//  std::cout << itr->second << " regions of size " << itr->first << std::endl;
-  fs << itr->second << " regions of size " << itr->first << std::endl;
-}
-Kokkos::deep_copy(old_hashes, new_hashes);
-Kokkos::deep_copy(new_hashes, 0);
+#endif
+num_changed = print_changed_blocks(fs, new_data, old_data);
+auto contiguous_regions = print_contiguous_regions(fs, new_data, old_data);
+//fs << "Number of blocks: " << new_hashes.size() << std::endl;
+//fs << "Changed blocks: ";
+//bool flag = false;
+//for(int idx = 0; idx<new_hashes.size(); idx++) {
+//  if(old_hashes(idx) != new_hashes(idx))
+//  {
+//    num_changed += 1;
+//    if(!flag) {
+//      fs << "[" << idx << ",";
+//      flag = true;
+//    }
+//  } else {
+//    if(flag) {
+//      fs << idx << ") ";
+//      flag = false;
+//    }
+//  }
+//}
+//if(flag)
+//  fs << new_hashes.size() << ")";
+////std::cout << std::endl;
+////std::cout << num_changed << "/" << new_hashes.size() << " blocks changed " << std::endl;
+//fs << std::endl;
+//fs << num_changed << "/" << new_hashes.size() << " blocks changed " << std::endl;
+//// Find contiguous regions
+//std::map<int, int> contiguous_regions;
+//int largest_region = 1;
+//int region_size_counter = 0;
+//for(int idx=0; idx<new_hashes.size(); idx++) {
+//  if(old_hashes(idx) != new_hashes(idx))
+//  {
+//    region_size_counter += 1;
+//  }
+//  else 
+//  {
+//    if(region_size_counter > largest_region)
+//    {
+//      largest_region = region_size_counter;
+//    }
+//    if(region_size_counter > 0) {
+//      auto pos = contiguous_regions.find(region_size_counter);
+//      if(pos != contiguous_regions.end())
+//      {
+//        pos->second = pos->second + 1;
+//      }
+//      else
+//      {
+//        contiguous_regions.insert(std::pair<int,int>(region_size_counter, 1));
+//      }
+//    }
+//    region_size_counter = 0;
+//  }
+//}
+//if(region_size_counter > largest_region)
+//{
+//  largest_region = region_size_counter;
+//}
+//if(region_size_counter > 0) {
+//  auto pos = contiguous_regions.find(region_size_counter);
+//  if(pos != contiguous_regions.end())
+//  {
+//    pos->second = pos->second + 1;
+//  }
+//  else
+//  {
+//    contiguous_regions.insert(std::pair<int,int>(region_size_counter, 1));
+//  }
+//}
+//fs << "Largest region: " << largest_region << std::endl;
+//fs << "Region map\n";
+//for(auto itr = contiguous_regions.begin(); itr != contiguous_regions.end(); ++itr)
+//{
+//  fs << itr->second << " regions of size " << itr->first << std::endl;
+//}
+#ifdef HASH_ANALYSIS
+Kokkos::deep_copy(old_data, new_data);
+Kokkos::deep_copy(new_data, 0);
+#endif
+#ifdef SCAN_ANALYSIS
+Kokkos::deep_copy(old_data, new_data);
+#endif
 #endif
 #ifdef DIRTY_PAGE_TRACKING
       uintptr_t start_addr = reinterpret_cast<uintptr_t>(graph_GDV.data());
@@ -1208,7 +1248,6 @@ Kokkos::deep_copy(new_hashes, 0);
 #endif
       offset++;
     }
-//    printf("Rank %d completed calculation\n", rankn);
     if(rankn == 0) {
       MPI_Reduce(MPI_IN_PLACE, graph_GDV.data(), graph_GDV.size(), MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     } else {
@@ -1217,16 +1256,11 @@ Kokkos::deep_copy(new_hashes, 0);
   }
   MPI_Barrier(MPI_COMM_WORLD);
 
-  //vec_calc_post_gather = MPI_Wtime() - vec_calc_start + vec_calc_post_gather;
   vec_calc_communication_time[graph_counter - 1] = process_ends_communication - vec_calc_start;
-//  cout << "Communication time on process " << rankn << " for graph " << graph_counter << " = " << vec_calc_communication_time[graph_counter - 1] << endl;
-  //vec_calc_computation_time = vec_calc_computation_end - vec_calc_computation_start + vec_calc_computation_time;
 
   #ifdef DEBUG
     cout << "Finished GDV Vector Calc on Rank: " << rankn << endl;
   #endif
-
-//  printf("Rank %d finished GDV vector calc\n", rankn);
 }
 
 template<class NeighborView, class IntView, class GraphView, class BoolView, class Scatter>
@@ -1238,7 +1272,6 @@ kokkos_calculate_GDV(Kokkos::TeamPolicy<>::member_type team_member,
                       const Orbits& orbits, 
                       const NeighborView& neighbors,
                       const int num_neighbors,
-//                      const IntView& indices,
                       const IntView& combination_view,
                       IntView& sgraph_distance_signature,
                       IntView& sgraph_degree_signature,
@@ -1246,64 +1279,42 @@ kokkos_calculate_GDV(Kokkos::TeamPolicy<>::member_type team_member,
                       BoolView& visited,
                       IntView& queue,
                       IntView& distance,
-//                      Kokkos::Experimental::ScatterView<int**, Kokkos::Experimental::ScatterNonDuplicated> gdvMetrics_sa
-//                      Kokkos::Experimental::ScatterView<int**, Kokkos::LayoutRight, Kokkos::DefaultExecutionSpace, Kokkos::Experimental::ScatterSum, Kokkos::Experimental::ScatterNonDuplicated, Kokkos::Experimental::ScatterAtomic> gdvMetrics_sa
                       Scatter gdvMetrics_sa
                     )
 {
   auto gdvMetrics = gdvMetrics_sa.access();
-//  int num_neighbors = neighbors.extent(0);
-//  int num_neighbors = EssensKokkos::find_neighbours(node, graph, 4, neighbor_buff);
-//  auto neighbors = Kokkos::subview(neighbor_buff, std::pair<int,int>(0, num_neighbors));
-//  printf("Allocated and found neighbors of %d: %d total neighbors\n", node, neighbors.size());
-//  for (int node_count = 1; node_count < 5; node_count++)
-//  {
-//    CombinationGenerator generator(num_neighbors, node_count, indices);
-//    while(!generator.done) {
-      auto combination = Kokkos::subview(combination_view, std::pair<int,int>(0,node_count+1));
-//      kokkos_get_combination(indices, node_count, neighbors, combination);
-//      for(int i=0; i<node_count; i++) {
-//          combination(i) = neighbors(indices(i));
-//      }
-//      combination(node_count) = node;
-      auto subgraph_degree_signature = Kokkos::subview(sgraph_degree_signature, 
-                                                        std::pair<int,int>(0, node_count+1));
-      auto subgraph_distance_signature = Kokkos::subview(sgraph_distance_signature, 
-                                                        std::pair<int,int>(0, orbits.distance.extent(1)));
-      auto induced_sgraph = Kokkos::subview(induced_subgraph, 
-                                            std::pair<int,int>(0,node_count+1), 
-                                            std::pair<int,int>(0,node_count+1));
-      EssensKokkos::kokkos_induced_subgraph(graph, combination, induced_sgraph);
-      bool is_connected = EssensKokkos::is_connected(induced_sgraph, visited, queue);
-      if(is_connected)
-      {
-        EssensKokkos::calc_degree_signature(induced_sgraph, subgraph_degree_signature);
-        for(int idx=0; idx<node_count+1; idx++)
-        {
-          int v = idx;
-          EssensKokkos::calc_distance_signature(v, induced_sgraph, subgraph_distance_signature, 
-                                                visited, queue, distance);
-          for(int i=orbits.start_indices(node_count+1); i<orbits.start_indices(node_count+2); i++) {
-            auto orbit_deg_sig = Kokkos::subview(orbits.degree, i, Kokkos::ALL);
-            bool match = EssensKokkos::compare_signatures(subgraph_degree_signature, orbit_deg_sig);
-            auto orbit_dis_sig = Kokkos::subview(orbits.distance, i, Kokkos::ALL);
-            match = match && EssensKokkos::compare_signatures(subgraph_distance_signature, orbit_dis_sig);
-            if(match) {
-              gdvMetrics(combination(v),i) += 1;
-            }
-          }
+  auto combination = Kokkos::subview(combination_view, std::pair<int,int>(0,node_count+1));
+  auto subgraph_degree_signature = Kokkos::subview(sgraph_degree_signature, 
+                                                    std::pair<int,int>(0, node_count+1));
+  auto subgraph_distance_signature = Kokkos::subview(sgraph_distance_signature, 
+                                                    std::pair<int,int>(0, orbits.distance.extent(1)));
+  auto induced_sgraph = Kokkos::subview(induced_subgraph, 
+                                        std::pair<int,int>(0,node_count+1), 
+                                        std::pair<int,int>(0,node_count+1));
+  EssensKokkos::kokkos_induced_subgraph(graph, combination, induced_sgraph);
+  bool is_connected = EssensKokkos::is_connected(induced_sgraph, visited, queue);
+  if(is_connected)
+  {
+    EssensKokkos::calc_degree_signature(induced_sgraph, subgraph_degree_signature);
+    for(int idx=0; idx<node_count+1; idx++)
+    {
+      int v = idx;
+      EssensKokkos::calc_distance_signature(v, induced_sgraph, subgraph_distance_signature, 
+                                            visited, queue, distance);
+      for(int i=orbits.start_indices(node_count+1); i<orbits.start_indices(node_count+2); i++) {
+        auto orbit_deg_sig = Kokkos::subview(orbits.degree, i, Kokkos::ALL);
+        bool match = EssensKokkos::compare_signatures(subgraph_degree_signature, orbit_deg_sig);
+        auto orbit_dis_sig = Kokkos::subview(orbits.distance, i, Kokkos::ALL);
+        match = match && EssensKokkos::compare_signatures(subgraph_distance_signature, orbit_dis_sig);
+        if(match) {
+          gdvMetrics(combination(v),i) += 1;
         }
       }
-//      generator.kokkos_next(indices);
-//    }
-//    printf("Number of combinations: %d for %d neighbors and %d node subgraphs\n", generator.get_num_comb(), num_neighbors, node_count+1);
-//  }
-//  counter(team_member.team_rank()) = iter_counter;
-//  printf("Thread %d at iteration %d\n", team_member.team_rank(), iter_counter);
+    }
+  }
 }
 
 
-//template<class NeighborView, class IntView, class GraphView, class BoolView, class CounterView>
 template<class NeighborView, class IntView, class GraphView, class BoolView, class Scatter>
 KOKKOS_INLINE_FUNCTION void 
 kokkos_calculate_GDV(Kokkos::TeamPolicy<>::member_type team_member,
@@ -1319,22 +1330,17 @@ kokkos_calculate_GDV(Kokkos::TeamPolicy<>::member_type team_member,
                       BoolView& visited,
                       IntView& queue,
                       IntView& distance,
-//                      CounterView& counter,
-//                      Kokkos::Experimental::ScatterView<int**, Kokkos::Experimental::ScatterNonDuplicated> gdvMetrics_sa
                       Scatter gdvMetrics_sa
                     )
 {
   auto gdvMetrics = gdvMetrics_sa.access();
-//  int combination_count = 0;
-//  int k_interval = 1000000;
   int num_neighbors = EssensKokkos::find_neighbours(node, graph, 4, neighbor_buff);
   auto neighbors = Kokkos::subview(neighbor_buff, std::pair<int,int>(0, num_neighbors));
-//  printf("Allocated and found neighbors of %d: %d total neighbors\n", node, neighbors.size());
-//  int iter_counter = counter(team_member.team_rank());
   for (int node_count = 1; node_count < 5; node_count++)
   {
     CombinationGenerator generator(num_neighbors, node_count, indices);
-    while(!generator.done) {
+    while(!generator.done) 
+    {
       auto combination = Kokkos::subview(combination_view, std::pair<int,int>(0,node_count+1));
       generator.kokkos_get_combination(indices, num_neighbors, neighbors, combination);
       auto subgraph_degree_signature = Kokkos::subview(sgraph_degree_signature, 
@@ -1355,190 +1361,21 @@ kokkos_calculate_GDV(Kokkos::TeamPolicy<>::member_type team_member,
           int v = idx;
           EssensKokkos::calc_distance_signature(v, induced_sgraph, subgraph_distance_signature, 
                                                 visited, queue, distance);
-          for(int i=orbits.start_indices(node_count+1); i<orbits.start_indices(node_count+2); i++) {
+          for(int i=orbits.start_indices(node_count+1); i<orbits.start_indices(node_count+2); i++) 
+          {
             auto orbit_deg_sig = Kokkos::subview(orbits.degree, i, Kokkos::ALL);
             bool match = EssensKokkos::compare_signatures(subgraph_degree_signature, orbit_deg_sig);
             auto orbit_dis_sig = Kokkos::subview(orbits.distance, i, Kokkos::ALL);
             match = match && EssensKokkos::compare_signatures(subgraph_distance_signature, orbit_dis_sig);
-            if(match) {
-//              Kokkos::atomic_increment(&gdvMetrics_sa(combination(v),i));
+            if(match) 
+            {
               gdvMetrics(combination(v),i) += 1;
-//if(node == 1) {
-//if(comb_counter < 100)
-//  n_comb++;
-//}
-  
             }
           }
         }
       }
       generator.kokkos_next(indices);
-//if(node == 1) {
-//if(comb_counter < 100) {
-//  printf("Number of updates for iter %d: %d\n", comb_counter, n_comb);
-//  n_comb = 0;
-//  comb_counter++;
-//}
-//}
-
-//      combination_count++;
-//      iter_counter += 1;
-    }
-//    printf("Number of combinations: %d for %d neighbors and %d node subgraphs\n", generator.get_num_comb(), num_neighbors, node_count+1);
-  }
-//  counter(team_member.team_rank()) = iter_counter;
-//  printf("Thread %d at iteration %d\n", team_member.team_rank(), iter_counter);
-}
-
-//This method takes the file and converts it into orbits and saves in output
-KOKKOS_INLINE_FUNCTION void kokkos_readin_orbits(ifstream *file, Orbits& orbits )
-{
-  string line;
-  string signature_delimiter;
-  string internal_delimiter;
-  signature_delimiter = "/";
-  internal_delimiter= ",";
-  int num_orbits = 0;
-  file->clear();
-  file->seekg(0);
-  while(std::getline(*file,line))
-  {
-    num_orbits++;
-  }
-  file->clear();
-  file->seekg(0);
-  orbits = Orbits(num_orbits, 5);
-  orbits.start_indices(0) = 0;
-  orbits.start_indices(1) = 0;
-  orbits.start_indices(2) = 0;
-  size_t orbit_size = 2;
-  int orbit_counter = 0;
-  while(std::getline(*file,line))
-  {
-    string s= line;
-    size_t pos = 0;
-    vector<vector<int>> vector_line;
-    do
-    {
-      vector<int> segment; 
-      string token;
-      pos = s.find(signature_delimiter);
-      token = s.substr(0, pos);
-      token.erase(remove(token.begin(), token.end(), '['), token.end());
-      token.erase(remove(token.begin(), token.end(), ']'), token.end());
-      convert_string_vector_int(&token,&segment,internal_delimiter);
-      s.erase(0, pos + signature_delimiter.length());
-      vector_line.push_back(segment);
-    }
-    while (pos!= std::string::npos);
-    sort(vector_line[1].begin(), vector_line[1].end());
-    if(vector_line[1].size() > orbit_size) {
-      orbit_size = vector_line[1].size();
-      orbits.start_indices(orbit_size) = orbit_counter;
-    }
-    for(size_t i=0; i<vector_line[1].size(); i++) {
-      orbits.degree(orbit_counter, i) = vector_line[1][i];
-    }
-    for(size_t i=0; i<vector_line[2].size(); i++) {
-      orbits.distance(orbit_counter, i) = vector_line[2][i];
-    }
-    orbit_counter++;
-  }
-  orbits.start_indices(6) = num_orbits;
-}
-
-//This method converts a string containing integers to a vector of integers
-void convert_string_vector_int(string* str, vector<int>* output,string delimiter)
-{
-  size_t pos = 0;
-  int token;
-  string s;
-  s = *str;
-  do
-  {
-    pos = s.find(delimiter);
-    token = stoi(s.substr(0, pos));
-    output->push_back(token);
-    s.erase(0, pos + delimiter.length());
-  }
-  while (pos != std::string::npos);
-
-}
-
-bool sort_by_leading_edge(vector<int>& a, vector<int>& b) {
-  return a[0] < b[0];
-}
-
-bool sort_by_dest(vector<int>& a, vector<int>& b) {
-  return a[1] < b[1];
-}
-
-KOKKOS_INLINE_FUNCTION void readin_graph(ifstream* file, matrix_type& graph) 
-{
-  string line;;
-
-  int lastrow = -1;
-  vector<int> rows, cols;
-  vector<float> vals;
-  vector<vector<int>> edge_list;
-  while(std::getline(*file,line))
-  {
-    int u, v;
-    float w;
-    sscanf(line.c_str(), "%d %d %f", &u, &v, &w);
-    if(u > lastrow) 
-      lastrow = u;
-    if(v > lastrow) 
-      lastrow = v;
-    vector<int> edge1;
-    edge1.push_back(u);
-    edge1.push_back(v);
-    if(w == 0.0 || w == 0) {
-        edge1.push_back(0);
-    } else {
-        edge1.push_back(1);
-    }
-    edge_list.push_back(edge1);
-    if(u != v) {
-      vector<int> edge2;
-      edge2.push_back(v);
-      edge2.push_back(u);
-      if(w == 0.0 || w == 0) {
-            edge2.push_back(0);
-      } else {
-            edge2.push_back(1);
-      }
-      edge_list.push_back(edge2);
     }
   }
-  sort(edge_list.begin(), edge_list.end(), sort_by_leading_edge);
-
-  vector<int> rowmap(lastrow+2, 0);
-  for(size_t i=0; i<edge_list.size(); i++) {
-    rows.push_back(edge_list[i][0]);
-    cols.push_back(edge_list[i][1]);
-    vals.push_back(edge_list[i][2]);
-  }
-  
-  for(size_t i=0; i<rows.size(); i++) {
-    if(rows[i] != cols[i])
-    {
-      rowmap[rows[i]+1]++;
-    }
-    else
-    {
-      rowmap[rows[i]+1]++;
-    }
-  }
-  for(size_t i=1; i<rowmap.size(); i++) {
-    rowmap[i] += rowmap[i-1];
-  }
-  for(size_t i=0; i<rowmap.size()-1; i++) {
-    sort(cols.begin()+rowmap[i], cols.begin()+rowmap[i+1]);
-  }
-  
-  graph = matrix_type("Graph", lastrow+1, lastrow+1, vals.size(), 
-                      vals.data(), rowmap.data(), cols.data());
-  return;
 }
 

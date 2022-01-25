@@ -4,6 +4,8 @@
 #include <Kokkos_Core.hpp>
 #include <KokkosSparse_CrsMatrix.hpp>
 
+#define LAYOUT Kokkos::LayoutRight
+
 using namespace std;
 
 class OrbitMetric
@@ -42,6 +44,9 @@ class Orbits {
     Kokkos::View<int**> degree;
     Kokkos::View<int**> distance;
     Kokkos::View<int*> start_indices;
+    Kokkos::View<int**>::HostMirror degree_host;
+    Kokkos::View<int**>::HostMirror distance_host;
+    Kokkos::View<int*>::HostMirror start_indices_host;
 
   Orbits() {}
 
@@ -49,6 +54,9 @@ class Orbits {
     degree = Kokkos::View<int**>("Degree signatures", num_orbits, max_nodes);
     distance = Kokkos::View<int**>("Distance signatures", num_orbits, max_nodes+1);
     start_indices = Kokkos::View<int*>("Starting indices for graphlets", max_nodes+2);
+    degree_host = Kokkos::create_mirror_view(degree);
+    distance_host = Kokkos::create_mirror_view(distance);
+    start_indices_host = Kokkos::create_mirror_view(start_indices);
   }
 
   int num_orbits() const {
@@ -71,6 +79,6 @@ using entries_type  = typename graph_type::entries_type;
 using values_type   = typename matrix_type::values_type;
 
 //using GDVs = Kokkos::View<uint32_t**>;
-using GDVs = Kokkos::View<uint32_t**, Kokkos::LayoutLeft>;
+using GDVs = Kokkos::View<uint32_t**, LAYOUT>;
 
 #endif
