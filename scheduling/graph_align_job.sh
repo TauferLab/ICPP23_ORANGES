@@ -32,7 +32,9 @@ source ${paths_dir}/fido_paths.config
 #run_idx_low=0
 #run_idx_high=$((n_runs-1))
 
+active_kokkos_tools=kp_memory_events.so
 export PSM2_MEMORY=large
+export KOKKOS_PROFILE_LIBRARY=${kokkos_tools_memory_usage}/${active_kokkos_tools}
 
 #for run_idx in `seq -f "%03g" ${run_idx_low} ${run_idx_high}`; do
     

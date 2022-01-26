@@ -108,6 +108,23 @@ echo ${progress_delimiter}
 echo
 
 
+echo
+echo ${progress_delimiter}
+echo "Building Kokkos-Tools..."
+echo ${progress_delimiter}
+echo
+kokkos_tools_dir=${project_root}/submodules/kokkos-tools/
+#memory_usage_dir=${kokkos_tools_dir}
+cd submodules/kokkos-tools/
+. ${project_root}/install/install_kokkos-tools.sh ${kokkos_tools_dir}
+cd ../../
+echo
+echo ${progress_delimiter}
+echo "Done Installing Kokkos-Tools"
+echo ${progress_delimiter}
+echo
+
+
 ## Build fido
 echo
 echo ${progress_delimiter}
@@ -124,6 +141,6 @@ echo
 
 ## Setup project directory
 sed -i "s#fido_project_root= #fido_project_root=${project_root}#" ./fido/config/fido_paths.config
-
+#sed -i "s#kokkos_tools_memory_usage= #kokkos_tools_memory_usage=${kokkos_tools_dir}#" ./fido/config/fido_paths.config
 
 
