@@ -116,7 +116,7 @@ echo
 kokkos_tools_dir=${project_root}/submodules/kokkos-tools/
 #memory_usage_dir=${kokkos_tools_dir}
 cd submodules/kokkos-tools/
-. ${project_root}/install/install_kokkos-tools.sh ${kokkos_tools_dir}
+. ${project_root}/install/install_kokkos-tools.sh
 cd ../../
 echo
 echo ${progress_delimiter}
