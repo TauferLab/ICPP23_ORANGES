@@ -40,7 +40,7 @@ class subgraph
     A_Network adj_list;
     bool is_subgraph;
 };
-// combinations needs to be done only for child
+
 void generate_combinations(vector<graph_combination> &list_to_generate_combinations ,vector<vector<graph_combination>> &combination_list)
 {
     long int size_of_list = list_to_generate_combinations.size();
@@ -109,6 +109,7 @@ void make_subgraph_of_degree_one(subgraph &temp_subgraph, int parent_node, int c
         temp_subgraph.is_subgraph = 0;
     }
 }
+
 void subgraph_enumeration(A_Network graph, vector<subgraph> &subgraph_combinations)
 {
     for(int i = 0; i < graph.size(); i++)
@@ -140,7 +141,17 @@ void subgraph_enumeration(A_Network graph, vector<subgraph> &subgraph_combinatio
             //getting end node
             end_node_item = element1.end_nodes[k];
             // list of end_node // check whether end node is right
-            ADJ_Bundle node_temp = graph[end_node_item];
+            int node_number;
+            for(node_number = 0; node_number < graph.size(); node_number++)
+            {
+              ADJ_Bundle node = graph[node_number];
+              if(node.Row == end_node_item)
+              {
+                break;
+              }
+              node_number++;
+            }
+            ADJ_Bundle node_temp = graph[node_number];
             for(int p = 0; p<node_temp.ListW.size(); p++)
             {
               int child_node = node_temp.ListW[p].first;
@@ -177,16 +188,21 @@ void subgraph_enumeration(A_Network graph, vector<subgraph> &subgraph_combinatio
                 temp_element.list.push_back(temp_list);
                 //making end nodes
                 temp_element.end_nodes.push_back(quantity2);
-                //making adjacency list
-                ADJ_Bundle item;
-                item.Row = quantity1;
+                //making adjacency list for parent
+                for(node_number = 0; node_number < temp_element.adj_list.size(); node_number++)
+                {
+                  ADJ_Bundle node = temp_element.adj_list[node_number];
+                  if(node.Row == quantity1)
+                  {
+                    break;
+                  }
+                }
                 int_double temp_ListW;
                 temp_ListW.first = quantity2;
                 temp_ListW.second = 1;
-                item.ListW.push_back(temp_ListW);
-                //pushing 1 node
-                temp_element.adj_list.push_back(item);
-                //making adjlist of 2nd node
+                temp_element.adj_list[node_number].ListW.push_back(temp_ListW);
+
+                //making adjlist of child node
                 ADJ_Bundle item1;
                 item1.Row = quantity2;
                 int_double temp_ListW1;
@@ -200,13 +216,13 @@ void subgraph_enumeration(A_Network graph, vector<subgraph> &subgraph_combinatio
                     temp_element.is_subgraph = 1;
                 }
                 else
-               { 
+                { 
                     temp_element.is_subgraph = 0;
-               }
-                cout << element_2.parent;
-                cout <<"||";
-                cout << element_2.child;
-                cout <<" ";
+                }
+                //cout << element_2.parent;
+                //cout <<"||";
+                //cout << element_2.child;
+                //cout <<" ";
               }
               cout <<endl;
             }
