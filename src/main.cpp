@@ -5,30 +5,52 @@
 #include "hash_change_detection.hpp"
 #include "update_pattern_analysis.hpp"
 #include "io.hpp"
+#include "hash_functions.hpp"
+#include "deduplication.hpp"
+#include "utils.hpp"
 #include <time.h>
 #include <stdlib.h>
 #include <ctime>
 #include <mpi.h>
 #include <fstream>
+#include <chrono>
 #include <Kokkos_Core.hpp>
 #include <Kokkos_Sort.hpp>
 #include <Kokkos_ScatterView.hpp>
 #include <Kokkos_UnorderedMap.hpp>
 
 #define GDV_LENGTH 73
-//#define NUM_THREADS Kokkos::AUTO
-#define NUM_THREADS 4
+#define NUM_THREADS Kokkos::AUTO
+//#define NUM_THREADS 512
 #define MAX_SUBGRAPH 5
 //#define ANALYSIS
 //#define HASH_ANALYSIS
 //#define SCAN_ANALYSIS
 //#define DEBUG
 //#define DIRTY_PAGE_TRACKING
-#define AUTO_CHECKPOINT
+//#define AUTO_CHECKPOINT
 //#define OUTPUT_MATRIX
 //#define OUTPUT_GDV
 //#define LAYOUT Kokkos::LayoutLeft
 #define DETAILED_TIMERS
+//#define K_INTERVAL 10000000000
+//#define CHUNK_SIZE 4096
+
+#define DEDUPLICATION
+#define DEDUP_ON_CPU1
+
+//#define START_TIMER(timer) auto timer##_beg = high_resolution_clock::now(); \
+//                          Kokkos::fence()
+//#define STOP_TIMER(timer) Kokkos::fence();                                  \
+//                          auto timer##_end = high_resolution_clock::now()
+
+//#define xstr(s) str(s)
+//#define str(s) #s
+//#define START_TIMER(timer) Kokkos::Profiling::pushRegion(str(timer)); \
+//                          Kokkos::fence()
+//#define STOP_TIMER(timer) Kokkos::fence(); \
+//                          Kokkos::Profiling::popRegion()
+
 
 #ifdef AUTO_CHECKPOINT
 #include <resilience/Resilience.hpp>
@@ -36,6 +58,7 @@
 #include <veloc.h>
 #endif
 
+void compute_gdvs(const matrix_type& graph, const Orbits& orbits, GDVs& graph_GDV, string name);
 void kokkos_similarity_metric_calculation_for_two_graphs(const matrix_type&, const matrix_type&, const Orbits&, string, string);
 template <class SubviewType>
 KOKKOS_INLINE_FUNCTION double kokkos_GDV_distance_calculation(SubviewType&, SubviewType&);
@@ -84,6 +107,8 @@ double vec_calc_communication_time[2] = {};
 double pre_process_time;
 double report_output_time;
 int vec_calc_avg_node_deg;
+uint64_t CHECKPOINT_INTERVAL;
+int CHUNK_SIZE;
 
 using namespace std;
 
@@ -129,12 +154,15 @@ int main(int argc, char *argv[]) {
     start_time = MPI_Wtime();
   }
 
+  CHECKPOINT_INTERVAL = strtoull(argv[5], NULL, 0);
+  sscanf(argv[6], "%d", &CHUNK_SIZE);
+
   Orbits k_orbits;
   kokkos_readin_orbits(&the_file2, k_orbits);
 
   matrix_type graphx, graphy;
   readin_graph(&the_file0, graphx);
-  readin_graph(&the_file1, graphy);
+//  readin_graph(&the_file1, graphy);
 
   if(rank == 0) {
     end_time = MPI_Wtime();
@@ -169,7 +197,7 @@ int main(int argc, char *argv[]) {
 
   if(rank == 0) {
     cout << "Graph 1: # of vertices: " << graphx.numRows() << endl;
-    cout << "Graph 2: # of vertices: " << graphy.numRows() << endl;
+//    cout << "Graph 2: # of vertices: " << graphy.numRows() << endl;
   }
 
   pre_process_time = (double)(MPI_Wtime() - pre_tStart);
@@ -178,7 +206,37 @@ int main(int argc, char *argv[]) {
   }
 
   // Perform Similarity Calculations
-  kokkos_similarity_metric_calculation_for_two_graphs(graphx, graphy, k_orbits, graph_name1, graph_name2);
+//  kokkos_similarity_metric_calculation_for_two_graphs(graphx, graphy, k_orbits, graph_name1, graph_name2);
+
+using namespace std::chrono;
+high_resolution_clock::time_point start_time0 = high_resolution_clock::now();
+  int num_orbits = k_orbits.degree.extent(0);
+  GDVs gdvs("GDVs", graphx.numRows(), num_orbits);
+  GDVs::HostMirror graph1_gdvs = Kokkos::create_mirror_view(gdvs);
+  GDVs::HostMirror graph2_gdvs = Kokkos::create_mirror_view(gdvs);
+  compute_gdvs(graphx, k_orbits, gdvs, graph_name1);
+  Kokkos::deep_copy(graph1_gdvs, gdvs);
+high_resolution_clock::time_point end_time0 = high_resolution_clock::now();
+printf("Time spent on graph 1: %f\n", duration_cast<duration<double>>(end_time0 - start_time0));
+
+  readin_graph(&the_file1, graphy);
+  if(rank == 0) {
+//    cout << "Graph 1: # of vertices: " << graphx.numRows() << endl;
+    cout << "Graph 2: # of vertices: " << graphy.numRows() << endl;
+  }
+  CHECKPOINT_INTERVAL = strtoull(argv[5], NULL, 0);
+  sscanf(argv[6], "%d", &CHUNK_SIZE);
+start_time0 = high_resolution_clock::now();
+  Kokkos::resize(gdvs, graphy.numRows(), num_orbits);
+  Kokkos::deep_copy(gdvs, 0);
+  compute_gdvs(graphy, k_orbits, gdvs, graph_name2);
+  Kokkos::deep_copy(graph2_gdvs, gdvs);
+end_time0 = high_resolution_clock::now();
+printf("Time spent on graph 2: %f\n", duration_cast<duration<double>>(end_time0 - start_time0));
+
+#ifdef OUTPUT_GDV    
+  write_gdvs(graph1_gdvs, graph_name1, graph2_gdvs, graph_name2);
+#endif
   
   if(rank == 0) {
     end_time = MPI_Wtime();
@@ -266,6 +324,31 @@ int main(int argc, char *argv[]) {
   return 0;
 }
 
+void compute_gdvs(const matrix_type& graph, const Orbits& orbits, GDVs& graph_GDV, string name) {
+  MPI_Barrier( MPI_COMM_WORLD );
+  int rankm;
+  MPI_Comm_rank(MPI_COMM_WORLD, &rankm);
+  kokkos_GDV_vector_calculation(graph, graph_GDV, orbits, name.c_str(), 0); 
+  Kokkos::fence();
+  MPI_Barrier(MPI_COMM_WORLD);
+#ifdef DEBUG
+  GDVs::HostMirror graph_GDV_host = Kokkos::create_mirror_view(graph_GDV);
+  Kokkos::deep_copy(graph_GDV_host, graph_GDV);
+  Kokkos::fence();
+  if(rankm == 0) {
+    cout << "Post kokkos_GDV_vector_calculation: graph " << name << endl;
+    for(int i=0; i<graph_GDV.extent(0); i++) {
+      cout << "Node " << i << ": ";
+      for(int j=0; j<graph_GDV_host.extent(1); j++) {
+        cout << graph_GDV_host(i,j) << " ";
+      }
+      cout << endl;
+    }
+    cout << endl;
+  }
+#endif
+}
+
 void 
 kokkos_similarity_metric_calculation_for_two_graphs(const matrix_type& graph1, 
                                                     const matrix_type& graph2, 
@@ -291,6 +374,7 @@ kokkos_similarity_metric_calculation_for_two_graphs(const matrix_type& graph1,
     start = MPI_Wtime();
   int graph_counter = 1;
   kokkos_GDV_vector_calculation(graph1, graph1_GDV, orbits, graph_tag1.c_str(), graph_counter); 
+  Kokkos::fence();
   MPI_Barrier(MPI_COMM_WORLD);
   if(rankm == 0) {
     printf("Time spent calculating GDVs of graph 1: %lf\n", MPI_Wtime()-start);
@@ -299,6 +383,7 @@ kokkos_similarity_metric_calculation_for_two_graphs(const matrix_type& graph1,
 
 #ifdef DEBUG
   Kokkos::deep_copy(graph1_GDV_host, graph1_GDV);
+  Kokkos::fence();
   if(rankm == 0) {
     cout << "Post kokkos_GDV_vector_calculation: graph 1" << endl;
     for(int i=0; i<graph1_GDV.extent(0); i++) {
@@ -342,6 +427,7 @@ kokkos_similarity_metric_calculation_for_two_graphs(const matrix_type& graph1,
 #endif
 
 #ifdef OUTPUT_MATRIX
+  Kokkos::fence();
   int m = graph1_GDV.extent(0);
   int n = graph2_GDV.extent(0);
   Kokkos::View<double**> sim_mat("Similarity matrix", m, n);
@@ -353,6 +439,7 @@ kokkos_similarity_metric_calculation_for_two_graphs(const matrix_type& graph1,
         sim_mat(i,j) = kokkos_GDV_distance_calculation(g1_subview, g2_subview);
     });
   }
+  Kokkos::fence();
   if(rankm == 0)
     cout << "Created similarity matrix\n";
 #endif
@@ -374,6 +461,7 @@ kokkos_similarity_metric_calculation_for_two_graphs(const matrix_type& graph1,
 #ifdef OUTPUT_MATRIX
     Kokkos::View<double**>::HostMirror sim_mat_host = Kokkos::create_mirror_view(sim_mat);
     Kokkos::deep_copy(sim_mat_host, sim_mat);
+    Kokkos::fence();
     string filename = "out_similarity_matrix.txt";
     myfile.open(filename);
     for(int i=1; i<m;i++) {
@@ -467,11 +555,11 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
 
   Kokkos::View<uint64_t*> num_combinations("Number of combinations", graph.numRows());
   Kokkos::View<uint32_t*> num_neighbors("Number of neighbors", graph.numRows());
-  uint64_t k_interval = 1000000000;
+  uint64_t k_interval = CHECKPOINT_INTERVAL;
 
   typedef Kokkos::DefaultExecutionSpace::scratch_memory_space ScratchSpace;
   typedef Kokkos::View<int*, ScratchSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> scratch_int_view;
-  Kokkos::TeamPolicy<> team_policy = Kokkos::TeamPolicy<>(1, 1).set_scratch_size(1, Kokkos::PerThread(400));
+  Kokkos::TeamPolicy<> team_policy = Kokkos::TeamPolicy<>(1, 32).set_scratch_size(1, Kokkos::PerThread(400));
   using team_member_type = Kokkos::TeamPolicy<>::member_type;
 #ifdef DEBUG
   printf("Number of threads: %d\n", team_policy.team_size());
@@ -596,7 +684,7 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
   // Calculate GDVs
   if(comm_size == 1)
   {
-    Kokkos::TeamPolicy<Kokkos::Schedule<Kokkos::Dynamic>> policy(1, NUM_THREADS);
+//    Kokkos::TeamPolicy<Kokkos::Schedule<Kokkos::Dynamic>> policy(1, NUM_THREADS);
     using member_type = Kokkos::TeamPolicy<Kokkos::Schedule<Kokkos::Dynamic>>::member_type;
 
     Kokkos::Experimental::ScatterView<uint32_t**, LAYOUT> metrics_sa(graph_GDV);
@@ -628,6 +716,58 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
     auto& new_data = graph_GDV;
 #endif
 #endif
+
+#ifdef DEDUPLICATION
+    std::fstream fs;
+#ifdef DEDUP_ON_CPU1
+    std::string logfile = std::string("case1_cpu.chunk_size_") + std::to_string(CHUNK_SIZE) + std::string(".") + std::string(graph_name) + std::string(".csv");
+    fs.open(logfile, std::fstream::out | std::fstream::app);
+    printf("Deduplication on CPU (case 1)\n");
+    fs << "Chunk, Copy GDVs to CPU, Compute hashes, Compare hashes, Create diff, Total time\n";
+#elif defined(DEDUP_ON_GPU2)
+    std::string logfile = std::string("case2_gpu.chunk_size_") + std::to_string(CHUNK_SIZE) + std::string(".") + std::string(graph_name) + std::string(".csv");
+    fs.open(logfile, std::fstream::out | std::fstream::app);
+    printf("Deduplication on GPU (case 2)\n");
+    fs << "Chunk, Copy hashes to GPU, Compute hashes, Compare hashes, Copy changes to CPU, Create diff, Copy diff to CPU, Total time\n";
+#elif defined(DEDUP_ON_GPU3)
+    std::string logfile = std::string("case3_gpu.chunk_size_") + std::to_string(CHUNK_SIZE) + std::string(".") + std::string(graph_name) + std::string(".csv");
+    fs.open(logfile, std::fstream::out | std::fstream::app);
+    printf("Deduplication on GPU (case 3)\n");
+    fs << "Chunk, Compute hashes, Copy hashes to CPU, Compare hashes, Create diff, Copy diff to CPU, Total time\n";
+#endif
+    using namespace std::chrono;
+    int chunk_size = CHUNK_SIZE;
+    printf("Chunk size: %d\n", chunk_size);
+    size_t num_hashes = graph_GDV.span()*sizeof(uint32_t) / chunk_size;
+    if(chunk_size*num_hashes < graph_GDV.span()*sizeof(uint32_t))
+      num_hashes += 1;
+    printf("Number of hashes: %zd\n", num_hashes);
+    // Storage for hashes
+    Kokkos::View<uint32_t*> prev_hashes("Previous hashes", num_hashes);
+    Kokkos::View<uint32_t*> curr_hashes("Current hashes", num_hashes);
+    Kokkos::deep_copy(prev_hashes, 0);
+    Kokkos::deep_copy(curr_hashes, 0);
+    Kokkos::View<uint32_t*>::HostMirror prev_hashes_h = Kokkos::create_mirror_view(prev_hashes);
+    Kokkos::View<uint32_t*>::HostMirror curr_hashes_h = Kokkos::create_mirror_view(curr_hashes);
+    GDVs::HostMirror current_gdvs_h = Kokkos::create_mirror_view(graph_GDV);
+    Kokkos::View<size_t*> changed_regions("Regions that changed", num_hashes);
+    Kokkos::View<size_t*>::HostMirror changed_regions_h = Kokkos::create_mirror_view(changed_regions);
+    Kokkos::View<uint8_t*, Kokkos::HostSpace> diff_buff_h("Diff", graph_GDV.span()*sizeof(uint32_t));
+    Kokkos::fence();
+//printf("Allocated memory for deduplication\n");
+#endif
+
+//      Kokkos::TeamPolicy<> bundle_policy = Kokkos::TeamPolicy<>(num_leagues, NUM_THREADS);
+//      Kokkos::View<int**> neighbor_view("Neighbor scratch", bundle_policy.team_size(), max_neighbors);
+//      Kokkos::View<int**> indices_view("Indices scratch", bundle_policy.team_size(), 5);
+//      Kokkos::View<int**> combination_view("Combination scratch", bundle_policy.team_size(), 5);
+//      Kokkos::View<int**> sgraph_dist_view("Subgraph Distance scratch", bundle_policy.team_size(), orbits.distance.extent(0));
+//      Kokkos::View<int**> sgraph_deg_view("Degree scratch", bundle_policy.team_size(), 5);
+//      Kokkos::View<int**> queue_view("Queue scratch", bundle_policy.team_size(), 5);
+//      Kokkos::View<int**> distance_view("Distance scratch", bundle_policy.team_size(), 5);
+//      Kokkos::View<int***> subgraph_view("Subgraph scratch", bundle_policy.team_size(), 5, 5);
+//      Kokkos::View<bool**> visited_view("Visited scratch", bundle_policy.team_size(), 5);
+
     for(i; i<starts.extent(0)-1; i++) {
 
 #ifdef DIRTY_PAGE_TRACKING
@@ -643,7 +783,7 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
 #endif
 
       // Divide work into different leagues
-      const int num_leagues = 64;
+      const int num_leagues = 128;
       int per_league = (starts_host(i+1)-starts_host(i))/num_leagues;
       if(per_league*num_leagues < starts_host(i+1)-starts_host(i))
         per_league += 1;
@@ -658,39 +798,29 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
       typedef Kokkos::View<bool*, ScratchSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> scratch_bool_view;
 
       int num_bytes = (8+max_neighbors+55+orbits.distance.span())*sizeof(int);
-      Kokkos::TeamPolicy<> bundle_policy = Kokkos::TeamPolicy<>(num_leagues, NUM_THREADS).set_scratch_size(0, Kokkos::PerThread((num_bytes)));
+      Kokkos::TeamPolicy<> bundle_policy = Kokkos::TeamPolicy<>(num_leagues, NUM_THREADS).set_scratch_size(1, Kokkos::PerThread((num_bytes)));
 
-      Kokkos::View<int**> neighbor_view("Neighbor scratch", bundle_policy.team_size(), max_neighbors);
-      Kokkos::View<int**> indices_view("Indices scratch", bundle_policy.team_size(), 5);
-      Kokkos::View<int**> combination_view("Combination scratch", bundle_policy.team_size(), 5);
-      Kokkos::View<int**> sgraph_dist_view("Subgraph Distance scratch", bundle_policy.team_size(), orbits.distance.extent(0));
-      Kokkos::View<int**> sgraph_deg_view("Degree scratch", bundle_policy.team_size(), 5);
-      Kokkos::View<int**> queue_view("Queue scratch", bundle_policy.team_size(), 5);
-      Kokkos::View<int**> distance_view("Distance scratch", bundle_policy.team_size(), 5);
-      Kokkos::View<int***> subgraph_view("Subgraph scratch", bundle_policy.team_size(), 5, 5);
-      Kokkos::View<bool**> visited_view("Visited scratch", bundle_policy.team_size(), 5);
+      Kokkos::parallel_for("Calculate GDV bundle", bundle_policy, KOKKOS_LAMBDA(member_type team_member) {
 
-      Kokkos::parallel_for("Calcualte GDV bundle", bundle_policy, KOKKOS_LAMBDA(member_type team_member) {
+//        auto neighbor_subview    = Kokkos::subview(neighbor_view,    team_member.team_rank(), Kokkos::ALL());
+//        auto indices_subview     = Kokkos::subview(indices_view,     team_member.team_rank(), Kokkos::ALL());
+//        auto combination_subview = Kokkos::subview(combination_view, team_member.team_rank(), Kokkos::ALL());
+//        auto sgraph_dist_subview = Kokkos::subview(sgraph_dist_view, team_member.team_rank(), Kokkos::ALL());
+//        auto sgraph_deg_subview  = Kokkos::subview(sgraph_deg_view,  team_member.team_rank(), Kokkos::ALL());
+//        auto queue_subview       = Kokkos::subview(queue_view,       team_member.team_rank(), Kokkos::ALL());
+//        auto distance_subview    = Kokkos::subview(distance_view,    team_member.team_rank(), Kokkos::ALL());
+//        auto subgraph_subview    = Kokkos::subview(subgraph_view,    team_member.team_rank(), Kokkos::ALL(), Kokkos::ALL());
+//        auto visited_subview     = Kokkos::subview(visited_view,     team_member.team_rank(), Kokkos::ALL());
 
-        auto neighbor_subview    = Kokkos::subview(neighbor_view,    team_member.team_rank(), Kokkos::ALL());
-        auto indices_subview     = Kokkos::subview(indices_view,     team_member.team_rank(), Kokkos::ALL());
-        auto combination_subview = Kokkos::subview(combination_view, team_member.team_rank(), Kokkos::ALL());
-        auto sgraph_dist_subview = Kokkos::subview(sgraph_dist_view, team_member.team_rank(), Kokkos::ALL());
-        auto sgraph_deg_subview  = Kokkos::subview(sgraph_deg_view,  team_member.team_rank(), Kokkos::ALL());
-        auto queue_subview       = Kokkos::subview(queue_view,       team_member.team_rank(), Kokkos::ALL());
-        auto distance_subview    = Kokkos::subview(distance_view,    team_member.team_rank(), Kokkos::ALL());
-        auto subgraph_subview    = Kokkos::subview(subgraph_view,    team_member.team_rank(), Kokkos::ALL(), Kokkos::ALL());
-        auto visited_subview     = Kokkos::subview(visited_view,     team_member.team_rank(), Kokkos::ALL());
-
-//        scratch_int_view neighbor_subview(team_member.thread_scratch(0), max_neighbors);
-//        scratch_int_view indices_subview(team_member.thread_scratch(0), 5);
-//        scratch_int_view combination_subview(team_member.thread_scratch(0), 5);
-//        scratch_int_view sgraph_dist_subview(team_member.thread_scratch(0), orbits.distance.extent(0));
-//        scratch_int_view sgraph_deg_subview(team_member.thread_scratch(0), 5);
-//        scratch_int_view queue_subview(team_member.thread_scratch(0), 5);
-//        scratch_int_view distance_subview(team_member.thread_scratch(0), 5);
-//        scratch_subgraph_view subgraph_subview(team_member.thread_scratch(0), 5, 5);
-//        scratch_bool_view visited_subview(team_member.thread_scratch(0), 5);
+        scratch_int_view neighbor_subview(team_member.thread_scratch(1), max_neighbors);
+        scratch_int_view indices_subview(team_member.thread_scratch(1), 5);
+        scratch_int_view combination_subview(team_member.thread_scratch(1), 5);
+        scratch_int_view sgraph_dist_subview(team_member.thread_scratch(1), orbits.distance.extent(0));
+        scratch_int_view sgraph_deg_subview(team_member.thread_scratch(1), 5);
+        scratch_int_view queue_subview(team_member.thread_scratch(1), 5);
+        scratch_int_view distance_subview(team_member.thread_scratch(1), 5);
+        scratch_subgraph_view subgraph_subview(team_member.thread_scratch(1), 5, 5);
+        scratch_bool_view visited_subview(team_member.thread_scratch(1), 5);
 
         Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, per_league), [=] (int n_) {
           int n_offset = team_member.league_rank()*per_league + n_;
@@ -717,6 +847,7 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
       Kokkos::Experimental::contribute(graph_GDV, metrics_sa);
       metrics_sa.reset_except(graph_GDV);
       Kokkos::fence();
+
 #ifdef ANALYSIS
 std::string region_log("region-data-graph-");
 region_log = region_log + std::string(graph_name) + std::string(".log");
@@ -731,79 +862,6 @@ generate_hashes(graph_GDV, new_hashes, page_size);
 num_changed = print_changed_blocks(fs, new_data, old_data);
 auto contiguous_regions = print_contiguous_regions(fs, new_data, old_data);
 
-//fs << "Number of blocks: " << new_data.size() << std::endl;
-//fs << "Changed blocks: ";
-//bool flag = false;
-//for(int idx = 0; idx<new_data.size(); idx++) {
-//  if(old_data.data()[idx] != new_data.data()[idx])
-//  {
-//    num_changed += 1;
-//    if(!flag) {
-//      fs << "[" << idx << ",";
-//      flag = true;
-//    }
-//  } else {
-//    if(flag) {
-//      fs << idx << ") ";
-//      flag = false;
-//    }
-//  }
-//}
-//if(flag)
-//  fs << new_data.size() << ")";
-////  fs << new_hashes.size() << ")";
-//fs << std::endl;
-//fs << num_changed << "/" << new_data.size() << " blocks changed " << std::endl;
-//// Find contiguous regions
-//std::map<int, int> contiguous_regions;
-//int largest_region = 1;
-//int region_size_counter = 0;
-//for(int idx=0; idx<new_data.size(); idx++) {
-//  if(old_data.data()[idx] != new_data.data()[idx])
-//  {
-//    region_size_counter += 1;
-//  }
-//  else 
-//  {
-//    if(region_size_counter > largest_region)
-//    {
-//      largest_region = region_size_counter;
-//    }
-//    if(region_size_counter > 0) {
-//      auto pos = contiguous_regions.find(region_size_counter);
-//      if(pos != contiguous_regions.end())
-//      {
-//        pos->second = pos->second + 1;
-//      }
-//      else
-//      {
-//        contiguous_regions.insert(std::pair<int,int>(region_size_counter, 1));
-//      }
-//    }
-//    region_size_counter = 0;
-//  }
-//}
-//if(region_size_counter > largest_region)
-//{
-//  largest_region = region_size_counter;
-//}
-//if(region_size_counter > 0) {
-//  auto pos = contiguous_regions.find(region_size_counter);
-//  if(pos != contiguous_regions.end())
-//  {
-//    pos->second = pos->second + 1;
-//  }
-//  else
-//  {
-//    contiguous_regions.insert(std::pair<int,int>(region_size_counter, 1));
-//  }
-//}
-//fs << "Largest region: " << largest_region << std::endl;
-//fs << "Region map\n";
-//for(auto itr = contiguous_regions.begin(); itr != contiguous_regions.end(); ++itr)
-//{
-//  fs << itr->second << " regions of size " << itr->first << std::endl;
-//}
 #ifdef HASH_ANALYSIS
 Kokkos::deep_copy(old_data, new_data);
 Kokkos::deep_copy(new_data, 0);
@@ -844,7 +902,329 @@ Kokkos::deep_copy(old_data, new_data);
 #ifdef AUTO_CHECKPOINT
 }, filt);
 #endif
+
+#ifdef DEDUPLICATION
+//std::fstream fs;
+#ifdef DEDUP_ON_CPU1
+//  dedup_case1(graph_GDV, current_gdvs_h, prev_hashes, prev_hashes_h, curr_hashes, curr_hashes_h, changed_regions, changed_regions_h, diff_buff_h, fs, chunk_size, num_hashes, i);
+//fs.open("gdv_cpu_diff."+std::to_string(i)+std::string(".diff"), std::fstream::out);
+//fs.open(logfile, std::fstream::out | std::fstream::app);
+Kokkos::fence();
+if(i == 0) {
+  START_TIMER(dedup);
+  Kokkos::View<size_t[1]> num_changes("Number of changes");
+  Kokkos::View<size_t[1]>::HostMirror num_changes_h = Kokkos::create_mirror_view(num_changes);
+  Kokkos::deep_copy(num_changes_h, 0);
+  Kokkos::deep_copy(changed_regions_h, 0);
+  Kokkos::fence();
+  // Copy GDVs to CPU
+  START_TIMER(copy);
+  Kokkos::deep_copy(current_gdvs_h, graph_GDV);
+  STOP_TIMER(copy);
+  // Compute hashes on the CPU
+  START_TIMER(hash);
+  Kokkos::parallel_for("Hashes on CPU", Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0,num_hashes), KOKKOS_LAMBDA(const size_t idx) {
+    int hash_size = chunk_size;
+    if(chunk_size*(idx+1) > current_gdvs_h.span()*sizeof(uint32_t))
+      hash_size = (current_gdvs_h.span()*sizeof(uint32_t))-(idx*chunk_size);
+    uint32_t hash = hash32((uint8_t*)(current_gdvs_h.data())+(idx*chunk_size), hash_size);
+    curr_hashes_h(idx) = hash;
+  });
+  STOP_TIMER(hash);
+  STOP_TIMER(dedup);
+  // Print stats
+//  fs  << i << ", " 
+//      << duration_cast<duration<double>>(copy_end-copy_beg).count() << ", " 
+//      << duration_cast<duration<double>>(hash_end-hash_beg).count() << ", "
+//      << "0" << ", " 
+//      << "0" << ", " 
+//      << duration_cast<duration<double>>(dedup_end-dedup_beg).count() << std::endl; // Total time
+  Kokkos::deep_copy(prev_hashes_h, curr_hashes_h);
+} else if(i > 0) {
+  START_TIMER(dedup);
+  Kokkos::View<size_t[1]> num_changes("Number of changes");
+  Kokkos::View<size_t[1]>::HostMirror num_changes_h = Kokkos::create_mirror_view(num_changes);
+  Kokkos::deep_copy(num_changes_h, 0);
+  Kokkos::deep_copy(changed_regions_h, 0);
+  Kokkos::fence();
+  // Copy GDVs to CPU
+  START_TIMER(copy);
+  Kokkos::deep_copy(current_gdvs_h, graph_GDV);
+  STOP_TIMER(copy);
+  // Compute hashes on the CPU
+  START_TIMER(hash);
+  Kokkos::parallel_for("Hashes on CPU", Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0,num_hashes), KOKKOS_LAMBDA(const size_t idx) {
+    int hash_size = chunk_size;
+    if(chunk_size*(idx+1) > current_gdvs_h.span()*sizeof(uint32_t))
+      hash_size = (current_gdvs_h.span()*sizeof(uint32_t))-(idx*chunk_size);
+    uint32_t hash = hash32((uint8_t*)(current_gdvs_h.data())+(idx*chunk_size), hash_size);
+    curr_hashes_h(idx) = hash;
+  });
+  STOP_TIMER(hash);
+  // Find differences
+  Kokkos::View<size_t[1]> diff_size("Diff size");
+  Kokkos::View<size_t[1]>::HostMirror diff_size_h = Kokkos::create_mirror_view(diff_size);
+  Kokkos::fence();
+  START_TIMER(comp);
+  Kokkos::parallel_for("Compare hashes on CPU", Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0, num_hashes), KOKKOS_LAMBDA(const size_t idx) {
+    if(prev_hashes_h(idx) != curr_hashes_h(idx)) {
+      size_t n = Kokkos::atomic_fetch_add( &num_changes_h(0), 1 );
+      changed_regions_h(n) = idx;
     }
+  });
+  STOP_TIMER(comp);
+  START_TIMER(create_diff);
+  auto diff_policy = Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0, num_changes_h(0));
+  Kokkos::parallel_for("Create diff on CPU", diff_policy, KOKKOS_LAMBDA(const size_t idx) {
+    int num_write = chunk_size;
+    if(chunk_size*(changed_regions_h(idx)+1) > current_gdvs_h.span()*sizeof(uint32_t))
+      num_write = (current_gdvs_h.span()*sizeof(uint32_t))-changed_regions_h(idx)*chunk_size;
+    Kokkos::atomic_add(&diff_size_h(0), num_write);
+    std::memcpy((uint8_t*)(diff_buff_h.data())+chunk_size*idx, (uint8_t*)(current_gdvs_h.data())+chunk_size*changed_regions_h(idx), num_write);
+  });
+  STOP_TIMER(create_diff);
+//fs.write((const char*)(&num_changes_h(0)), sizeof(size_t));
+//fs.write((const char*)(changed_regions_h.data()), sizeof(size_t)*num_changes_h(0));
+//fs.write((const char*)(diff_buff_h.data()), diff_size_h(0));
+  STOP_TIMER(dedup);
+  // Print stats
+//  fs  << i << ", " 
+//      << duration_cast<duration<double>>(copy_end-copy_beg).count() << ", " 
+//      << duration_cast<duration<double>>(hash_end-hash_beg).count() << ", "
+//      << duration_cast<duration<double>>(comp_end-comp_beg).count() << ", " 
+//      << duration_cast<duration<double>>(create_diff_end-create_diff_beg).count() << ", " 
+//      << duration_cast<duration<double>>(dedup_end-dedup_beg).count() << std::endl; // Total time
+  Kokkos::deep_copy(prev_hashes_h, curr_hashes_h);
+}
+#endif
+#ifdef DEDUP_ON_GPU2
+//fs.open("gdv_gpu_diff."+std::to_string(i)+std::string(".diff"), std::fstream::out);
+//fs.open(logfile, std::fstream::out | std::fstream::app);
+Kokkos::fence();
+Kokkos::View<size_t[1]> num_changes("Number of changes");
+Kokkos::View<size_t[1]>::HostMirror num_changes_h = Kokkos::create_mirror_view(num_changes);
+Kokkos::deep_copy(num_changes_h, 0);
+Kokkos::deep_copy(changed_regions_h, 0);
+Kokkos::fence();
+if(i == 0) {
+  START_TIMER(dedup);
+  // Compute hashes on the GPU
+  START_TIMER(hash);
+  Kokkos::parallel_for("Hashes on CPU", Kokkos::RangePolicy<>(0,num_hashes), KOKKOS_LAMBDA(const size_t idx) {
+    int hash_size = chunk_size;
+    if(chunk_size*(idx+1) > graph_GDV.span()*sizeof(uint32_t)) {
+      hash_size = graph_GDV.span()*sizeof(uint32_t)-(idx*chunk_size);
+    }
+    uint32_t hash = hash32((uint8_t*)(graph_GDV.data())+(idx*chunk_size), hash_size);
+    curr_hashes(idx) = hash;
+  });
+  STOP_TIMER(hash);
+  START_TIMER(copy_diff);
+  Kokkos::deep_copy(prev_hashes_h, curr_hashes);
+  Kokkos::deep_copy(current_gdvs_h, graph_GDV);
+  STOP_TIMER(copy_diff);
+  STOP_TIMER(dedup);
+//  fs  << i << ", " 
+//      << "0" << ", " 
+//      << duration_cast<duration<double>>(hash_end-hash_beg).count() << ", " 
+//      << "0" << ", " 
+//      << "0" << ", "
+//      << "0" << ", " 
+//      << duration_cast<duration<double>>(copy_diff_end-copy_diff_beg).count() << ", "
+//      << duration_cast<duration<double>>(dedup_end-dedup_beg).count() << std::endl; // Total time
+  Kokkos::deep_copy(prev_hashes_h, curr_hashes);
+} else if(i > 0) {
+  START_TIMER(dedup);
+  // Copy previous hashes to GPU
+  START_TIMER(copy_hash);
+  Kokkos::deep_copy(prev_hashes, prev_hashes_h);
+  STOP_TIMER(copy_hash);
+  // Compute hashes on the GPU
+  START_TIMER(hash);
+  Kokkos::parallel_for("Hashes on CPU", Kokkos::RangePolicy<>(0,num_hashes), KOKKOS_LAMBDA(const size_t idx) {
+    int hash_size = chunk_size;
+    if(chunk_size*(idx+1) > graph_GDV.span()*sizeof(uint32_t))
+      hash_size = graph_GDV.span()*sizeof(uint32_t)-(idx*chunk_size);
+    uint32_t hash = hash32((uint8_t*)(graph_GDV.data())+(idx*chunk_size), hash_size);
+    curr_hashes(idx) = hash;
+  });
+  STOP_TIMER(hash);
+  // Find differences and make diff
+  START_TIMER(comp);
+  Kokkos::parallel_for("Compare hashes on GPU", Kokkos::RangePolicy<>(0, num_hashes), KOKKOS_LAMBDA(const size_t idx) {
+    if(prev_hashes(idx) != curr_hashes(idx)) {
+      size_t n = Kokkos::atomic_fetch_add( &num_changes(0), 1 );
+      changed_regions(n) = idx;
+    }
+  });
+  STOP_TIMER(comp);
+  START_TIMER(copy_changes);
+  Kokkos::deep_copy(num_changes_h, num_changes);
+  Kokkos::deep_copy(changed_regions_h, changed_regions);
+  STOP_TIMER(copy_changes);
+  // Create diff
+  START_TIMER(create_diff);
+  Kokkos::View<uint8_t*> buffer("Buffer", num_changes_h(0)*chunk_size);
+  Kokkos::View<size_t[1]> diff_size("Diff size");
+  Kokkos::View<size_t[1]>::HostMirror diff_size_h = Kokkos::create_mirror_view(diff_size);
+//  for(int idx=0; idx<num_changes_h(0); idx++) {
+//    int num_write = chunk_size;
+//    if(chunk_size*(changed_regions_h(idx)+1) > graph_GDV.span()*sizeof(uint32_t))
+//      num_write = graph_GDV.span()*sizeof(uint32_t) - changed_regions_h(idx)*chunk_size;
+//    diff_size_h(0) += num_write;
+//    cudaMemcpy((uint8_t*)(buffer.data())+chunk_size*idx, (uint8_t*)(graph_GDV.data())+chunk_size*changed_regions_h(idx), num_write, cudaMemcpyDeviceToDevice);
+//  }
+  Kokkos::parallel_for("Create diff", Kokkos::RangePolicy<>(0,num_changes_h(0)), KOKKOS_LAMBDA(const size_t idx) {
+    int num_write = chunk_size;
+    if(chunk_size*(changed_regions(idx)+1) > graph_GDV.span()*sizeof(uint32_t))
+      num_write = graph_GDV.span()*sizeof(uint32_t) - changed_regions(idx)*chunk_size;
+    Kokkos::atomic_add(&diff_size(0), num_write);
+    for(size_t i=0; i<num_write; i++) {
+      buffer(chunk_size*idx+i) = *((uint8_t*)(graph_GDV.data())+chunk_size*changed_regions(idx)+i);
+    }
+  });
+  Kokkos::deep_copy(diff_size_h, diff_size);
+  STOP_TIMER(create_diff);
+  // Copy diff
+  START_TIMER(copy_diff);
+  Kokkos::deep_copy(prev_hashes_h, curr_hashes);
+  auto host = Kokkos::subview(diff_buff_h, Kokkos::make_pair((size_t)(0), (diff_size_h(0))));
+  auto device = Kokkos::subview(buffer, Kokkos::make_pair((size_t)(0), (diff_size_h(0))));
+  Kokkos::deep_copy(host, device);
+  STOP_TIMER(copy_diff);
+  STOP_TIMER(dedup);
+//fs.write((const char*)(&num_changes_h(0)), sizeof(size_t));
+//fs.write((const char*)(changed_regions_h.data()), sizeof(size_t)*num_changes_h(0));
+//fs.write((const char*)(diff_buff_h.data()), diff_size_h(0));
+  // Print stats
+//  fs << "Chunk, Copy hashes to GPU, Compute hashes, Compare hashes, Copy changes to CPU, Create diff, Copy diff to CPU, Total time\n";
+//  fs  << i << ", " 
+//      << duration_cast<duration<double>>(copy_hash_end-copy_hash_beg).count() << ", " 
+//      << duration_cast<duration<double>>(hash_end-hash_beg).count() << ", " 
+//      << duration_cast<duration<double>>(comp_end-comp_beg).count() << ", " 
+//      << duration_cast<duration<double>>(copy_changes_end-copy_changes_beg).count() << ", "
+//      << duration_cast<duration<double>>(create_diff_end-create_diff_beg).count() << ", " 
+//      << duration_cast<duration<double>>(copy_diff_end-copy_diff_beg).count() << ", "
+//      << duration_cast<duration<double>>(dedup_end-dedup_beg).count() << std::endl; // Total time
+Kokkos::deep_copy(prev_hashes_h, curr_hashes);
+}
+//fs.close();
+#endif
+#ifdef DEDUP_ON_GPU3
+//fs.open(logfile, std::fstream::out | std::fstream::app);
+Kokkos::fence();
+Kokkos::View<size_t[1]> num_changes("Number of changes");
+Kokkos::View<size_t[1]>::HostMirror num_changes_h = Kokkos::create_mirror_view(num_changes);
+Kokkos::deep_copy(num_changes_h, 0);
+Kokkos::deep_copy(changed_regions_h, 0);
+Kokkos::fence();
+if(i == 0) {
+  START_TIMER(dedup);
+  // Compute hashes on the GPU
+  START_TIMER(hash);
+  Kokkos::parallel_for("Hashes on GPU", Kokkos::RangePolicy<>(0,num_hashes), KOKKOS_LAMBDA(const size_t idx) {
+    int hash_size = chunk_size;
+    if(chunk_size*(idx+1) > graph_GDV.span()*sizeof(uint32_t)) {
+      hash_size = graph_GDV.span()*sizeof(uint32_t)-(idx*chunk_size);
+    }
+    uint32_t hash = hash32((uint8_t*)(graph_GDV.data())+(idx*chunk_size), hash_size);
+    curr_hashes(idx) = hash;
+  });
+  STOP_TIMER(hash);
+  // Transfer hashes to CPU
+  START_TIMER(copy_hash);
+  Kokkos::deep_copy(prev_hashes_h, curr_hashes);
+  STOP_TIMER(copy_hash);
+  // Copy GDVs to CPU
+  START_TIMER(copy_diff);
+  Kokkos::deep_copy(current_gdvs_h, graph_GDV);
+  STOP_TIMER(copy_diff);
+  STOP_TIMER(dedup);
+//  fs  << i << ", "  // Chunk
+//      << duration_cast<duration<double>>(hash_end-hash_beg).count() << ", " // Compute hashes
+//      << duration_cast<duration<double>>(copy_hash_end-copy_hash_beg).count() << ", " // Copy hashes
+//      << "0, " // Compare hashes
+//      << "0, " // Create diff
+//      << duration_cast<duration<double>>(copy_diff_end-copy_diff_beg).count() << ", " // Copy diff
+//      << duration_cast<duration<double>>(dedup_end-dedup_beg).count() << std::endl; // Total time
+Kokkos::deep_copy(prev_hashes_h, curr_hashes);
+} else if(i > 0) {
+  START_TIMER(dedup);
+  // Compute hashes on the GPU
+  START_TIMER(hash);
+  Kokkos::parallel_for("Hashes on CPU", Kokkos::RangePolicy<>(0,num_hashes), KOKKOS_LAMBDA(const size_t idx) {
+    int hash_size = chunk_size;
+    if(chunk_size*(idx+1) > graph_GDV.span()*sizeof(uint32_t))
+      hash_size = graph_GDV.span()*sizeof(uint32_t)-(idx*chunk_size);
+    uint32_t hash = hash32((uint8_t*)(graph_GDV.data())+(idx*chunk_size), hash_size);
+    curr_hashes(idx) = hash;
+  });
+  STOP_TIMER(hash);
+  // Transfer hashes to CPU
+  START_TIMER(copy_hash);
+  Kokkos::deep_copy(curr_hashes_h, curr_hashes);
+  STOP_TIMER(copy_hash);
+  // Compare hashes on CPU
+  START_TIMER(comp);
+  Kokkos::parallel_for("Compare hashes on CPU", Kokkos::RangePolicy<Kokkos::DefaultHostExecutionSpace>(0, num_hashes), KOKKOS_LAMBDA(const size_t idx) {
+    if(prev_hashes_h(idx) != curr_hashes_h(idx)) {
+      size_t n = Kokkos::atomic_fetch_add( &num_changes_h(0), 1 );
+      changed_regions_h(n) = idx;
+    }
+  });
+  STOP_TIMER(comp);
+  Kokkos::View<uint8_t*> buffer("Buffer", num_changes_h(0)*chunk_size);
+  Kokkos::View<size_t[1]> diff_size("Diff size");
+  Kokkos::View<size_t[1]>::HostMirror diff_size_h = Kokkos::create_mirror_view(diff_size);
+  // Create diff on GPU
+  START_TIMER(create_diff);
+  Kokkos::deep_copy(changed_regions, changed_regions_h);
+//  for(int idx=0; idx<num_changes_h(0); idx++) {
+  Kokkos::parallel_for("Create diff", Kokkos::RangePolicy<>(0,num_changes_h(0)), KOKKOS_LAMBDA(const size_t idx) {
+    int num_write = chunk_size;
+//    if(chunk_size*(changed_regions_h(idx)+1) > graph_GDV.span()*sizeof(uint32_t))
+//      num_write = graph_GDV.span()*sizeof(uint32_t) - changed_regions_h(idx)*chunk_size;
+//    diff_size_h(0) += num_write;
+    if(chunk_size*(changed_regions(idx)+1) > graph_GDV.span()*sizeof(uint32_t))
+      num_write = graph_GDV.span()*sizeof(uint32_t) - changed_regions(idx)*chunk_size;
+//    diff_size(0) += num_write;
+    Kokkos::atomic_add(&diff_size(0), num_write);
+    for(size_t i=0; i<num_write; i++) {
+      buffer(chunk_size*idx+i) = *((uint8_t*)(graph_GDV.data())+chunk_size*changed_regions(idx)+i);
+    }
+//    cudaMemcpy( (uint8_t*)(buffer.data())+chunk_size*idx, 
+//                (uint8_t*)(graph_GDV.data())+chunk_size*changed_regions_h(idx), 
+//                num_write, cudaMemcpyDeviceToDevice);
+  });
+  Kokkos::deep_copy(diff_size_h, diff_size);
+//  }
+  STOP_TIMER(create_diff);
+  // Copy diff to CPU
+  START_TIMER(copy_diff);
+  auto host = Kokkos::subview(diff_buff_h, Kokkos::make_pair((size_t)(0), (diff_size_h(0))));
+  auto device = Kokkos::subview(buffer, Kokkos::make_pair((size_t)(0), (diff_size_h(0))));
+  Kokkos::deep_copy(host, device);
+  STOP_TIMER(copy_diff);
+  STOP_TIMER(dedup);
+//  fs << "Chunk, Compute hashes, Copy hashes to CPU, Compare hashes, Create diff, Copy diff to CPU\n";
+//  fs  << i << ", " 
+//      << duration_cast<duration<double>>(hash_end-hash_beg).count() << ", " 
+//      << duration_cast<duration<double>>(copy_hash_end-copy_hash_beg).count() << ", " 
+//      << duration_cast<duration<double>>(comp_end-comp_beg).count() << ", " 
+//      << duration_cast<duration<double>>(create_diff_end-create_diff_beg).count() << ", " 
+//      << duration_cast<duration<double>>(copy_diff_end-copy_diff_beg).count() << ", "
+//      << duration_cast<duration<double>>(dedup_end-dedup_beg).count() << std::endl; // Total time
+Kokkos::deep_copy(prev_hashes_h, curr_hashes);
+}
+#endif
+//Kokkos::deep_copy(prev_hashes_h, curr_hashes);
+//fs.close();
+Kokkos::fence();
+#endif
+    }
+#ifdef DEDUPLICATION
+fs.close();
+#endif
   }
   else
   {
@@ -1283,14 +1663,14 @@ kokkos_calculate_GDV(Kokkos::TeamPolicy<>::member_type team_member,
                     )
 {
   auto gdvMetrics = gdvMetrics_sa.access();
-  auto combination = Kokkos::subview(combination_view, std::pair<int,int>(0,node_count+1));
+  auto combination = Kokkos::subview(combination_view, Kokkos::make_pair(0,node_count+1));
   auto subgraph_degree_signature = Kokkos::subview(sgraph_degree_signature, 
-                                                    std::pair<int,int>(0, node_count+1));
-  auto subgraph_distance_signature = Kokkos::subview(sgraph_distance_signature, 
-                                                    std::pair<int,int>(0, orbits.distance.extent(1)));
+                                                    Kokkos::make_pair(0, node_count+1));
+//  auto subgraph_distance_signature = Kokkos::subview(sgraph_distance_signature, 
+//                                                    Kokkos::make_pair(0, orbits.distance.extent(1)));
   auto induced_sgraph = Kokkos::subview(induced_subgraph, 
-                                        std::pair<int,int>(0,node_count+1), 
-                                        std::pair<int,int>(0,node_count+1));
+                                        Kokkos::make_pair(0,node_count+1), 
+                                        Kokkos::make_pair(0,node_count+1));
   EssensKokkos::kokkos_induced_subgraph(graph, combination, induced_sgraph);
   bool is_connected = EssensKokkos::is_connected(induced_sgraph, visited, queue);
   if(is_connected)
@@ -1299,13 +1679,13 @@ kokkos_calculate_GDV(Kokkos::TeamPolicy<>::member_type team_member,
     for(int idx=0; idx<node_count+1; idx++)
     {
       int v = idx;
-      EssensKokkos::calc_distance_signature(v, induced_sgraph, subgraph_distance_signature, 
+      EssensKokkos::calc_distance_signature(v, induced_sgraph, sgraph_distance_signature, 
                                             visited, queue, distance);
       for(int i=orbits.start_indices(node_count+1); i<orbits.start_indices(node_count+2); i++) {
         auto orbit_deg_sig = Kokkos::subview(orbits.degree, i, Kokkos::ALL);
         bool match = EssensKokkos::compare_signatures(subgraph_degree_signature, orbit_deg_sig);
         auto orbit_dis_sig = Kokkos::subview(orbits.distance, i, Kokkos::ALL);
-        match = match && EssensKokkos::compare_signatures(subgraph_distance_signature, orbit_dis_sig);
+        match = match && EssensKokkos::compare_signatures(sgraph_distance_signature, orbit_dis_sig);
         if(match) {
           gdvMetrics(combination(v),i) += 1;
         }
@@ -1335,22 +1715,22 @@ kokkos_calculate_GDV(Kokkos::TeamPolicy<>::member_type team_member,
 {
   auto gdvMetrics = gdvMetrics_sa.access();
   int num_neighbors = EssensKokkos::find_neighbours(node, graph, 4, neighbor_buff);
-  auto neighbors = Kokkos::subview(neighbor_buff, std::pair<int,int>(0, num_neighbors));
+  auto neighbors = Kokkos::subview(neighbor_buff, Kokkos::make_pair(0, num_neighbors));
   for (int node_count = 1; node_count < 5; node_count++)
   {
     CombinationGenerator generator(num_neighbors, node_count, indices);
     while(!generator.done) 
     {
-      auto combination = Kokkos::subview(combination_view, std::pair<int,int>(0,node_count+1));
+      auto combination = Kokkos::subview(combination_view, Kokkos::make_pair(0,node_count+1));
       generator.kokkos_get_combination(indices, num_neighbors, neighbors, combination);
       auto subgraph_degree_signature = Kokkos::subview(sgraph_degree_signature, 
-                                                        std::pair<int,int>(0, node_count+1));
+                                                        Kokkos::make_pair(0, node_count+1));
       auto subgraph_distance_signature = Kokkos::subview(sgraph_distance_signature, 
-                                                        std::pair<int,int>(0, orbits.distance.extent(1)));
+                                                        Kokkos::make_pair(0, static_cast<int>(orbits.distance.extent(1))));
       combination(node_count) = node;
       auto induced_sgraph = Kokkos::subview(induced_subgraph, 
-                                            std::pair<int,int>(0,node_count+1), 
-                                            std::pair<int,int>(0,node_count+1));
+                                            Kokkos::make_pair(0,node_count+1), 
+                                            Kokkos::make_pair(0,node_count+1));
       EssensKokkos::kokkos_induced_subgraph(graph, combination, induced_sgraph);
       bool is_connected = EssensKokkos::is_connected(induced_sgraph, visited, queue);
       if(is_connected)
