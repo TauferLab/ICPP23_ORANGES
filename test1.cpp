@@ -1,6 +1,7 @@
 #include<cstdlib>
 #include<iostream>
 #include <algorithm>
+#include<vector>
 using namespace std;
 
 class graph_combination
@@ -21,12 +22,30 @@ class subgraph
     bool is_subgraph;
 };
 
-void trace_path_till_root(int root, vector<graph_combination> &list, int iterator)
+int trace_path_till_root(int root, vector<graph_combination> &list, int iterator)
 {
     int current_node = list[iterator].parent;
-    while(current_node! = root)
+    int iterator_parent = current_node;
+    int minimum_node = current_node;
+    while(list[current_node].parent ! = root)
     {
-        
+        iterator--;
+        if(interator < 0)
+        {
+            return -999;
+        }
+        else
+        {
+            if(list[iterator].child == current_node)
+            {
+                if(list[iterator].parent < minimum_node)
+                {
+                    minimum_node = list[iterator].parent;
+                }
+            
+            }
+        }
+
     }
 }
 
@@ -46,10 +65,11 @@ int main()
     }
     if(no_of_nodes >= 3)
     {
-        int iterator = 2;
+        int iterator = 1;
         while(iterator < no_of_nodes)
         {
-            trace_path_till_root(root,list,iterator);
+            int minimum_node = trace_path_till_root(root,list,iterator);
+            cout<<list[iterator].child << minimum_node;
             iterator++;
         }    
     }
