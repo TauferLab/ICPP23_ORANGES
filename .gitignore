@@ -1,5 +1,5 @@
-GRAAL/a.out
-GRAAL/makeout
+fido/a.out
+fido/makeout
 .vscode/settings.json
-GRAAL/makefile
+fido/makefile
 **/build/

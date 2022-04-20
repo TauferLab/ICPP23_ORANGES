@@ -35,7 +35,7 @@ public:
 
   // Create a graph output using nodes from network.                                                                                                                             
   // Vector nodes should correspond to actual node labels, not node indices.
-  void inducedSubgraph(A_Network network, vector<int> nodes, A_Network& output)
+  void inducedSubgraph(A_Network network, const vector<int> &nodes, A_Network& output)
   {
 
     // Set up output for new subgraph.                                                                                                                                                                                                   
@@ -57,6 +57,11 @@ public:
 	if (network[graph_count].Row == nodes[i]) {
 	  node_found = true;
 	  neighbor_list = network[graph_count].ListW;
+	  //cout << nodes[i] << ": ";
+	  //for (int j = 0; j < neighbor_list.size(); j++) {
+	  //  cout << neighbor_list[j].first << ", ";
+	  //}
+	  //cout << endl;
 	}
 	graph_count += 1;
       }
