@@ -32,7 +32,7 @@ Use the following steps to prepare and install Fido:
 ```
 
 How to setup Fido with oneAPI:
-1. Go to Download the Intel oneAPI Base Toolkit to retrieve the oneAPI base toolkit. Select the correct OS and package manager for your system and click on the link titled “View Installation Instructions”
+1. Go to [Download the Intel oneAPI Base Toolkit](https://www.intel.com/content/www/us/en/developer/tools/oneapi/base-toolkit-download.html) to retrieve the oneAPI base toolkit. Select the correct OS and package manager for your system and click on the link titled “View Installation Instructions”
 2. Follow the guide that is written out. After installing the oneAPI Base Toolkit, install the Intel oneAPI HPC Toolkit. Instructions for this should be on the same page after scrolling down.
 3. To compile with DPCPP, add the following line to the top of the Src_Fido/CMakeLists.txt and the Src_Fido/fido/CmakeLists.txt files
 * set(CMAKE_CXX_COMPILER “dpcpp”)
