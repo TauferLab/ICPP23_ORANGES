@@ -31,6 +31,12 @@ Use the following steps to prepare and install Fido:
 . ./setup_fido.sh
 ```
 
+How to setup Fido with oneAPI:
+1. Go to Download the Intel oneAPI Base Toolkit to retrieve the oneAPI base toolkit. Select the correct OS and package manager for your system and click on the link titled “View Installation Instructions”
+2. Follow the guide that is written out. After installing the oneAPI Base Toolkit, install the Intel oneAPI HPC Toolkit. Instructions for this should be on the same page after scrolling down.
+3. To compile with DPCPP, add the following line to the top of the Src_Fido/CMakeLists.txt and the Src_Fido/fido/CmakeLists.txt files
+* set(CMAKE_CXX_COMPILER “dpcpp”)
+
 ## Dependencies
 
 Below is a list of dependencies for running Fido.  If you follow the steps in the section above on "Installation", each of these should be set up on your system.
@@ -39,6 +45,8 @@ Below is a list of dependencies for running Fido.  If you follow the steps in th
 The following packages must be installed prior to running the script 'setup_fido.sh' during project installation.
 * A C Compiler (e.g. GCC, ICC)
 * A version of MPI (e.g. openmpi, mvapich2)
+* Intel oneAPI Base Toolkit
+* Intel oneAPI HPC Toolkit
 
 ### Submodule Packages (Installed during setup):
 The following packages will be installed automatically via the script 'setup_fido.sh' during project installation.
