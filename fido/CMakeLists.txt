@@ -1,11 +1,11 @@
+set(CMAKE_CXX_COMPILER "dpcpp")
+
 cmake_minimum_required(VERSION 3.15)
+
 
 find_package(MPI REQUIRED)
 find_package(Kokkos REQUIRED)
 find_package(KokkosKernels REQUIRED)
-#find_package(resilience REQUIRED)
-#find_package(VeloC)
-
 set(TRACK_RUNTIME 1 CACHE STRING "Variable to define whether or not to record runtimes")
 #set(THREAD_COUNT 4 CACHE STRING "Number of threads for shared memory kokkos paralellization")
 set(SIM_MAT_CUT 100 CACHE STRING "Maximum similarity matrix size that will be printed to file")
@@ -31,8 +31,6 @@ target_link_libraries(Fido PRIVATE ESSENS)
 target_link_libraries(Fido PRIVATE MPI::MPI_CXX)
 target_link_libraries(Fido PRIVATE Kokkos::kokkos)
 target_link_libraries(Fido PRIVATE Kokkos::kokkoskernels)
-#target_link_libraries(Fido PRIVATE Kokkos::resilience)
-#target_link_libraries(Fido PRIVATE veloc::veloc)
 
 set_target_properties(Fido PROPERTIES
     CXX_STANDARD 11

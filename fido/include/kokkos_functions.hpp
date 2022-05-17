@@ -9,6 +9,7 @@
 #include "ADJ/create_network.hpp"
 #include <Kokkos_Core.hpp>
 #include <KokkosSparse_CrsMatrix.hpp>
+#include <CL/sycl.hpp>
 
 using namespace std;
 KOKKOS_INLINE_FUNCTION int64_t factorial(int n) {
@@ -319,8 +320,11 @@ namespace EssensKokkos {
   bool isConnected(const matrix_type& graph)
   {
     int connected_nodes = 0;
+    // These were originally Kokkos::View
     Kokkos::View<bool*> visited("Visited nodes", graph.numRows());
     Kokkos::View<int*> queue("BFS queue", graph.numRows());
+    // cl::sycl::buffer<bool *> visited("Visited nodes", graph.numRows());
+    // cl::sycl::buffer<int *> queue("BFS queue", graph.numRows());
     int queue_length = 0;
     visited(0) = true;
     queue(0) = 0;
