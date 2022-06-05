@@ -29,6 +29,13 @@ class graph_combination
    int child;
 };
 
+class Endnodes
+{
+  public:
+  int node;
+  int valid_endnode;
+};
+
 class subgraph
 {
     public:
@@ -36,10 +43,34 @@ class subgraph
     int no_of_nodes; 
     vector<graph_combination> list;
     vector<int> list_of_nodes;
-    vector<int> end_nodes;
+    vector<Endnodes> list_of_endnodes;
     A_Network adj_list;
     bool is_subgraph;
 };
+
+void comb(int N, int K,vector<graph_combination> &parent_child_combination,vector<vector<graph_combination>> ncr_combinations)
+{
+    std::string bitmask(K, 1); // K leading 1's
+    bitmask.resize(N, 0); // N-K trailing 0's
+    // print integers and permute bitmask
+    do {
+        vector<graph_combination> temp_parent_child_combination;
+        vector<int> comb_list;
+        for (int i = 0; i < N; ++i) // [0..N-1] integers
+        {
+            if (bitmask[i]){
+                comb_list.push_back(i);
+                std::cout << " " << i;
+            }
+        }
+        for(int j =0; j<comb_list.size(); j++)
+        {
+            temp_parent_child_combination.push_back(parent_child_combination[comb_list[j]]);
+        }
+        ncr_combinations.push_back(temp_parent_child_combination);
+        std::cout << std::endl;
+    } while (std::prev_permutation(bitmask.begin(), bitmask.end()));
+}
 
 void generate_combinations(vector<graph_combination> &list_to_generate_combinations ,vector<vector<graph_combination>> &combination_list)
 {
@@ -77,7 +108,10 @@ void make_subgraph_of_degree_one(subgraph &temp_subgraph, int parent_node, int c
     temp_list.child = child_node;
     temp_subgraph.list.push_back(temp_list);
     //making end nodes
-    temp_subgraph.end_nodes.push_back(child_node);
+    Endnodes temp;
+    temp.node = child_node;
+    temp.valid_endnode = 1;
+    temp_subgraph.list_of_endnodes.push_back(temp);
     //making list of nodes
     temp_subgraph.list_of_nodes.push_back(parent_node);
     temp_subgraph.list_of_nodes.push_back(child_node);
@@ -94,25 +128,48 @@ void make_subgraph_of_degree_one(subgraph &temp_subgraph, int parent_node, int c
 
 void generate_trees(vector<subgraph> &temp_subgraph_combinations,vector<subgraph> &subgraph_combinations,long int iterator,A_Network &graph)
 {
-  
   subgraph root_tree = temp_subgraph_combinations[iterator];
-  for(int i=0; i<root_tree.end_nodes.size(); i++)
+  int end_nodes_size = root_tree.list_of_endnodes.size();
+  vector<graph_combination> parent_child_combination;
+  for(int i=0; i<end_nodes_size; i++)
   {
-      int parent_node = root_tree.end_nodes[i];
-      int adjlist_size = graph[root_tree.end_nodes[i]].ListW.size();
+    if(root_tree.list_of_endnodes[i].valid_endnode == 1)
+    {
+      int parent_node = root_tree.list_of_endnodes[i].node;
+      int adjlist_size = graph[parent_node].ListW.size();
       for(int j = 0; j < adjlist_size; j++)
       {
-          int child_node = graph[root_tree.end_nodes[i]].ListW[j].first;
-          int list_nodes_size = root_tree.list_of_nodes.size(); 
-          for(int k = 0; k < list_nodes_size; k++)
+        int child_node = graph[parent_node].ListW[j].first;
+        // search in the list of nodes
+        int list_size = root_tree.no_of_nodes;
+        int flag = 0;
+        for(int k=0; k < list_size; k++)
+        {
+          if(root_tree.list_of_nodes[k] == child_node)
           {
-
+              flag = 1;
           }
+        }
+        // adding parent child if not present in the list
+        if(flag == 0)
+        {
+          graph_combination parent_child;
+          parent_child.parent = parent_node;
+          parent_child.child = child_node;
+          parent_child_combination.push_back(parent_child);
+        }
       }
-    
-
+    }
   }
-  
+  int n_value = parent_child_combination.size();
+  int r_value = 5-root_tree.no_of_nodes;
+  vector<vector<graph_combination>> temp_ncr_combinations,ncr_combinations;
+  comb(n_value,r_value,parent_child_combination,ncr_combinations);
+  int ncr_combinations_size = ncr_combinations.size();
+  for(int t =0;t<ncr_combinations_size;t++)
+  {
+    generate_combinations(temp_ncr_combinations[t],ncr_combinations);
+  }
 }
 
 void subgraph_enumeration(A_Network graph, vector<subgraph> &subgraph_combinations)
