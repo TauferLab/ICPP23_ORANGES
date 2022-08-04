@@ -5,9 +5,9 @@
 #include "printout_others.hpp"
 #include "printout_network.hpp"
 #include "ADJ/find_Xneighbors.hpp"
-#include "headers/GDV_functions.hpp"
-#include "headers/class_definitions.hpp"
-#include "headers/print_disconnected_graph.hpp"
+#include "GRAAL/headers/GDV_functions.hpp"
+#include "GRAAL/headers/class_definitions.hpp"
+#include "GRAAL/headers/print_disconnected_graph.hpp"
 #include <time.h>
 #include <math.h>
 #include <omp.h>
@@ -29,7 +29,7 @@ class graph_combination
    int child;
 };
 
-class Endnodes
+class Endnode
 {
   public:
   int node;
@@ -43,7 +43,7 @@ class subgraph
     int no_of_nodes; 
     vector<graph_combination> list;
     vector<int> list_of_nodes;
-    vector<Endnodes> list_of_endnodes;
+    vector<Endnode> list_of_endnodes;
     A_Network adj_list;
     bool is_subgraph;
 };
@@ -108,7 +108,7 @@ void make_subgraph_of_degree_one(subgraph &temp_subgraph, int parent_node, int c
     temp_list.child = child_node;
     temp_subgraph.list.push_back(temp_list);
     //making end nodes
-    Endnodes temp;
+    Endnode temp;
     temp.node = child_node;
     temp.valid_endnode = 1;
     temp_subgraph.list_of_endnodes.push_back(temp);
@@ -207,13 +207,13 @@ void subgraph_enumeration(A_Network graph, vector<subgraph> &subgraph_combinatio
     }*/
    for(subgraph element1 : subgraph_combinations) 
     {
-        for(int k= 0; k< element1.end_nodes.size(); k++)
+        for(int k= 0; k< element1.list_of_endnodes.size(); k++)
         {
             vector<vector<graph_combination>> combination_list;
             vector<graph_combination> temp_combination;
             int end_node_item;
             //getting end node
-            end_node_item = element1.end_nodes[k];
+            end_node_item = element1.list_of_endnodes[k].node;
             // list of end_node // check whether end node is right
             int node_number;
             for(node_number = 0; node_number < graph.size(); node_number++)
@@ -235,7 +235,7 @@ void subgraph_enumeration(A_Network graph, vector<subgraph> &subgraph_combinatio
                 continue;
               }
               graph_combination temp_comb;
-              temp_comb.parent = element1.end_nodes[k];
+              temp_comb.parent = element1.list_of_endnodes[k].node;
               temp_comb.child = child_node;
               temp_combination.push_back(temp_comb);
             }
@@ -245,6 +245,8 @@ void subgraph_enumeration(A_Network graph, vector<subgraph> &subgraph_combinatio
             {
               subgraph temp_element;
               temp_element = element1;
+              Endnode tmp_endnode;
+              tmp_endnode.valid_endnode = 1;
               //cout<<temp_element.root;
               //cout<<"*****************************"<<endl;
               //cout<<temp_element.root;
@@ -261,7 +263,8 @@ void subgraph_enumeration(A_Network graph, vector<subgraph> &subgraph_combinatio
                 temp_list.child = quantity2;
                 temp_element.list.push_back(temp_list);
                 //making end nodes
-                temp_element.end_nodes.push_back(quantity2);
+                tmp_endnode.node = quantity2;
+                temp_element.list_of_endnodes.push_back(tmp_endnode);
                 //making adjacency list for parent
                 for(node_number = 0; node_number < temp_element.adj_list.size(); node_number++)
                 {
@@ -298,7 +301,7 @@ void subgraph_enumeration(A_Network graph, vector<subgraph> &subgraph_combinatio
                 //cout << element_2.child;
                 //cout <<" ";
               }
-              cout <<endl;
+              std::cout <<endl;
             }
         }
 
@@ -316,17 +319,17 @@ int main(int argc, char *argv[]) {
      Should be sorted. */ 
   ifstream the_file1 ( argv[1] ); 
   if (!the_file1.is_open() ) { 
-    cout<<"INPUT ERROR:: Could not open the graph input file\n";
+    std::cout<<"INPUT ERROR:: Could not open the graph input file\n";
   }
 
   ifstream the_file2 ( argv[2] ); 
   if (!the_file2.is_open() ) { 
-    cout<<"INPUT ERROR:: Could not open the second graph input file\n";
+    std::cout<<"INPUT ERROR:: Could not open the second graph input file\n";
   }
 
    ifstream the_file3 ( argv[3] ); 
   if (!the_file3.is_open() ) { 
-    cout<<"INPUT ERROR:: Could not open the orbit file\n";
+    std::cout<<"INPUT ERROR:: Could not open the orbit file\n";
   }
       int p = atoi(argv[4]);
   vector<OrbitMetric> orbits;
@@ -345,8 +348,8 @@ int main(int argc, char *argv[]) {
   print_network(Y);
   vector<subgraph> subgraph_combinations;
   subgraph_enumeration(X,subgraph_combinations);
-  cout<<"*************"<<endl;
-  cout<<subgraph_combinations.size();
+  std::cout<<"*************"<<endl;
+  std::cout<<subgraph_combinations.size();
     /*for(vector<subgraph> element : subgraph_combinations)
     {
         print_network(element.adj_list);
@@ -391,7 +394,7 @@ int main(int argc, char *argv[]) {
   // }
 
  //Similarity_Metric_calculation_for_two_graphs(X,Y,orbits,p);
- printf("Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
+ std::printf("Time taken: %.2fs\n", (double)(clock() - tStart)/CLOCKS_PER_SEC);
   return 0;
 }
 
@@ -416,7 +419,7 @@ void Similarity_Metric_calculation_for_two_graphs(A_Network graph1, A_Network gr
     }
   }
 double end = omp_get_wtime();
-cout<<"Omp time taken is " <<end - start<<endl;
+std::cout<<"Omp time taken is " <<end - start<<endl;
   ofstream myfile;
   string filename; 
   filename = "out_similarity_matrix.txt";
