@@ -314,36 +314,36 @@ namespace EssensKokkos {
     return edge_count;
   }
 
-  // Check if a graph is connected with BFS.
-  KOKKOS_INLINE_FUNCTION
-  bool isConnected(const matrix_type& graph)
-  {
-    int connected_nodes = 0;
-    Kokkos::View<bool*> visited("Visited nodes", graph.numRows());
-    Kokkos::View<int*> queue("BFS queue", graph.numRows());
-    int queue_length = 0;
-    visited(0) = true;
-    queue(0) = 0;
-    queue_length = 1;
-    connected_nodes++;
-    while(queue_length > 0) {
-      int node = queue(queue_length-1);
-      queue_length -= 1;
-      auto row = graph.row(node);
-      for(int i=0; i<row.length; i++) {
-        if(!visited(row.colidx(i))) {
-          visited(row.colidx(i)) = true;
-          queue(queue_length) = row.colidx(i);
-          queue_length++;
-          connected_nodes++;
-        }
-      }
-    }
-    if(connected_nodes == graph.numRows()) {
-      return true;
-    }
-    return false;
-  }
+//  // Check if a graph is connected with BFS.
+//  KOKKOS_INLINE_FUNCTION
+//  bool isConnected(const matrix_type& graph)
+//  {
+//    int connected_nodes = 0;
+//    Kokkos::View<bool*> visited("Visited nodes", graph.numRows());
+//    Kokkos::View<int*> queue("BFS queue", graph.numRows());
+//    int queue_length = 0;
+//    visited(0) = true;
+//    queue(0) = 0;
+//    queue_length = 1;
+//    connected_nodes++;
+//    while(queue_length > 0) {
+//      int node = queue(queue_length-1);
+//      queue_length -= 1;
+//      auto row = graph.row(node);
+//      for(int i=0; i<row.length; i++) {
+//        if(!visited(row.colidx(i))) {
+//          visited(row.colidx(i)) = true;
+//          queue(queue_length) = row.colidx(i);
+//          queue_length++;
+//          connected_nodes++;
+//        }
+//      }
+//    }
+//    if(connected_nodes == graph.numRows()) {
+//      return true;
+//    }
+//    return false;
+//  }
   
 //  // Check if a graph is connected with BFS.
 //  template<class GraphType, class VisitedView, class QueueView>
@@ -418,7 +418,7 @@ namespace EssensKokkos {
   void calc_degree_signature(const GraphType& graph, ViewType& deg_sig)
   {
     if(deg_sig.size() != graph.extent(0)) {
-      std::cout << "Warning: Degree signature View does not match # of subgraph nodes." << endl;
+      printf("Warning: Degree signature View does not match # of subgraph nodes.\n");
     } else {
       for(size_t i=0; i<deg_sig.size(); i++) {
         deg_sig(i) = 0;
@@ -449,7 +449,7 @@ namespace EssensKokkos {
   degree_signature(const GraphType& graph, ViewType& deg_sig)
   {
     if(deg_sig.size() != graph.numRows()) {
-      std::cout << "Warning: Degree signature View does not match # of subgraph nodes." << endl;
+      printf("Warning: Degree signature View does not match # of subgraph nodes.\n");
     } else {
       for(int i=0; i<graph.numRows(); i++) {
         deg_sig(i) = graph.row(i).length; 
