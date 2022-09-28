@@ -14,10 +14,15 @@ import networkx as nx
 
 
 ####### FLAGS ########
+RANDOM_SEED = 42
 MAX_NODES = 5 # max number of nodes in the graphlet
 # MAX_ORBIT = 72 # the maximum orbit number, gives orbits for all graphlet of MAX_NODES or less
+COUNTS_ONLY = True  # have the algorithm only produce the subtree counts instead of returning all the subtrees found
 
-TEST_GRAPH = nx.Graph()
+# TEST_GRAPH = nx.read_graphml("event_graph.graphml")
+# TEST_GRAPH = nx.read_graphml("eventGraph1391.grapml")
+TEST_GRAPH = nx.read_graphml("eventgraph3523.graphml").to_undirected()
+# TEST_GRAPH = nx.Graph()
 # TEST_GRAPH.add_edges_from([(0,1),(0,2),(1,2),(1,3),(2,3),(2,4),(3,4),(4,5)])  # semi-house
 # TEST_GRAPH.add_edges_from([(0,1),(0,2),(1,2)])  # triangle graph
 # TEST_GRAPH.add_edges_from([(0,3),(3,4),(3,2),(2,5),(5,1),(4,1),(4,5)])  # house-porch
@@ -26,12 +31,12 @@ TEST_GRAPH = nx.Graph()
 # TEST_GRAPH = nx.petersen_graph()
 # TEST_GRAPH = nx.complete_graph(15)
 # TEST_GRAPH = nx.grid_2d_graph(4,4)  
-TEST_GRAPH = nx.karate_club_graph()
-# TEST_GRAPH = nx.gnp_random_graph(100,.2)
-
-GRAPH_PERMUTATION = "KCore"  # Reorder the graph. Options: 'Degree', 'Random', 'None', 'Ego', or 'KCore'
+# TEST_GRAPH = nx.karate_club_graph()
+# TEST_GRAPH = nx.gnp_random_graph(100,.2, seed=RANDOM_SEED, directed=False)
+# TEST_GRAPH = nx.barabasi_albert_graph(100, 99, seed=RANDOM_SEED)
+GRAPH_ORDERING = "KCore"  # Reorder the graph. Options: 'Degree', 'Random', 'None', 'Ego', or 'KCore'
 EGO_RADIUS = 1  # radius for ego network. used only when using `Ego` graph permutation
-DEBUG_SHOW_ORBITS = False
+DEBUG_SHOW_ORBITS = not COUNTS_ONLY and False
 DEBUG_SHOW_REPEAT_TREES = True and DEBUG_SHOW_ORBITS # shows every nonunique tree. Do only if total number of subtrees is low
 ###### END FLAGS ######
 
@@ -43,10 +48,13 @@ def enumerate_subtrees(G: nx.Graph) -> dict[int : nx.Graph]:
       Parameters:
         G (Networkx Graph): the graph to calculate the GDVs on
       Returns:
-        dictionary of node: list of trees rooted at node
+        dictionary of node: either a dictionary of trees rooted at node or a dictionary of the counts of trees rooted at each node
   """
-    final_subtrees = {i:[] for i in G.nodes()}  # dict of root:list of subtrees found in graph
-    # final_subtrees = {i:0 for i in G.nodes()}  # count of subtrees at each node
+    if COUNTS_ONLY:
+        final_subtrees = {i:0 for i in G.nodes()}  # count of subtrees at each node
+    else:
+        final_subtrees = {i:[] for i in sorted(G.nodes())}  # dict of root:list of subtrees found in graph
+
     subtree_queue = []
 
     time_vector = {}
@@ -56,22 +64,22 @@ def enumerate_subtrees(G: nx.Graph) -> dict[int : nx.Graph]:
 
         # First build L(G) at level 1 with end nodes as neighbor of root
         neighbors = [u for u in G.neighbors(root) if u > root]
-        # leaf_combinations = [combo for i in range(1, len(neighbors) + 1) for combo in combinations(neighbors, i)]
         leaf_combinations = [combo for i in range(1, MAX_NODES) for combo in combinations(neighbors, i)]
         for combo in leaf_combinations:
-            if len(combo) + 1 <= MAX_NODES:
-                T = nx.Graph()
-                T.add_nodes_from(list((w for w in combo if w > root)),endnode=True)
-                T.add_edges_from(list((root, w) for w in combo if w > root))
-                subtree_queue.append(T)  # append the new extended subtree to L
+            T = nx.Graph()
+            T.add_nodes_from(list((w for w in combo if w > root)), endnode=True)  # add neighbors and mark endnodes
+            T.add_edges_from(list((root, w) for w in combo if w > root))        # add the edges
+
+            subtree_queue.append(T)  # append the new extended subtree to L
+            if COUNTS_ONLY:
+                final_subtrees[root] += 1
+            else:
                 final_subtrees[root].append(T)
-                # final_subtrees[root] += 1
 
         # Next, go through subtree queue and expand the subtree
         while subtree_queue:
             T = subtree_queue.pop(-1)
             if T.number_of_nodes() <= MAX_NODES:
-                # end_nodes = [u for u, degree in T.degree() if degree == 1 and u != root]  # leaves of T
                 end_nodes = [u for u,isendnode in T.nodes(data='endnode') if isendnode == True]
                 visited = set(T.nodes())  # all nodes of T
                 
@@ -82,35 +90,35 @@ def enumerate_subtrees(G: nx.Graph) -> dict[int : nx.Graph]:
                 
                 # generate all combinations of the edges
                 leaf_combinations = [combo for i in range(1, MAX_NODES - T.number_of_nodes() + 1) for combo in combinations(neighboring_edges, i)]
-                # leaf_combinations = [combo for i in range(1, len(neighboring_edges) + 1) for combo in combinations(neighboring_edges, i)]
 
                 for combo in leaf_combinations:
                     # generate new subtrees
-                    if len(combo) + T.number_of_nodes() <= MAX_NODES:
-                            # filter the combos. we dont want the combo if it uses the same node eg {(1,2),(1,3)}
-                            edge_set = set([edge[0] for edge in combo])
-                            if len(edge_set) != len(combo):
-                                continue
+                    # filter the combos. we dont want the combo if it uses the same node eg {(1,2),(1,3)}
+                    edge_set = set([edge[0] for edge in combo])
+                    if len(edge_set) != len(combo):
+                        continue
 
-                            # create new subtree
-                            Tnew = nx.Graph()
-                            Tnew.add_edges_from(T.edges)  # edges from its parent
+                    # create new subtree
+                    Tnew = nx.Graph()
+                    Tnew.add_edges_from(T.edges)  # edges from its parent
 
-                            # mark new endnodes
-                            for edge in combo:
-                                Tnew.add_node(edge[0],endnode=True)
+                    # mark new endnodes
+                    for edge in combo:
+                        Tnew.add_node(edge[0],endnode=True)
 
-                            Tnew.add_edges_from(combo)  # add the new edges to new subtree
+                    Tnew.add_edges_from(combo)  # add the new edges to new subtree
 
-                            subtree_queue.append(Tnew)  # append the new extended subtree to L
-                            final_subtrees[root].append(Tnew)
-                            # final_subtrees[root] += 1
+                    subtree_queue.append(Tnew)  # append the new extended subtree to L
+
+                    if COUNTS_ONLY:
+                        final_subtrees[root] += 1
+                    else:
+                        final_subtrees[root].append(Tnew)
 
         time_vector[root] = default_timer() - start_time  # time elapsed to process subtrees rooted at node i
     return final_subtrees, time_vector
 
 ###### END MAIN ALGO ######
-
 
 ###### RELABEL GRAPH ######
 def _ego_relabeling(G, radius=1) -> list[int]:
@@ -124,7 +132,7 @@ def _ego_relabeling(G, radius=1) -> list[int]:
     return sorted_nodelist    
     
 
-def permute_graph(G, ordering, **kwargs)->nx.Graph:
+def relabel_graph(G, ordering, **kwargs)->nx.Graph:
     # relabel the graph. ordering can be None, Random, Degree, and Ego
     # 'Ego' also accepts the 'radius' of the ego network
     if ordering == "None":
@@ -135,6 +143,7 @@ def permute_graph(G, ordering, **kwargs)->nx.Graph:
         radius = kwargs.get("radius", 1)
         sorted_nodelist = _ego_relabeling(G, radius=radius)
     elif ordering == "KCore":
+        print("Core numbers", nx.core_number(G))
         sorted_nodelist = list([x[0] for x in sorted(nx.core_number(G).items(),key=lambda kv: kv[1])])
     elif ordering == "Random":
         sorted_nodelist = sorted(G.nodes(), key=lambda k: random.random())
@@ -149,7 +158,11 @@ def permute_graph(G, ordering, **kwargs)->nx.Graph:
     print("Node Mapping", node_mapping)
 
     # build a new graph
-    G = nx.relabel_nodes(G, node_mapping)
+    G_relabel = nx.relabel_nodes(G, node_mapping, copy=True)
+    G = nx.Graph()
+    G.add_nodes_from(sorted(G_relabel.nodes))
+    G.add_edges_from(G_relabel.edges())
+
     return G
 
 ###### END RELABEL GRAPH ######
@@ -193,7 +206,6 @@ def flatten_tree(G:nx.Graph, node: int, seen: set) -> list[int]:
       out.append(children)
     return out
 ###### END UTILS ######
-
 
 def _test_subtree_repeats():
     T1 = nx.Graph()
@@ -270,59 +282,67 @@ def _test_get_orbit():
 
 
 if __name__ == "__main__":
-
+    
     # Preprocessing: relabel the nodes
-    start = default_timer()
     G = TEST_GRAPH
-    G = permute_graph(TEST_GRAPH,ordering=GRAPH_PERMUTATION, radius=EGO_RADIUS)
+    print(G)
+    start = default_timer()
+    G = relabel_graph(TEST_GRAPH,ordering=GRAPH_ORDERING, radius=EGO_RADIUS)
     print("Elapsed time for preprocessing:", default_timer() - start)
 
     # compute subtrees
     start = default_timer()
-    subtrees_dict,times = enumerate_subtrees(G)
-    # subtree_counts, times = enumerate_subtrees(G)
+    results, times = enumerate_subtrees(G)
     endtime = default_timer()-start
     print("Time per node", dict(sorted(times.items(),key=lambda x: x[1])))
 
-    # Count number of subtrees at node v in graph
-    subtree_counts = {root:len(trees) for root,trees in sorted(subtrees_dict.items(),key=lambda x: x[0])}
-    print("Subtree counts:",  subtree_counts)
-    print("Number of subtrees", sum(subtree_counts.values()))
-    print("Elapsed time for algo: ", endtime)
+    if COUNTS_ONLY:
+        subtree_counts = results
+        # Count number of subtrees at node v in graph
+        print("Subtree counts:",  subtree_counts)
+        print("Number of subtrees", sum(subtree_counts.values()))
+        print("Elapsed time for algo: ", endtime)
 
-    # analyze the subtrees enumerate and count the repetitions
-    subtrees = list(chain(*subtrees_dict.values()))
-    repeated_subtree = check_subtree_repeated(subtrees)
-    print(len(repeated_subtree), "Repeated Trees")
-    print(len(set(repeated_subtree)),"Uniquely repeated trees")
+        print(TEST_GRAPH)
+    else:
+        subtrees_dict = results
+        subtree_counts = {root:len(trees) for root,trees in sorted(subtrees_dict.items(),key=lambda x: x[0])}
 
-    if len(repeated_subtree) != 0:
-        get_orbit_info()  # initialize precalculated orbit info
-        
-        repeat_roots = {i:0 for i in G.nodes()}  # count of repeated subtrees rooted at node i
-        normalized_subtrees = {root:[_normalize_edgelist(T.edges()) for T in tlist] for root,tlist in subtrees_dict.items()}
-        if sum(subtree_counts.values()) < 100000:
-            # takes too long for when number of subtrees is very large
-            for i,tree in enumerate(repeated_subtree):
-                # roots = []
-                # find all the roots associated with the subtree
-                for root,tree_list in normalized_subtrees.items():
-                    # check if has multiple roots
-                    # for tl in tree_list:
-                    #     if tree == tl:
-                    #         roots.append(root)
-                    for tl in tree_list:
-                        if tree == tl:
-                            repeat_roots[root] += 1
-                            if DEBUG_SHOW_ORBITS:
-                                T = nx.Graph(incoming_graph_data=tree)
-                                if DEBUG_SHOW_REPEAT_TREES:
-                                    print(f"{i}\t Root {root} :: Orbit {get_orbit(T,root)} :: {flatten_tree(T, root, set())}")
-                                else:
-                                    print(f"{i})\t Root {root} :: Orbit {get_orbit(T,root)} :: {tree}")
-                            break
-            print("Repeats rooted at node v:", repeat_roots)
+        # Count number of subtrees at node v in graph
+        print("Subtree counts:",  subtree_counts)
+        print("Number of subtrees", sum(subtree_counts.values()))
+        print("Elapsed time for algo: ", endtime)
 
-    # print("Printing all subtrees at root 1")
-    # for i,tree in enumerate(subtrees_dict[1]):
-    #     print(flatten_tree(tree, 1, set()))
+        # analyze the subtrees enumerate and count the repetitions
+        subtrees = list(chain(*subtrees_dict.values()))
+        repeated_subtree = check_subtree_repeated(subtrees)
+        print(len(repeated_subtree), "Repeated Trees")
+        print(len(set(repeated_subtree)),"Uniquely repeated trees")
+
+        if len(repeated_subtree) != 0:
+            get_orbit_info()  # initialize precalculated orbit info
+            
+            repeat_roots = {i:0 for i in G.nodes()}  # count of repeated subtrees rooted at node i
+            normalized_subtrees = {root:[_normalize_edgelist(T.edges()) for T in tlist] for root,tlist in subtrees_dict.items()}
+            if sum(subtree_counts.values()) < 100000:
+                # takes too long for when number of subtrees is very large
+                for i,tree in enumerate(repeated_subtree):
+                    # roots = []
+                    # find all the roots associated with the subtree
+                    for root,tree_list in normalized_subtrees.items():
+                        # check if has multiple roots
+                        # for tl in tree_list:
+                        #     if tree == tl:
+                        #         roots.append(root)
+                        for tl in tree_list:
+                            if tree == tl:
+                                repeat_roots[root] += 1
+                                if DEBUG_SHOW_ORBITS:
+                                    T = nx.Graph(incoming_graph_data=tree)
+                                    if DEBUG_SHOW_REPEAT_TREES:
+                                        print(f"{i}\t Root {root} :: Orbit {get_orbit(T,root)} :: {flatten_tree(T, root, set())}")
+                                    else:
+                                        print(f"{i})\t Root {root} :: Orbit {get_orbit(T,root)} :: {tree}")
+                                break
+                print("Repeats rooted at node v:", repeat_roots)
+
