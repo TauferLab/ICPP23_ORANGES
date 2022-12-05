@@ -1,11 +1,6 @@
 #ifndef COMBINATIONS_HPP
 #define COMBINATIONS_HPP
 
-//#include "structure_defs.hpp"
-//#include "input_to_network.hpp"
-//#include "printout_others.hpp"
-//#include "printout_network.hpp"
-//#include "ADJ/find_Xneighbors.hpp"
 #include <Kokkos_Core.hpp>
 using namespace std;
 
@@ -193,5 +188,31 @@ class CombinationGeneratorVector
       return done;
     }
 };
+
+KOKKOS_INLINE_FUNCTION
+int get_node_from_combinations(const matrix_type& graph, Kokkos::View<uint64_t*>::HostMirror& num_combinations, uint64_t k_interval, uint64_t i) {
+  uint64_t threshold = i*k_interval;
+  uint64_t counter = 0;
+  for(uint32_t j=0; j<num_combinations.extent(0); j++) {
+    counter += num_combinations(j);
+    if(counter > threshold) {
+      return j;
+    }
+  }
+  return graph.numRows();
+}
+
+KOKKOS_INLINE_FUNCTION
+int get_node_from_combinations(const matrix_type& graph, const Kokkos::View<uint64_t*>& num_combinations, const uint64_t k_interval, const uint64_t i) {
+  uint64_t threshold = i*k_interval;
+  uint64_t counter = 0;
+  for(uint32_t j=0; j<num_combinations.extent(0); j++) {
+    counter += num_combinations(j);
+    if(counter > threshold) {
+      return j;
+    }
+  }
+  return graph.numRows();
+}
 
 #endif

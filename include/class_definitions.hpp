@@ -4,7 +4,12 @@
 #include <Kokkos_Core.hpp>
 #include <KokkosSparse_CrsMatrix.hpp>
 
-#define LAYOUT Kokkos::LayoutRight
+#ifdef AUTO_CHECKPOINT
+#include <resilience/AutomaticCheckpoint.hpp>
+#include <resilience/ResilientRef.hpp>
+#endif
+
+#define LAYOUT Kokkos::LayoutLeft
 
 using namespace std;
 
@@ -78,7 +83,11 @@ using row_map_type  = typename graph_type::row_map_type;
 using entries_type  = typename graph_type::entries_type;
 using values_type   = typename matrix_type::values_type;
 
+#ifdef AUTO_CHECKPOINT
+using GDVs = Kokkos::View<uint32_t**, LAYOUT, Kokkos::Experimental::SubscribableViewHooks<KokkosResilience::DynamicViewHooksSubscriber>>;
+#else
 //using GDVs = Kokkos::View<uint32_t**>;
 using GDVs = Kokkos::View<uint32_t**, LAYOUT>;
+#endif
 
 #endif

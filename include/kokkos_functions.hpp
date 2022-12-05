@@ -161,6 +161,77 @@ namespace EssensKokkos {
     return num_neighbors;
   }
 
+  template <class SubviewType, class VisitedType>
+  KOKKOS_INLINE_FUNCTION int
+  get_num_neighbors(const matrix_type& graph, int node, int distance, SubviewType& neighbors, VisitedType& visited) {
+    int num_neighbors = 0;
+    int level = 0;
+    int level_start = 0;
+    int level_end = 0;
+    auto root_row = graph.row(node);
+    for(int i=0; i<root_row.length; i++) {
+      if(root_row.colidx(i) > node) {
+        visited(root_row.colidx(i)) = true;
+        neighbors(num_neighbors) = root_row.colidx(i);
+        num_neighbors++;
+      }
+    }
+    level_end = num_neighbors;
+    level = 1;
+    while(level < distance) {
+      for(int i=level_start; i<level_end; i++) {
+        auto row = graph.row(neighbors(i));
+        for(int j=0; j<row.length; j++) {
+          int u = row.colidx(j);
+          if(u > node) {
+            if(!visited(u)) {
+              visited(u) = true;
+              neighbors(num_neighbors) = u;
+              num_neighbors++;
+            }
+          }
+        }
+      }
+      level++;
+      level_start = level_end;
+      level_end = num_neighbors;
+    }
+    for(int i=0; i<num_neighbors; i++) {
+      visited(neighbors(i)) = false;
+    }
+    return num_neighbors;
+  }
+
+  template <class SubviewType>
+  KOKKOS_INLINE_FUNCTION void
+  find_neighbors(const matrix_type& graph, int node, int distance, SubviewType& visited) {
+    auto row = graph.row(node);
+    for(int j=0; j<row.length; j++) {
+      int u = row.colidx(j);
+      if(u > node) {
+        bool seen = visited(u);
+        visited(u) = true;
+        if(distance > 1 && !seen)
+          find_neighbors(graph, u, distance-1, visited);
+      }
+    }
+  }
+
+  template <class SubviewType>
+  KOKKOS_INLINE_FUNCTION int
+  get_num_neighbors_visited(const matrix_type& graph, int node, int distance, SubviewType& visited) {
+    find_neighbors(graph, node, distance, visited);
+    uint32_t num_neighbors = 0;
+    for(uint32_t i=0; i<visited.extent(0); i++) {
+      if(visited(i)) {
+        visited(i) = false;
+        num_neighbors += 1;
+      }
+    }
+    return num_neighbors;
+  }
+
+
   template <class SubviewType>
   KOKKOS_INLINE_FUNCTION int
 //  find_neighbours(int node, const matrix_type& graph,int distance, Kokkos::View<int*>& neighbors)
@@ -631,9 +702,10 @@ namespace EssensKokkos {
   template<class SignatureA, class SignatureB>
   KOKKOS_INLINE_FUNCTION
   bool compare_signatures(const SignatureA& sig1, const SignatureB& sig2) {
-    for(size_t i=0; i<sig1.size(); i++) {
-      if(sig1(i) != sig2(i)) 
+    for(int i=0; i<sig1.size(); i++) {
+      if(sig1(i) != sig2(i)) {
         return false;
+      }
     }
     return true;
   }

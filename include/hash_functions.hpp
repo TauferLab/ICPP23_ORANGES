@@ -4,9 +4,50 @@
 #include <Kokkos_Core.hpp>
 #include <cstdint>
 
-// Based on SMHasher
+#define HASH_FUNC SHA1
 
-namespace SHA1 {
+// Based on SMHasher
+class Hash {
+  public:
+
+  KOKKOS_FORCEINLINE_FUNCTION
+  std::string hash_name();
+
+  KOKKOS_FORCEINLINE_FUNCTION
+  void hash(const void* data, int len, uint8_t* digest) {};
+
+  KOKKOS_FORCEINLINE_FUNCTION
+  constexpr uint32_t digest_size();
+
+  KOKKOS_INLINE_FUNCTION
+  void digest_to_hex(const uint8_t* digest, char* output, uint32_t digest_size) {
+    int i,j;
+    char* c = output;
+    for(i=0; i<digest_size/4; i++) {
+      for(j=0; j<4; j++) {
+        sprintf(c, "%02X", digest[i*4 + j]);
+        c += 2;
+      }
+      sprintf(c, " ");
+      c += 1;
+    }
+    *(c-1) = '\0';
+  }
+};
+
+class SHA1: Hash {
+public:
+  using DIGEST_TYPE = uint8_t;
+
+  struct digest {
+    uint8_t digest[160];
+  };
+
+  KOKKOS_FORCEINLINE_FUNCTION
+  std::string hash_name() {
+    return std::string("SHA1");
+  }
+
   struct SHA1_CTX {
     uint32_t state[5];
     uint32_t count[2];
@@ -25,23 +66,23 @@ namespace SHA1 {
 
   #define blk(i)                                                            \
     (block->l[i & 15] = rol(block->l[(i+13) & 15] ^ block->l[(i+8) & 15] ^  \
-                        block->l[(i+2) % 15] ^ block->l[i & 15], 1))
+                        block->l[(i+2) & 15] ^ block->l[i & 15], 1))
 
   /* (R0+R1), R2, R3, R4 are the different operations used in SHA1 */
-  #define R0(v, w, x, y, z, i)                                          \
-    z += ((w & (x ^ y)) ^ y) + blk0(i) + 0x5A827999 + rol(v, 5);        \
+  #define R0(v, w, x, y, z, i)                                                   \
+    z += ((w & (x ^ y)) ^ y) + blk0(i) + 0x5A827999 + rol(v, 5);                 \
     w = rol(w, 30);
-  #define R1(v, w, x, y, z, i)                                          \
-    z += ((w & (x ^ y)) ^ y) + blk(i) + 0x5A827999 + rol(v, 5);         \
+  #define R1(v, w, x, y, z, i)                                                   \
+    z += ((w & (x ^ y)) ^ y) + blk(i) + 0x5A827999 + rol(v, 5);                  \
     w = rol(w, 30);
-  #define R2(v, w, x, y, z, i)                                          \
-    z += (w ^ x ^ y) + blk(i) + 0x6ED9EBA1 + rol(v, 5);                 \
+  #define R2(v, w, x, y, z, i)                                                   \
+    z += (w ^ x ^ y) + blk(i) + 0x6ED9EBA1 + rol(v, 5);                          \
     w = rol(w, 30);
-  #define R3(v, w, x, y, z, i)                                          \
-    z += (((w | x) & y) | (w & x)) + blk(i) + 0x8F1BBCDC + rol(v, 5);   \
+  #define R3(v, w, x, y, z, i)                                                   \
+    z += (((w | x) & y) | (w & x)) + blk(i) + 0x8F1BBCDC + rol(v, 5);            \
     w = rol(w, 30);
-  #define R4(v, w, x, y, z, i)                                          \
-    z += (w ^ x ^ y) + blk(i) + 0xCA62C1D6 + rol(v, 5);                 \
+  #define R4(v, w, x, y, z, i)                                                   \
+    z += (w ^ x ^ y) + blk(i) + 0xCA62C1D6 + rol(v, 5);                          \
     w = rol(w, 30);
 
   KOKKOS_FORCEINLINE_FUNCTION
@@ -216,8 +257,23 @@ namespace SHA1 {
     memset(&finalcount, '\0', sizeof(finalcount));
   }
 
+  KOKKOS_INLINE_FUNCTION
+  void digest_to_hex(const uint8_t digest[SHA1_DIGEST_SIZE], char* output) {
+    int i,j;
+    char* c = output;
+    for(i=0; i<SHA1_DIGEST_SIZE/4; i++) {
+      for(j=0; j<4; j++) {
+        sprintf(c, "%02X", digest[i*4 + j]);
+        c += 2;
+      }
+      sprintf(c, " ");
+      c += 1;
+    }
+    *(c-1) = '\0';
+  }
+
   KOKKOS_FORCEINLINE_FUNCTION
-  uint32_t digest_size() {
+  constexpr uint32_t digest_size() {
     return SHA1_DIGEST_SIZE;
   }
 
@@ -228,9 +284,16 @@ namespace SHA1 {
     SHA1_Update(&context, (const uint8_t*)(data), len);
     SHA1_Final(&context, digest);
   }
-}
+};
 
-namespace Murmur3 {
+class Murmur3 : Hash {
+public:
+  using DIGEST_TYPE = uint32_t;
+
+  KOKKOS_FORCEINLINE_FUNCTION
+  std::string hash_name() {
+    return std::string("Murmur3");
+  }
 
   // MurmurHash3 was written by Austin Appleby, and is placed in the public
   // domain. The author hereby disclaims copyright to this source code.
@@ -363,7 +426,495 @@ namespace Murmur3 {
   
     return result;
   }
-}
+
+  KOKKOS_FORCEINLINE_FUNCTION
+  void hash(const void* data, int len, uint8_t* digest) {
+    uint32_t hash = MurmurHash3_x86_32(data, len, 0);
+    memcpy(digest, &hash, 4);
+  }
+
+  /* Size of hash digest in bytes */
+  KOKKOS_FORCEINLINE_FUNCTION
+  constexpr uint32_t digest_size() {
+    return 4;
+  }
+};
+/*
+class CityHash : Hash{
+  public:
+
+#define uint32_in_expected_order(x) (x)
+#define uint64_in_expected_order(x) (x)
+
+  KOKKOS_INLINE_FUNCTION
+  static uint64_t UNALIGNED_LOAD64(const char* p) {
+    uint64_t result;
+    memcpy(&result, p, sizeof(result));
+    return result;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  static uint32_t UNALIGNED_LOAD32(const char* p) {
+    uint32_t result;
+    memcpy(&result, p, sizeof(result));
+    return result;
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  static uint64_t Fetch64(const char *p) {
+    return uint64_in_expected_order(UNALIGNED_LOAD64(p));
+  }
+
+  KOKKOS_INLINE_FUNCTION
+  static uint32_t Fetch32(const char *p) {
+    return uint32_in_expected_order(UNALIGNED_LOAD32(p));
+  }
+
+  // Some primes between 2^63 and 2^64 for various uses.
+  static const uint64_t k0 = 0xc3a5c85c97cb3127ULL;
+  static const uint64_t k1 = 0xb492b66fbe98f273ULL;
+  static const uint64_t k2 = 0x9ae16a3b2f90404fULL;
+  static const uint64_t k3 = 0xc949d7c7509e6557ULL;
+  
+  // Magic numbers for 32-bit hashing.  Copied from Murmur3.
+  static const uint32_t c1 = 0xcc9e2d51;
+  static const uint32_t c2 = 0x1b873593;
+
+  // A 32-bit to 32-bit integer hash copied from Murmur3.
+  static uint32_t fmix(uint32_t h)
+  {
+    h ^= h >> 16;
+    h *= 0x85ebca6b;
+    h ^= h >> 13;
+    h *= 0xc2b2ae35;
+    h ^= h >> 16;
+    return h;
+  }
+
+  static uint32_t Rotate32(uint32_t val, int shift) {
+    // Avoid shifting by 32: doing so yields an undefined result.
+    return shift == 0 ? val : ((val >> shift) | (val << (32 - shift)));
+  }
+
+  #undef PERMUTE3
+  #define PERMUTE3(a, b, c) do { std::swap(a, b); std::swap(a, c); } while (0)
+  
+  static uint32_t Mur(uint32_t a, uint32_t h) {
+    // Helper from Murmur3 for combining two 32-bit values.
+    a *= c1;
+    a = Rotate32(a, 17);
+    a *= c2;
+    h ^= a;
+    h = Rotate32(h, 19);
+    return h * 5 + 0xe6546b64;
+  }
+
+  static uint32_t Hash32Len13to24(const char *s, size_t len, uint32_t seed) {
+    uint32_t a = Fetch32(s - 4 + (len >> 1));
+    uint32_t b = Fetch32(s + 4);
+    uint32_t c = Fetch32(s + len - 8);
+    uint32_t d = Fetch32(s + (len >> 1));
+    uint32_t e = Fetch32(s);
+    uint32_t f = Fetch32(s + len - 4);
+    uint32_t h = seed + len;
+  
+    return fmix(Mur(f, Mur(e, Mur(d, Mur(c, Mur(b, Mur(a, h)))))));
+  }
+
+  static uint32_t Hash32Len0to4(const char *s, size_t len, uint32_t seed) {
+    uint32_t b = seed;
+    uint32_t c = 9;
+    for (int i = 0; i < len; i++) {
+      b = b * c1 + s[i];
+      c ^= b;
+    }
+    return fmix(Mur(b, Mur(len, c)));
+  }
+  
+  static uint32_t Hash32Len5to12(const char *s, size_t len, uint32_t seed) {
+    uint32_t a = len + seed, b = len * 5, c = 9, d = b;
+    a += Fetch32(s);
+    b += Fetch32(s + len - 4);
+    c += Fetch32(s + ((len >> 1) & 4));
+    return fmix(Mur(c, Mur(b, Mur(a, d))));
+  }
+
+  uint32_t CityHash32WithSeed(const char *s, size_t len, uint32_t seed) {
+    if (len <= 24) {
+      return len <= 12 ?
+          (len <= 4 ? Hash32Len0to4(s, len, seed) : Hash32Len5to12(s, len, seed)) :
+        Hash32Len13to24(s, len, seed);
+    }
+  
+    // len > 24
+    uint32_t h = len + seed, g = c1 * len, f = g;
+    uint32_t a0 = Rotate32(Fetch32(s + len - 4) * c1, 17) * c2;
+    uint32_t a1 = Rotate32(Fetch32(s + len - 8) * c1, 17) * c2;
+    uint32_t a2 = Rotate32(Fetch32(s + len - 16) * c1, 17) * c2;
+    uint32_t a3 = Rotate32(Fetch32(s + len - 12) * c1, 17) * c2;
+    uint32_t a4 = Rotate32(Fetch32(s + len - 20) * c1, 17) * c2;
+    h ^= a0;
+    h = Rotate32(h, 19);
+    h = h * 5 + 0xe6546b64;
+    h ^= a2;
+    h = Rotate32(h, 19);
+    h = h * 5 + 0xe6546b64;
+    g ^= a1;
+    g = Rotate32(g, 19);
+    g = g * 5 + 0xe6546b64;
+    g ^= a3;
+    g = Rotate32(g, 19);
+    g = g * 5 + 0xe6546b64;
+    f += a4;
+    f = Rotate32(f, 19);
+    f = f * 5 + 0xe6546b64;
+    size_t iters = (len - 1) / 20;
+    do {
+      uint32_t a0 = Rotate32(Fetch32(s) * c1, 17) * c2;
+      uint32_t a1 = Fetch32(s + 4);
+      uint32_t a2 = Rotate32(Fetch32(s + 8) * c1, 17) * c2;
+      uint32_t a3 = Rotate32(Fetch32(s + 12) * c1, 17) * c2;
+      uint32_t a4 = Fetch32(s + 16);
+      h ^= a0;
+      h = Rotate32(h, 18);
+      h = h * 5 + 0xe6546b64;
+      f += a1;
+      f = Rotate32(f, 19);
+      f = f * c1;
+      g += a2;
+      g = Rotate32(g, 18);
+      g = g * 5 + 0xe6546b64;
+      h ^= a3 + a1;
+      h = Rotate32(h, 19);
+      h = h * 5 + 0xe6546b64;
+      g ^= a4;
+      g = bswap_32(g) * 5;
+      h += a4 * 5;
+      h = bswap_32(h);
+      f += a0;
+      PERMUTE3(f, h, g);
+      s += 20;
+    } while (--iters != 0);
+    g = Rotate32(g, 11) * c1;
+    g = Rotate32(g, 17) * c1;
+    f = Rotate32(f, 11) * c1;
+    f = Rotate32(f, 17) * c1;
+    h = Rotate32(h + g, 19);
+    h = h * 5 + 0xe6546b64;
+    h = Rotate32(h, 17) * c1;
+    h = Rotate32(h + f, 19);
+    h = h * 5 + 0xe6546b64;
+    h = Rotate32(h, 17) * c1;
+    return h;
+  }
+
+  // Bitwise right rotate.  Normally this will compile to a single
+  // instruction, especially if the shift is a manifest constant.
+  static uint64_t Rotate(uint64_t val, int shift) {
+    // Avoid shifting by 64: doing so yields an undefined result.
+    return shift == 0 ? val : ((val >> shift) | (val << (64 - shift)));
+  }
+  
+  // Equivalent to Rotate(), but requires the second arg to be non-zero.
+  // On x86-64, and probably others, it's possible for this to compile
+  // to a single instruction if both args are already in registers.
+  static uint64_t RotateByAtLeast1(uint64_t val, int shift) {
+    return (val >> shift) | (val << (64 - shift));
+  }
+
+  static uint64_t ShiftMix(uint64_t val) {
+    return val ^ (val >> 47);
+  }
+  
+  static uint64_t HashLen16(uint64_t u, uint64_t v) {
+    return Hash128to64(uint128(u, v));
+  }
+
+  static uint64_t HashLen0to16(const char *s, size_t len) {
+    if (len > 8) {
+      uint64_t a = Fetch64(s);
+      uint64_t b = Fetch64(s + len - 8);
+      return HashLen16(a, RotateByAtLeast1(b + len, len)) ^ b;
+    }
+    if (len >= 4) {
+      uint64_t a = Fetch32(s);
+      return HashLen16(len + (a << 3), Fetch32(s + len - 4));
+    }
+    if (len > 0) {
+      uint8_t a = s[0];
+      uint8_t b = s[len >> 1];
+      uint8_t c = s[len - 1];
+      uint32_t y = static_cast<uint32_t>(a) + (static_cast<uint32_t>(b) << 8);
+      uint32_t z = len + (static_cast<uint32_t>(c) << 2);
+      return ShiftMix(y * k2 ^ z * k3) * k2;
+    }
+    return k2;
+  }
+
+  static uint64_t ShiftMix(uint64_t val) {
+    return val ^ (val >> 47);
+  }
+  
+  static uint64_t HashLen16(uint64_t u, uint64_t v) {
+    return Hash128to64(uint128_t(u, v));
+  }
+  
+  static uint64_t HashLen0to16(const char *s, size_t len) {
+    if (len > 8) {
+      uint64_t a = Fetch64(s);
+      uint64_t b = Fetch64(s + len - 8);
+      return HashLen16(a, RotateByAtLeast1(b + len, len)) ^ b;
+    }
+    if (len >= 4) {
+      uint64_t a = Fetch32(s);
+      return HashLen16(len + (a << 3), Fetch32(s + len - 4));
+    }
+    if (len > 0) {
+      uint8_t a = s[0];
+      uint8_t b = s[len >> 1];
+      uint8_t c = s[len - 1];
+      uint32_t y = static_cast<uint32_t>(a) + (static_cast<uint32_t>(b) << 8);
+      uint32_t z = len + (static_cast<uint32_t>(c) << 2);
+      return ShiftMix(y * k2 ^ z * k3) * k2;
+    }
+    return k2;
+  }
+
+  // This probably works well for 16-byte strings as well, but it may be overkill
+  // in that case.
+  static uint64_t HashLen17to32(const char *s, size_t len) {
+    uint64_t a = Fetch64(s) * k1;
+    uint64_t b = Fetch64(s + 8);
+    uint64_t c = Fetch64(s + len - 8) * k2;
+    uint64_t d = Fetch64(s + len - 16) * k0;
+    return HashLen16(Rotate(a - b, 43) + Rotate(c, 30) + d,
+                     a + Rotate(b ^ k3, 20) - c + len);
+  }
+
+  // Return a 16-byte hash for 48 bytes.  Quick and dirty.
+  // Callers do best to use "random-looking" values for a and b.
+  static pair<uint64_t, uint64_t> WeakHashLen32WithSeeds(
+    uint64_t w, uint64_t x, uint64_t y, uint64_t z, uint64_t a, uint64_t b) {
+    a += w;
+    b = Rotate(b + a + z, 21);
+    uint64_t c = a;
+    a += x;
+    a += y;
+    b += Rotate(a, 44);
+    return make_pair(a + z, b + c);
+  }
+
+  // Return a 16-byte hash for s[0] ... s[31], a, and b.  Quick and dirty.
+  static pair<uint64_t, uint64_t> WeakHashLen32WithSeeds(
+    const char* s, uint64_t a, uint64_t b) {
+    return WeakHashLen32WithSeeds(Fetch64(s),
+                                  Fetch64(s + 8),
+                                  Fetch64(s + 16),
+                                  Fetch64(s + 24),
+                                  a,
+                                  b);
+  } 
+
+  // Return an 8-byte hash for 33 to 64 bytes.
+  static uint64_t HashLen33to64(const char *s, size_t len) {
+    uint64_t z = Fetch64(s + 24);
+    uint64_t a = Fetch64(s) + (len + Fetch64(s + len - 16)) * k0;
+    uint64_t b = Rotate(a + z, 52);
+    uint64_t c = Rotate(a, 37);
+    a += Fetch64(s + 8);
+    c += Rotate(a, 7);
+    a += Fetch64(s + 16);
+    uint64_t vf = a + z;
+    uint64_t vs = b + Rotate(a, 31) + c;
+    a = Fetch64(s + 16) + Fetch64(s + len - 32);
+    z = Fetch64(s + len - 8);
+    b = Rotate(a + z, 52);
+    c = Rotate(a, 37);
+    a += Fetch64(s + len - 24);
+    c += Rotate(a, 7);
+    a += Fetch64(s + len - 16);
+    uint64_t wf = a + z;
+    uint64_t ws = b + Rotate(a, 31) + c;
+    uint64_t r = ShiftMix((vf + ws) * k2 + (wf + vs) * k0);
+    return ShiftMix(r * k0 + vs) * k2;
+  }
+
+  uint64_t CityHash64(const char *s, size_t len) {
+    if (len <= 32) {
+      if (len <= 16) {
+        return HashLen0to16(s, len);
+      } else {
+        return HashLen17to32(s, len);
+      }
+    } else if (len <= 64) {
+      return HashLen33to64(s, len);
+    }
+  
+    // For strings over 64 bytes we hash the end first, and then as we
+    // loop we keep 56 bytes of state: v, w, x, y, and z.
+    uint64_t x = Fetch64(s + len - 40);
+    uint64_t y = Fetch64(s + len - 16) + Fetch64(s + len - 56);
+    uint64_t z = HashLen16(Fetch64(s + len - 48) + len, Fetch64(s + len - 24));
+    pair<uint64_t, uint64_t> v = WeakHashLen32WithSeeds(s + len - 64, len, z);
+    pair<uint64_t, uint64_t> w = WeakHashLen32WithSeeds(s + len - 32, y + k1, x);
+    x = x * k1 + Fetch64(s);
+    
+    // Decrease len to the nearest multiple of 64, and operate on 64-byte chunks.
+    len = (len - 1) & ~static_cast<size_t>(63);
+    do {
+      x = Rotate(x + y + v.first + Fetch64(s + 8), 37) * k1;
+      y = Rotate(y + v.second + Fetch64(s + 48), 42) * k1;
+      x ^= w.second;
+      y += v.first + Fetch64(s + 40);
+      z = Rotate(z + w.first, 33) * k1;
+      v = WeakHashLen32WithSeeds(s, v.second * k1, x + w.first);
+      w = WeakHashLen32WithSeeds(s + 32, z + w.second, y + Fetch64(s + 16));
+      std::swap(z, x);
+      s += 64;
+      len -= 64;
+    } while (len != 0);
+    return HashLen16(HashLen16(v.first, w.first) + ShiftMix(y) * k1 + z,
+                     HashLen16(v.second, w.second) + x);
+  }
+  
+  uint64_t CityHash64WithSeed(const char *s, size_t len, uint64_t seed) {
+    return CityHash64WithSeeds(s, len, k2, seed);
+  }
+  
+  uint64_t CityHash64WithSeeds(const char *s, size_t len,
+                             uint64_t seed0, uint64_t seed1) {
+    return HashLen16(CityHash64(s, len) - seed0, seed1);
+  }
+  
+  // A subroutine for CityHash128().  Returns a decent 128-bit hash for strings
+  // of any length representable in signed long.  Based on City and Murmur.
+  static uint128_t CityMurmur(const char *s, size_t len, uint128_t seed) {
+    uint64_t a = Uint128Low64(seed);
+    uint64_t b = Uint128High64(seed);
+    uint64_t c = 0;
+    uint64_t d = 0;
+    signed long l = len - 16;
+    if (l <= 0) {  // len <= 16
+      a = ShiftMix(a * k1) * k1;
+      c = b * k1 + HashLen0to16(s, len);
+      d = ShiftMix(a + (len >= 8 ? Fetch64(s) : c));
+    } else {  // len > 16
+      c = HashLen16(Fetch64(s + len - 8) + k1, a);
+      d = HashLen16(b + len, c + Fetch64(s + len - 16));
+      a += d;
+      do {
+        a ^= ShiftMix(Fetch64(s) * k1) * k1;
+        a *= k1;
+        b ^= a;
+        c ^= ShiftMix(Fetch64(s + 8) * k1) * k1;
+        c *= k1;
+        d ^= c;
+        s += 16;
+        l -= 16;
+      } while (l > 0);
+    }
+    a = HashLen16(a, c);
+    b = HashLen16(d, b);
+    return uint128_t(a ^ b, HashLen16(b, a));
+  }
+  
+  uint128_t CityHash128WithSeed(const char *s, size_t len, uint128_t seed) {
+    if (len < 128) {
+      return CityMurmur(s, len, seed);
+    }
+  
+    // We expect len >= 128 to be the common case.  Keep 56 bytes of state:
+    // v, w, x, y, and z.
+    pair<uint64_t, uint64_t> v, w;
+    uint64_t x = Uint128Low64(seed);
+    uint64_t y = Uint128High64(seed);
+    uint64_t z = len * k1;
+    v.first = Rotate(y ^ k1, 49) * k1 + Fetch64(s);
+    v.second = Rotate(v.first, 42) * k1 + Fetch64(s + 8);
+    w.first = Rotate(y + z, 35) * k1 + x;
+    w.second = Rotate(x + Fetch64(s + 88), 53) * k1;
+    
+    // This is the same inner loop as CityHash64(), manually unrolled.
+    do {
+      x = Rotate(x + y + v.first + Fetch64(s + 8), 37) * k1;
+      y = Rotate(y + v.second + Fetch64(s + 48), 42) * k1;
+      x ^= w.second;
+      y += v.first + Fetch64(s + 40);
+      z = Rotate(z + w.first, 33) * k1;
+      v = WeakHashLen32WithSeeds(s, v.second * k1, x + w.first);
+      w = WeakHashLen32WithSeeds(s + 32, z + w.second, y + Fetch64(s + 16));
+      std::swap(z, x);
+      s += 64;
+      x = Rotate(x + y + v.first + Fetch64(s + 8), 37) * k1;
+      y = Rotate(y + v.second + Fetch64(s + 48), 42) * k1;
+      x ^= w.second;
+      y += v.first + Fetch64(s + 40);
+      z = Rotate(z + w.first, 33) * k1;
+      v = WeakHashLen32WithSeeds(s, v.second * k1, x + w.first);
+      w = WeakHashLen32WithSeeds(s + 32, z + w.second, y + Fetch64(s + 16));
+      std::swap(z, x);
+      s += 64;
+      len -= 128;
+    } while (LIKELY(len >= 128));
+    x += Rotate(v.first + z, 49) * k0;
+    z += Rotate(w.first, 37) * k0;
+    // If 0 < len < 128, hash up to 4 chunks of 32 bytes each from the end of s.
+    for (size_t tail_done = 0; tail_done < len; ) {
+      tail_done += 32;
+      y = Rotate(x + y, 42) * k0 + v.second;
+      w.first += Fetch64(s + len - tail_done + 16);
+      x = x * k0 + w.first;
+      z += w.second + Fetch64(s + len - tail_done);
+      w.second += v.first;
+      v = WeakHashLen32WithSeeds(s + len - tail_done, v.first + z, v.second);
+    }
+    // At this point our 56 bytes of state should contain more than
+    // enough information for a strong 128-bit hash.  We use two
+    // different 56-byte-to-8-byte hashes to get a 16-byte final result.
+    x = HashLen16(x, v.first);
+    y = HashLen16(y + z, w.first);
+    return uint128_t(HashLen16(x + v.second, w.second) + y,
+                   HashLen16(x + w.second, y + v.second));
+  }
+  
+  uint128_t CityHash128(const char *s, size_t len) {
+    if (len >= 16) {
+      return CityHash128WithSeed(s + 16,
+                                 len - 16,
+                                 uint128_t(Fetch64(s) ^ k3,
+                                           Fetch64(s + 8)));
+    } else if (len >= 8) {
+      return CityHash128WithSeed(NULL,
+                                 0,
+                                 uint128_t(Fetch64(s) ^ (len * k0),
+                                           Fetch64(s + len - 8) ^ k1));
+    } else {
+      return CityHash128WithSeed(s, len, uint128_t(k0, k1));
+    }
+  }
+  //
+  KOKKOS_FORCEINLINE_FUNCTION
+  void hash(const void* data, int len, uint8_t* digest);
+
+  KOKKOS_FORCEINLINE_FUNCTION
+  constexpr uint32_t digest_size();
+
+  KOKKOS_INLINE_FUNCTION
+  void digest_to_hex(const uint8_t* digest, char* output, uint32_t digest_size) {
+    int i,j;
+    char* c = output;
+    for(i=0; i<digest_size/4; i++) {
+      for(j=0; j<4; j++) {
+        sprintf(c, "%02X", digest[i*4 + j]);
+        c += 2;
+      }
+      sprintf(c, " ");
+      c += 1;
+    }
+    *(c-1) = '\0';
+  }
+};
+*/
 
 //namespace FarmHash {
 //
@@ -548,7 +1099,13 @@ namespace Murmur3 {
 
 KOKKOS_INLINE_FUNCTION
 uint32_t hash32(const void* data, int len) {
-  return Murmur3::MurmurHash3_x86_32(static_cast<const uint8_t*>(data), len, 0);
+  Murmur3 hasher;
+  return hasher.MurmurHash3_x86_32(static_cast<const uint8_t*>(data), len, 0);
+}
+
+KOKKOS_INLINE_FUNCTION
+void hash(Hash hash_func, const void* data, int len, uint8_t* digest) {
+  hash_func.hash(data, len, digest);
 }
 
 //KOKKOS_INLINE_FUNCTION
