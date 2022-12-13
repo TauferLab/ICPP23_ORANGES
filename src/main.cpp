@@ -1,4 +1,5 @@
 //#define AUTO_CHECKPOINT
+#include "deduplicator.hpp"
 #include "class_definitions.hpp"
 #include "combinations.hpp"
 #include "kokkos_functions.hpp"
@@ -6,8 +7,8 @@
 #include "hash_change_detection.hpp"
 #include "update_pattern_analysis.hpp"
 #include "io.hpp"
-#include "hash_functions.hpp"
-#include "deduplication.hpp"
+//#include "hash_functions.hpp"
+//#include "deduplication.hpp"
 #include "utils.hpp"
 #include <time.h>
 #include <stdlib.h>
@@ -624,7 +625,8 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
       deg = num_neighbors(x);
   }, Kokkos::Max<uint32_t>(max_neighbors));
   MPI_Allreduce(&max_neighbors, &max_neighbors, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
-  printf("Max degree: %d\n", max_neighbors);
+  if(rankn == 0) 
+    printf("Max degree: %d\n", max_neighbors);
 
   // Get the total # of combinations of potential subgraphs
   uint64_t total_combinations = 0;
@@ -673,75 +675,12 @@ Kokkos::fence();
   printf("Rank %d: ", rankn);
   for(uint32_t i=0; i<num_intervals+1; i++) {
 //    printf("%ld ", starts_host(i));
-//    printf("%ld ", get_node_from_combinations(graph, num_combinations_host, k_interval, i));
+    printf("%ld ", get_node_from_combinations(graph, num_combinations_host, k_interval, i));
   }
   printf("\n");
 #endif
 
 // Calculate GDVs
-//  if(comm_size == 1)
-//  {
-//printf("Single process\n");
-//    using member_type = Kokkos::TeamPolicy<Kokkos::Schedule<Kokkos::Dynamic>>::member_type;
-//
-//#ifdef AUTO_CHECKPOINT
-//    auto ctx = KokkosResilience::make_context(MPI_COMM_SELF, "/home/ntan1/Src_Fido_Kokkos/fido.json");
-//    printf("Created context\n");
-//    const auto filt = KokkosResilience::Filter::NthIterationFilter(1);
-//    printf("Created filter\n");
-//    i = KokkosResilience::latest_version(*ctx, graph_name);
-//    if(i < 0)
-//      i = 0;
-//    printf("Got latest counter %d\n", i);
-//#endif
-//
-//    int num_leagues = 1;
-//    Kokkos::TeamPolicy<> bundle_policy = Kokkos::TeamPolicy<>(num_leagues, NUM_THREADS);
-//
-//    int nleagues = graph.numRows();
-//    uint64_t scratch_bytes = (sizeof(bool)*5 + (max_neighbors+max_neighbors+55+orbits.distance.span())*sizeof(int));
-//printf("%lu bytes\n", scratch_bytes);
-//    Kokkos::TeamPolicy<> team_policy = Kokkos::TeamPolicy<>(nleagues, NUM_THREADS).set_scratch_size(1, Kokkos::PerThread(scratch_bytes));
-//#ifdef DETAILED_TIMERS
-//    chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
-//#endif
-//    Kokkos::parallel_for("Calculate GDV", team_policy, KOKKOS_LAMBDA(member_type team_member) {
-//      int32_t node = team_member.league_rank();
-//      scratch_int_view neighbor_subview(team_member.thread_scratch(1), max_neighbors);
-//      scratch_int_view indices_subview(team_member.thread_scratch(1), 5);
-//      scratch_int_view combination_subview(team_member.thread_scratch(1), 5);
-////      scratch_int_view sgraph_dist_subview(team_member.thread_scratch(1), orbits.distance.extent(0));
-//      scratch_int_view sgraph_dist_subview(team_member.thread_scratch(1), 6);
-//      scratch_int_view sgraph_deg_subview(team_member.thread_scratch(1), 5);
-//      scratch_int_view queue_subview(team_member.thread_scratch(1), 5);
-//      scratch_int_view distance_subview(team_member.thread_scratch(1), 5);
-//      scratch_subgraph_view subgraph_subview(team_member.thread_scratch(1), 5,5);
-//      scratch_int_view visited_subview(team_member.thread_scratch(1), 5);
-//      scratch_int_view scratch_view(team_member.thread_scratch(1), max_neighbors);
-//      int n_neighbors = EssensKokkos::find_neighbours(node, graph, 4, neighbor_subview);
-//      for(int node_count=1; node_count<5; node_count++) {
-//        uint64_t n_combinations = get_num_combinations(n_neighbors, node_count);
-//        Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, n_combinations), [=] (uint64_t idx) {
-//          uint64_t combination_num = idx;
-//          combination_from_position(scratch_view, combination_num, n_neighbors, node_count);
-//          for(int j=0; j<node_count; j++) {
-//              combination_subview(j) = neighbor_subview(scratch_view(j));
-//          }
-//          combination_subview(node_count) = node;
-//
-//          kokkos_calculate_GDV2(team_member, node, node_count, graph, orbits, num_neighbors(node), combination_subview, sgraph_dist_subview, sgraph_deg_subview, subgraph_subview, visited_subview, queue_subview, distance_subview, graph_GDV);
-//        });
-//      }
-//    });
-//#ifdef DETAILED_TIMERS
-//    Kokkos::fence();
-//    chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
-//    chrono::duration<double> time_span = chrono::duration_cast<chrono::duration<double>>(t2-t1);
-//    printf("Done with chunk: time: %f\n", time_span.count());
-//#endif
-//  }
-//  else
-//  {
 #ifdef DEBUG
     printf("Multiple ranks\n");
 #endif
@@ -773,7 +712,6 @@ printf("Rank %d: start_index: %llu, intervals_per_rank: %llu\n", rankn, start_in
     typedef Kokkos::View<int**, ScratchSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> scratch_subgraph_view;
     typedef Kokkos::View<bool*, ScratchSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> scratch_bool_view;
 
-    const int num_leagues = 1;
 #ifdef DEBUG
 printf("Rank %d allocated memory\n", rankn);
 #endif
@@ -788,6 +726,10 @@ printf("Rank %d allocated memory\n", rankn);
       offset = 0;
     printf("Got latest counter %d\n", offset);
 #endif
+
+    const int num_leagues = 1;
+
+    Deduplicator<MD5Hash> deduplicator(128);
 
     while(offset < intervals_per_rank) {
 #ifdef DETAILED_TIMERS
@@ -870,12 +812,6 @@ printf("%lu bytes\n", scratch_bytes);
             });
           }
         });
-//#ifdef DETAILED_TIMERS
-//        Kokkos::fence();
-//        chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
-//        chrono::duration<double> time_span = chrono::duration_cast<chrono::duration<double>>(t2-t1);
-//        printf("Rank: %d: Done with chunk: %u, time: %f\n", rankn, chunk_idx, time_span.count());
-//#endif
 
 Kokkos::fence();
 #ifdef DEBUG
@@ -1077,6 +1013,13 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
       chrono::duration<double> time_span = chrono::duration_cast<chrono::duration<double>>(t2-t1);
       printf("Rank: %d: Done with chunk: %u, time: %f\n", rankn, chunk_idx, time_span.count());
 #endif
+      std::string filename = label + "." + std::to_string(offset) + ".hashtree.incr_chkpt";
+      std::string logname = label + "." + std::to_string(offset);
+printf("Span of graph GDVs: %lu, should be %lu\n", graph_GDV.span(), graph_GDV.size()*sizeof(uint32_t));
+      size_t gdv_len = graph_GDV.span()*sizeof(uint32_t);
+      deduplicator.checkpoint(Tree, (uint8_t*)(graph_GDV.data()), gdv_len, filename, logname, offset==0);
+      Kokkos::fence();
+
       offset++;
     }
     auto graph_GDV_h = Kokkos::create_mirror_view(graph_GDV);
@@ -1095,7 +1038,6 @@ printf("Trying to reduce GDVs\n");
 #ifdef DEBUG
 printf("Reduced GDVs\n");
 #endif
-//  }
   MPI_Barrier(MPI_COMM_WORLD);
 
   vec_calc_communication_time[graph_counter - 1] = process_ends_communication - vec_calc_start;

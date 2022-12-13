@@ -72,6 +72,7 @@ class Orbits {
 using Ordinal       = int;
 using Offset        = int;
 using Scalar        = float;
+
 using device_type   = typename Kokkos::Device<Kokkos::DefaultExecutionSpace, 
                       typename Kokkos::DefaultExecutionSpace::memory_space>;
 using scratch_device = typename Kokkos::Device<Kokkos::DefaultExecutionSpace,
@@ -82,6 +83,14 @@ using graph_type    = typename matrix_type::staticcrsgraph_type;
 using row_map_type  = typename graph_type::row_map_type;
 using entries_type  = typename graph_type::entries_type;
 using values_type   = typename matrix_type::values_type;
+
+using host_device_type   = typename Kokkos::Device<Kokkos::DefaultHostExecutionSpace, 
+                           typename Kokkos::DefaultHostExecutionSpace::memory_space>;
+using host_matrix_type = typename KokkosSparse::CrsMatrix<Scalar, Ordinal, host_device_type, void, Offset>;
+using host_graph_type    = typename host_matrix_type::staticcrsgraph_type;
+using host_row_map_type  = typename host_graph_type::row_map_type;
+using host_entries_type  = typename host_graph_type::entries_type;
+using host_values_type   = typename host_matrix_type::values_type;
 
 #ifdef AUTO_CHECKPOINT
 using GDVs = Kokkos::View<uint32_t**, LAYOUT, Kokkos::Experimental::SubscribableViewHooks<KokkosResilience::DynamicViewHooksSubscriber>>;
