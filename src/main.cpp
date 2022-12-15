@@ -729,7 +729,8 @@ printf("Rank %d allocated memory\n", rankn);
 
     const int num_leagues = 1;
 
-    Deduplicator<MD5Hash> deduplicator(128);
+    Deduplicator<MD5Hash> deduplicator(512);
+    std::vector<Kokkos::View<uint8_t*>::HostMirror> diffs;
 
     while(offset < intervals_per_rank) {
 #ifdef DETAILED_TIMERS
@@ -1015,9 +1016,13 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
 #endif
       std::string filename = label + "." + std::to_string(offset) + ".hashtree.incr_chkpt";
       std::string logname = label + "." + std::to_string(offset);
-printf("Span of graph GDVs: %lu, should be %lu\n", graph_GDV.span(), graph_GDV.size()*sizeof(uint32_t));
       size_t gdv_len = graph_GDV.span()*sizeof(uint32_t);
-      deduplicator.checkpoint(Tree, (uint8_t*)(graph_GDV.data()), gdv_len, filename, logname, offset==0);
+      Kokkos::View<uint8_t*>::HostMirror diff_h;
+//      deduplicator.checkpoint(Tree, (uint8_t*)(graph_GDV.data()), gdv_len, filename, logname, offset==0);
+      deduplicator.checkpoint(Tree, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, offset==0);
+      Kokkos::fence();
+      diffs.push_back(diff_h);
+      deduplicator.restart(Tree, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, offset);
       Kokkos::fence();
 
       offset++;
