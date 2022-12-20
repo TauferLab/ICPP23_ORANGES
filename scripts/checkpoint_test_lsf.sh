@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-#BSUB -n 2
-#BSUB -gpu "num=2:mode=exclusive_process:mps=no"
+#BSUB -n 1
+#BSUB -gpu "num=1:mode=exclusive_process:mps=no"
 #BSUB -R "span[ptile=2]"
 #BSUB -o output/%J.out
 #BSUB -e output/%J.err
 
-NUM_PROCESSES=2
+NUM_PROCESSES=1
 CORES_PER_PROC=1
 THREADS_PER_PROC=4
 
@@ -44,9 +44,9 @@ GRAPH2=/data/gclab/fido/message_race_nprocs_32_niters_16384_msg_size_32_run_001_
 TIME_DATA=time_data.txt
 
 #INTERVAL=1000
-#INTERVAL=800000000 # Message Race 11174336
+INTERVAL=8000000000 # Message Race 11174336
 #INTERVAL=12000000000 # Unstructured mesh 14418368
-INTERVAL=7244620443 # Message race 11174336, 1 rank
+#INTERVAL=7244620443 # Message race 11174336, 1 rank
 #INTERVAL=3622310222 # Message race 11174336, 2 ranks
 #INTERVAL=1811155111 # Message race 11174336, 4 ranks
 #INTERVAL=905577556 # Message race 11174336, 8 ranks
@@ -55,11 +55,16 @@ INTERVAL=7244620443 # Message race 11174336, 1 rank
 #INTERVAL=12000000000 # RMAT 16777216
 CHUNK_SIZE=4096
 
+#dedup_approaches=('--run-full-chkpt' '--run-basic-chkpt' '--run-list-chkpt' '--run-tree-chkpt' '--run-tree-low-offset-ref-chkpt' '--run-tree-low-offset-chkpt' '--run-tree-low-root-ref-chkpt' '--run-tree-low-root-chkpt')
+approaches=('--run-full-chkpt' '--run-basic-chkpt' '--run-list-chkpt' '--run-tree-low-offset-chkpt' '--run-tree-low-offset-chkpt' '--run-tree-low-root-ref-chkpt')
+
 export OMP_PLACES=threads
 export OMP_PROC_BIND=spread
 
 #mpirun -n $NUM_PROCESSES --map-by slot:PE=$CORES_PER_PROC ./fido $GRAPH1 $GRAPH2 ./../data/orbit_signatures.txt $TIME_DATA $INTERVAL $CHUNK_SIZE --kokkos-num-threads=$THREADS_PER_PROC --kokkos-num-devices=2
 
-mpirun -n $NUM_PROCESSES --map-by slot:PE=$CORES_PER_PROC ./fido $GRAPH1 $GRAPH2 ./../data/orbit_signatures.txt $TIME_DATA $INTERVAL $CHUNK_SIZE --kokkos-num-threads=$THREADS_PER_PROC --kokkos-map-device-id-by=mpi_rank
-
+for approach in "${approaches[@]}" 
+do
+  mpirun -n $NUM_PROCESSES --map-by slot:PE=$CORES_PER_PROC ./fido $GRAPH1 $GRAPH2 ./../data/orbit_signatures.txt $TIME_DATA $INTERVAL $CHUNK_SIZE $approach --kokkos-num-threads=$THREADS_PER_PROC --kokkos-map-device-id-by=mpi_rank
+done
 

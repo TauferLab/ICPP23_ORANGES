@@ -119,6 +119,8 @@ int CHUNK_SIZE;
 
 using namespace std;
 
+DedupMode dedup_mode;
+
 int main(int argc, char *argv[]) {
   int numtasks, rank;//, dest, source, rc, count, tag=0;
 
@@ -164,6 +166,8 @@ int main(int argc, char *argv[]) {
 
   CHECKPOINT_INTERVAL = strtoull(argv[5], NULL, 0);
   sscanf(argv[6], "%d", &CHUNK_SIZE);
+
+  dedup_mode = get_mode(argc, argv);
 
   Orbits k_orbits;
   kokkos_readin_orbits(&the_file2, k_orbits);
@@ -233,6 +237,7 @@ int main(int argc, char *argv[]) {
   }
   CHECKPOINT_INTERVAL = strtoull(argv[5], NULL, 0);
   sscanf(argv[6], "%d", &CHUNK_SIZE);
+  dedup_mode = get_mode(argc, argv);
   start_time0 = high_resolution_clock::now();
   Kokkos::resize(gdvs, graphy.numRows(), num_orbits);
   Kokkos::deep_copy(gdvs, 0);
@@ -1019,10 +1024,10 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
       size_t gdv_len = graph_GDV.span()*sizeof(uint32_t);
       Kokkos::View<uint8_t*>::HostMirror diff_h;
 //      deduplicator.checkpoint(Tree, (uint8_t*)(graph_GDV.data()), gdv_len, filename, logname, offset==0);
-      deduplicator.checkpoint(Tree, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, offset==0);
+      deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, offset==0);
       Kokkos::fence();
       diffs.push_back(diff_h);
-      deduplicator.restart(Tree, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, offset);
+      deduplicator.restart(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, offset);
       Kokkos::fence();
 
       offset++;
