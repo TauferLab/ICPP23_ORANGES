@@ -629,7 +629,9 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
     if(num_neighbors(x) > deg)
       deg = num_neighbors(x);
   }, Kokkos::Max<uint32_t>(max_neighbors));
-  MPI_Allreduce(&max_neighbors, &max_neighbors, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  uint32_t n_neighbors;
+  MPI_Allreduce(&max_neighbors, &n_neighbors, 1, MPI_INT, MPI_MAX, MPI_COMM_WORLD);
+  max_neighbors = n_neighbors;
   if(rankn == 0) 
     printf("Max degree: %d\n", max_neighbors);
 
@@ -734,7 +736,7 @@ printf("Rank %d allocated memory\n", rankn);
 
     const int num_leagues = 1;
 
-    Deduplicator<MD5Hash> deduplicator(512);
+    Deduplicator<MD5Hash> deduplicator(CHUNK_SIZE);
     std::vector<Kokkos::View<uint8_t*>::HostMirror> diffs;
 
     while(offset < intervals_per_rank) {
