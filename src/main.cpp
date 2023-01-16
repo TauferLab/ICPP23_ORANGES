@@ -115,6 +115,7 @@ double report_output_time;
 int vec_calc_avg_node_deg;
 uint64_t CHECKPOINT_INTERVAL;
 int CHUNK_SIZE;
+int MAX_INTERVALS;
 //size_t NUM_CHECKPOINTS=4;
 
 using namespace std;
@@ -166,6 +167,8 @@ int main(int argc, char *argv[]) {
 
   CHECKPOINT_INTERVAL = strtoull(argv[5], NULL, 0);
   sscanf(argv[6], "%d", &CHUNK_SIZE);
+
+  sscanf(argv[7], "%d", &MAX_INTERVALS);
 
   dedup_mode = get_mode(argc, argv);
 
@@ -230,22 +233,22 @@ int main(int argc, char *argv[]) {
   high_resolution_clock::time_point end_time0 = high_resolution_clock::now();
   printf("Time spent on graph 1: %f\n", duration_cast<duration<double>>(end_time0 - start_time0));
 
-  readin_graph(&the_file1, graphy);
-  if(rank == 0) {
-//    cout << "Graph 1: # of vertices: " << graphx.numRows() << endl;
-    cout << "Graph 2: # of vertices: " << graphy.numRows() << endl;
-  }
-  CHECKPOINT_INTERVAL = strtoull(argv[5], NULL, 0);
-  sscanf(argv[6], "%d", &CHUNK_SIZE);
-  dedup_mode = get_mode(argc, argv);
-  start_time0 = high_resolution_clock::now();
-  Kokkos::resize(gdvs, graphy.numRows(), num_orbits);
-  Kokkos::deep_copy(gdvs, 0);
-  compute_gdvs(graphy, k_orbits, gdvs, graph_name2);
-  GDVs::HostMirror graph2_gdvs = Kokkos::create_mirror_view(gdvs);
-  Kokkos::deep_copy(graph2_gdvs, gdvs);
-  end_time0 = high_resolution_clock::now();
-  printf("Time spent on graph 2: %f\n", duration_cast<duration<double>>(end_time0 - start_time0));
+//  readin_graph(&the_file1, graphy);
+//  if(rank == 0) {
+////    cout << "Graph 1: # of vertices: " << graphx.numRows() << endl;
+//    cout << "Graph 2: # of vertices: " << graphy.numRows() << endl;
+//  }
+//  CHECKPOINT_INTERVAL = strtoull(argv[5], NULL, 0);
+//  sscanf(argv[6], "%d", &CHUNK_SIZE);
+//  dedup_mode = get_mode(argc, argv);
+//  start_time0 = high_resolution_clock::now();
+//  Kokkos::resize(gdvs, graphy.numRows(), num_orbits);
+//  Kokkos::deep_copy(gdvs, 0);
+//  compute_gdvs(graphy, k_orbits, gdvs, graph_name2);
+//  GDVs::HostMirror graph2_gdvs = Kokkos::create_mirror_view(gdvs);
+//  Kokkos::deep_copy(graph2_gdvs, gdvs);
+//  end_time0 = high_resolution_clock::now();
+//  printf("Time spent on graph 2: %f\n", duration_cast<duration<double>>(end_time0 - start_time0));
 
 #ifdef OUTPUT_GDV    
   write_gdvs(graph1_gdvs, graph_name1, graph2_gdvs, graph_name2);
@@ -736,10 +739,10 @@ printf("Rank %d allocated memory\n", rankn);
 
     const int num_leagues = 1;
 
-    Deduplicator<MD5Hash> deduplicator(CHUNK_SIZE);
+//    Deduplicator<MD5Hash> deduplicator(CHUNK_SIZE);
     std::vector<Kokkos::View<uint8_t*>::HostMirror> diffs;
 
-    while(offset < intervals_per_rank) {
+    while(offset < intervals_per_rank && (offset < MAX_INTERVALS)) {
 #ifdef DETAILED_TIMERS
       chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
 #endif
@@ -1025,11 +1028,10 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
       std::string logname = label + "." + std::to_string(offset);
       size_t gdv_len = graph_GDV.span()*sizeof(uint32_t);
       Kokkos::View<uint8_t*>::HostMirror diff_h;
-//      deduplicator.checkpoint(Tree, (uint8_t*)(graph_GDV.data()), gdv_len, filename, logname, offset==0);
-      deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, offset==0);
+//      deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, offset==0);
       Kokkos::fence();
-      diffs.push_back(diff_h);
-      deduplicator.restart(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, offset);
+//      diffs.push_back(diff_h);
+//      deduplicator.restart(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, offset);
       Kokkos::fence();
 
       offset++;

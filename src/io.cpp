@@ -90,34 +90,41 @@ void readin_graph(ifstream* file, matrix_type& graph)
   vector<int> rows, cols;
   vector<float> vals;
   vector<vector<int>> edge_list;
+  int seen_first_row = 0;
   while(std::getline(*file,line))
   {
     int u, v;
     float w;
-    sscanf(line.c_str(), "%d %d %f", &u, &v, &w);
-    if(u > lastrow) 
-      lastrow = u;
-    if(v > lastrow) 
-      lastrow = v;
-    vector<int> edge1;
-    edge1.push_back(u);
-    edge1.push_back(v);
-    if(w == 0.0 || w == 0) {
-        edge1.push_back(0);
-    } else {
-        edge1.push_back(1);
-    }
-    edge_list.push_back(edge1);
-    if(u != v) {
-      vector<int> edge2;
-      edge2.push_back(v);
-      edge2.push_back(u);
-      if(w == 0.0 || w == 0) {
-            edge2.push_back(0);
+    if(line[0] != '%') {
+      if(!seen_first_row) {
+        seen_first_row = 1;
       } else {
-            edge2.push_back(1);
+        sscanf(line.c_str(), "%d %d %f", &u, &v, &w);
+        if(u > lastrow) 
+          lastrow = u;
+        if(v > lastrow) 
+          lastrow = v;
+        vector<int> edge1;
+        edge1.push_back(u);
+        edge1.push_back(v);
+        if(w == 0.0 || w == 0) {
+            edge1.push_back(0);
+        } else {
+            edge1.push_back(1);
+        }
+        edge_list.push_back(edge1);
+        if(u != v) {
+          vector<int> edge2;
+          edge2.push_back(v);
+          edge2.push_back(u);
+          if(w == 0.0 || w == 0) {
+                edge2.push_back(0);
+          } else {
+                edge2.push_back(1);
+          }
+          edge_list.push_back(edge2);
+        }
       }
-      edge_list.push_back(edge2);
     }
   }
   sort(edge_list.begin(), edge_list.end(), sort_by_leading_edge);
@@ -182,12 +189,10 @@ void write_similarity_matrix(Kokkos::View<double**>& sim_mat) {
   myfile.close();
 }
 
-void write_gdvs(GDVs::HostMirror& graph1_GDV_host, std::string& graph_tag1, 
-                GDVs::HostMirror& graph2_GDV_host, std::string& graph_tag2) {
+void write_gdvs(GDVs::HostMirror& graph1_GDV_host, std::string& graph_tag1) {
   // Print out GDVs into files
   ofstream myfile; 
   string gdv_file1 = "out_gdv_1_" + graph_tag1 + ".txt";
-  string gdv_file2 = "out_gdv_2_" + graph_tag2 + ".txt";
   myfile.open(gdv_file1, ofstream::trunc);
   for (int i = 0; i < graph1_GDV_host.extent(0); i++) {
     for (int j = 0; j< graph1_GDV_host.extent(1); j++) {
@@ -196,13 +201,12 @@ void write_gdvs(GDVs::HostMirror& graph1_GDV_host, std::string& graph_tag1,
     myfile << endl;
   }
   myfile.close();
-  myfile.open(gdv_file2, ofstream::trunc);
-  for (int i = 0; i < graph2_GDV_host.extent(0); i++) {
-    for (int j = 0; j< graph2_GDV_host.extent(1); j++) {
-      myfile << graph2_GDV_host(i,j) << " ";
-    }
-    myfile << endl;
-  }
-  myfile.close();
+}
+
+void write_gdvs(GDVs::HostMirror& graph1_GDV_host, std::string& graph_tag1, 
+                GDVs::HostMirror& graph2_GDV_host, std::string& graph_tag2) {
+  // Print out GDVs into files
+  write_gdvs(graph1_GDV_host, graph_tag1);
+  write_gdvs(graph2_GDV_host, graph_tag2);
 }
 
