@@ -115,8 +115,9 @@ double report_output_time;
 int vec_calc_avg_node_deg;
 uint64_t CHECKPOINT_INTERVAL;
 int CHUNK_SIZE;
-int MAX_INTERVALS;
-//size_t NUM_CHECKPOINTS=4;
+uint64_t MAX_INTERVALS;
+uint64_t TIME_INTERVAL;
+//uint64_t NUM_CHECKPOINTS=4;
 
 using namespace std;
 
@@ -170,6 +171,8 @@ int main(int argc, char *argv[]) {
 
   sscanf(argv[7], "%d", &MAX_INTERVALS);
 
+  sscanf(argv[8], "%d", &TIME_INTERVAL);
+
   dedup_mode = get_mode(argc, argv);
 
   Orbits k_orbits;
@@ -191,7 +194,7 @@ int main(int argc, char *argv[]) {
   string graph_name1 = argv[1];
   string graph_name2 = argv[2];
   
-  size_t pos1 = 0;
+  uint64_t pos1 = 0;
   string token1;
   while ((pos1 = graph_name1.find(delimiter)) != string::npos) {
     token1 = graph_name1.substr(0, pos1);
@@ -199,7 +202,7 @@ int main(int argc, char *argv[]) {
     graph_name1.erase(0, pos1 + delimiter.length());
   }
   
-  size_t pos2 = 0;
+  uint64_t pos2 = 0;
   string token2;
   while ((pos2 = graph_name2.find(delimiter)) != string::npos) {
     token2 = graph_name2.substr(0, pos2);
@@ -302,7 +305,7 @@ int main(int argc, char *argv[]) {
     Kokkos::TeamPolicy<> team_policy(1, NUM_THREADS);
   
     if (myfile.is_open()) {
-      size_t team_size = team_policy.team_size();
+      uint64_t team_size = team_policy.team_size();
       if(team_size > 0) {
         myfile << month << "/" << day << "/" << year << "\t" << numtasks << "\t" << team_policy.team_size() << "\t" << graph_name1 << "\t" << graph_name2 << "\t" << graphx.numRows() << "\t\t" << total_time_taken << " \n";
       } else {
@@ -534,7 +537,7 @@ KOKKOS_INLINE_FUNCTION
 double kokkos_metric_formula(SubviewType &gdvm)
 {
   double sum = 0;
-  for(size_t i=0; i<gdvm.extent(0); i++) {
+  for(uint64_t i=0; i<gdvm.extent(0); i++) {
     sum += static_cast<double>(static_cast<int64_t>(gdvm[i])*static_cast<int64_t>(gdvm[i]));
   }
   return sqrt(sum);
@@ -578,19 +581,19 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
 #endif
 
   uint32_t vertices_per_proc = graph.numRows()/comm_size;
-  size_t start_offset = rankn*vertices_per_proc;
-  size_t end_offset = start_offset+vertices_per_proc;
+  uint64_t start_offset = rankn*vertices_per_proc;
+  uint64_t end_offset = start_offset+vertices_per_proc;
   if(end_offset > graph.numRows())
     end_offset = graph.numRows();
   int* recv_count = new int[comm_size];
   int* displs = new int[comm_size];
   int running_count = 0;
-  for(size_t i=0; i<comm_size-1; i++) {
+  for(uint64_t i=0; i<comm_size-1; i++) {
     recv_count[i] = vertices_per_proc;
     displs[i] = running_count;
     running_count += vertices_per_proc;
   }
-  recv_count[size_t (comm_size-1)] = graph.numRows()-(comm_size-1)*vertices_per_proc;
+  recv_count[uint64_t (comm_size-1)] = graph.numRows()-(comm_size-1)*vertices_per_proc;
   displs[comm_size-1] = running_count;
 #ifdef DEBUG
   for(int i=0; i<comm_size; i++) {
@@ -601,13 +604,13 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
 #endif
 
   chrono::steady_clock::time_point count_comb_beg = chrono::steady_clock::now();
-  size_t comb_count_scratch = sizeof(scratch_int_view) + sizeof(int)*graph.numRows();
+  uint64_t comb_count_scratch = sizeof(scratch_int_view) + sizeof(int)*graph.numRows();
   Kokkos::TeamPolicy<> comb_count_policy = Kokkos::TeamPolicy<>(1, NUM_THREADS).set_scratch_size(1, Kokkos::PerThread(comb_count_scratch));
   using team_member_type = Kokkos::TeamPolicy<>::member_type;
   Kokkos::parallel_for("Get # of combinations", comb_count_policy, KOKKOS_LAMBDA(team_member_type team_member) {
     scratch_int_view neighbor_subview(team_member.thread_scratch(1), graph.numRows());
     Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, end_offset-start_offset), [=] (int n) {
-      size_t node = start_offset+n;
+      uint64_t node = start_offset+n;
       uint32_t n_neighbors = 0;
       n_neighbors = EssensKokkos::get_num_neighbors(graph, node, 4, neighbor_subview);
       num_neighbors(node) = n_neighbors;
@@ -739,10 +742,16 @@ printf("Rank %d allocated memory\n", rankn);
 
     const int num_leagues = 1;
 
-//    Deduplicator<MD5Hash> deduplicator(CHUNK_SIZE);
+    Deduplicator<MD5Hash> deduplicator(CHUNK_SIZE);
     std::vector<Kokkos::View<uint8_t*>::HostMirror> diffs;
 
-    while(offset < intervals_per_rank && (offset < MAX_INTERVALS)) {
+    double prior_time = MPI_Wtime();
+    uint32_t chkpt_counter = 0;
+
+    uint64_t end_interval = MAX_INTERVALS;
+    if(MAX_INTERVALS==0)
+      end_interval = intervals_per_rank;
+    while(offset < intervals_per_rank && (chkpt_counter < end_interval)) {
 #ifdef DETAILED_TIMERS
       chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
 #endif
@@ -851,10 +860,10 @@ Kokkos::fence();
 printf("Rank %d: Number of neighbors for %d: %d\n", rankn, curr_node, n_neighbors);
 #endif
 
-        size_t start_combination;
-        size_t end_combination;
-        size_t start_comb_subgraph[5] = {0,0,0,0,0};
-        size_t end_comb_subgraph[5] = {0,0,0,0,0};
+        uint64_t start_combination;
+        uint64_t end_combination;
+        uint64_t start_comb_subgraph[5] = {0,0,0,0,0};
+        uint64_t end_comb_subgraph[5] = {0,0,0,0,0};
         start_comb_subgraph[0] = 0;
         end_comb_subgraph[0] = 0;
         int start_chunk = 0;
@@ -916,7 +925,7 @@ printf("\n");
 #ifdef DEBUG
 printf("Rank %d: First chunk: start comb: %zu, end comb: %zu\n", rankn, start_combination, end_combination);
 #endif
-          size_t counter = k_interval;
+          uint64_t counter = k_interval;
           for(int j=1; j<5; j++) {
             uint64_t n_comb = get_num_combinations(n_neighbors, j);
             if(counter > n_comb) {
@@ -941,7 +950,7 @@ printf("\n");
 #ifdef DEBUG
 printf("Rank %d: Middle chunk: start comb: %zu, end comb: %zu\n", rankn, start_combination, end_combination);
 #endif
-          size_t counter = 0;
+          uint64_t counter = 0;
           for(int j=1; j<5; j++) {
             uint64_t n_comb = get_num_combinations(n_neighbors, j);
 #ifdef DEBUG
@@ -977,8 +986,8 @@ printf("Rank: %d: Per thread scratch %ld\n", rankn, num_bytes);
 #endif
         Kokkos::TeamPolicy<> team_policy = Kokkos::TeamPolicy<>(1, NUM_THREADS).set_scratch_size(1, Kokkos::PerThread((num_bytes)));
         for(int node_count = 1; node_count < 5; node_count++) {
-          size_t s_comb = start_comb_subgraph[node_count];
-          size_t e_comb = end_comb_subgraph[node_count];
+          uint64_t s_comb = start_comb_subgraph[node_count];
+          uint64_t e_comb = end_comb_subgraph[node_count];
 #ifdef DEBUG
 printf("Rank %d: Node count: %d, range: [%zu,%zu)\n", rankn, node_count+1, s_comb, e_comb);
 #endif
@@ -993,8 +1002,8 @@ printf("Rank %d: Node count: %d, range: [%zu,%zu)\n", rankn, node_count+1, s_com
               scratch_int_view distance_subview(team_member.thread_scratch(1), 5);
               scratch_subgraph_view subgraph_subview(team_member.thread_scratch(1), 5, 5);
               scratch_bool_view visited_subview(team_member.thread_scratch(1), 5);
-              Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, e_comb-s_comb), [=] (size_t idx) {
-                size_t combination_num = idx+s_comb;
+              Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, e_comb-s_comb), [=] (uint64_t idx) {
+                uint64_t combination_num = idx+s_comb;
 //printf("Rank %d: node count: %d, Created combination number: %lu\n", rankn, node_count, combination_num);
                 combination_from_position(scratch_view, combination_num, n_neighbors, node_count);
                 for(int j=0; j<node_count; j++) {
@@ -1008,7 +1017,7 @@ printf("Rank %d: Node count: %d, range: [%zu,%zu)\n", rankn, node_count+1, s_com
             });
           }
           Kokkos::fence();
-          printf("Rank %d: Done with subgraphs of size %d\n", rankn, node_count+1);
+//          printf("Rank %d: Done with subgraphs of size %d\n", rankn, node_count+1);
         }
 #ifdef DEBUG
 Kokkos::fence();
@@ -1024,14 +1033,20 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
       chrono::duration<double> time_span = chrono::duration_cast<chrono::duration<double>>(t2-t1);
       printf("Rank: %d: Done with chunk: %u, time: %f\n", rankn, chunk_idx, time_span.count());
 #endif
-      std::string filename = label + "." + std::to_string(offset) + ".hashtree.incr_chkpt";
-      std::string logname = label + "." + std::to_string(offset);
-      size_t gdv_len = graph_GDV.span()*sizeof(uint32_t);
-      Kokkos::View<uint8_t*>::HostMirror diff_h;
-//      deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, offset==0);
-      Kokkos::fence();
-//      diffs.push_back(diff_h);
-//      deduplicator.restart(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, offset);
+      double curr_time = MPI_Wtime();
+
+      if((offset == intervals_per_rank-1) || (curr_time - prior_time > TIME_INTERVAL)) {
+        std::string filename = label + "." + std::to_string(chkpt_counter) + ".hashtree.incr_chkpt";
+        std::string logname = label + "." + std::to_string(chkpt_counter);
+        uint64_t gdv_len = graph_GDV.span()*sizeof(uint32_t);
+        Kokkos::View<uint8_t*>::HostMirror diff_h;
+        deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, chkpt_counter==0);
+        Kokkos::fence();
+        diffs.push_back(diff_h);
+        deduplicator.restart(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, chkpt_counter);
+        prior_time = curr_time;
+        chkpt_counter += 1;
+      }
       Kokkos::fence();
 
       offset++;
@@ -1117,19 +1132,19 @@ printf("Reduced GDVs\n");
 //#endif
 //
 //  uint32_t vertices_per_proc = graph.numRows()/comm_size;
-//  size_t start_offset = rankn*vertices_per_proc;
-//  size_t end_offset = start_offset+vertices_per_proc;
+//  uint64_t start_offset = rankn*vertices_per_proc;
+//  uint64_t end_offset = start_offset+vertices_per_proc;
 //  if(end_offset > graph.numRows())
 //    end_offset = graph.numRows();
 //  int* recv_count = new int[comm_size];
 //  int* displs = new int[comm_size];
 //  int running_count = 0;
-//  for(size_t i=0; i<comm_size-1; i++) {
+//  for(uint64_t i=0; i<comm_size-1; i++) {
 //    recv_count[i] = vertices_per_proc;
 //    displs[i] = running_count;
 //    running_count += vertices_per_proc;
 //  }
-//  recv_count[size_t (comm_size-1)] = graph.numRows()-(comm_size-1)*vertices_per_proc;
+//  recv_count[uint64_t (comm_size-1)] = graph.numRows()-(comm_size-1)*vertices_per_proc;
 //  displs[comm_size-1] = running_count;
 //#ifdef DEBUG
 //  for(int i=0; i<comm_size; i++) {
@@ -1147,7 +1162,7 @@ printf("Reduced GDVs\n");
 ////      visited_subview(j) = false;
 ////    }
 //    Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, end_offset-start_offset), [=] (int n) {
-//      size_t node = start_offset+n;
+//      uint64_t node = start_offset+n;
 //      auto neighbor_subview = Kokkos::subview(neighbor_scratch, team_member.team_rank(), Kokkos::ALL());
 //      auto visited_subview = Kokkos::subview(visited_scratch, team_member.team_rank(), Kokkos::ALL());
 //      uint32_t n_neighbors = 0;
@@ -1287,20 +1302,20 @@ printf("Reduced GDVs\n");
 //    Kokkos::View<hash_digest_type**, Kokkos::DefaultHostExecutionSpace> hist_hashes;
 //    Kokkos::View<hash_digest_type*> prev_hashes, curr_hashes;
 //    Kokkos::View<hash_digest_type*, Kokkos::DefaultHostExecutionSpace> prev_hashes_h, curr_hashes_h;
-//    Kokkos::View<size_t*> changed_regions;
-//    Kokkos::View<size_t*, Kokkos::DefaultHostExecutionSpace> changed_regions_h;
+//    Kokkos::View<uint64_t*> changed_regions;
+//    Kokkos::View<uint64_t*, Kokkos::DefaultHostExecutionSpace> changed_regions_h;
 //    int chunk_size = CHUNK_SIZE;
 //    printf("Chunk size: %d\n", chunk_size);
-//    size_t num_hashes = graph_GDV.span()*sizeof(uint32_t) / chunk_size;
+//    uint64_t num_hashes = graph_GDV.span()*sizeof(uint32_t) / chunk_size;
 //    if(chunk_size*num_hashes < graph_GDV.span()*sizeof(uint32_t))
 //      num_hashes += 1;
-//    size_t num_elements = num_hashes*hash_func.digest_size()/sizeof(hash_digest_type);
+//    uint64_t num_elements = num_hashes*hash_func.digest_size()/sizeof(hash_digest_type);
 //    printf("Number of hashes: %zd\n", num_hashes);
 //    printf("Number of elements in hash view: %zd\n", num_elements);
 //    // Storage for hashes
 //printf("Hash buff size: %u\n", num_hashes*20);
 //#ifdef DEDUP_CASE0
-//    changed_regions_h = Kokkos::View<size_t*, Kokkos::DefaultHostExecutionSpace>("Changed regions host", num_hashes);
+//    changed_regions_h = Kokkos::View<uint64_t*, Kokkos::DefaultHostExecutionSpace>("Changed regions host", num_hashes);
 //    std::string logfile = std::string("case0.chunk_size_") + 
 //                          std::to_string(CHUNK_SIZE) + 
 //                          std::string(".") + 
@@ -1313,7 +1328,7 @@ printf("Reduced GDVs\n");
 //    hist_hashes = Kokkos::View<hash_digest_type**, Kokkos::DefaultHostExecutionSpace>("History of hashes", NUM_CHECKPOINTS, num_elements);
 //    prev_hashes_h = Kokkos::View<hash_digest_type*, Kokkos::DefaultHostExecutionSpace>("Previous hashes host", num_elements);
 //    curr_hashes_h = Kokkos::View<hash_digest_type*, Kokkos::DefaultHostExecutionSpace>("Current hashes host", num_elements);
-//    changed_regions_h = Kokkos::View<size_t*, Kokkos::DefaultHostExecutionSpace>("Changed regions host", num_hashes);
+//    changed_regions_h = Kokkos::View<uint64_t*, Kokkos::DefaultHostExecutionSpace>("Changed regions host", num_hashes);
 //    std::string logfile = std::string("case1.chunk_size_") + 
 //                          std::to_string(CHUNK_SIZE) + 
 //                          std::string(".") + 
@@ -1327,7 +1342,7 @@ printf("Reduced GDVs\n");
 //#elif defined(DEDUP_CASE1_ASYNC)
 //    prev_hashes_h = Kokkos::View<hash_digest_type*, Kokkos::DefaultHostExecutionSpace>("Previous hashes host", num_elements);
 //    curr_hashes_h = Kokkos::View<hash_digest_type*, Kokkos::DefaultHostExecutionSpace>("Current hashes host", num_elements);
-//    changed_regions_h = Kokkos::View<size_t*, Kokkos::DefaultHostExecutionSpace>("Changed regions host", num_hashes);
+//    changed_regions_h = Kokkos::View<uint64_t*, Kokkos::DefaultHostExecutionSpace>("Changed regions host", num_hashes);
 //    std::string logfile = std::string("case1_async.chunk_size_") + 
 //                          std::to_string(CHUNK_SIZE) + 
 //                          std::string(".") + 
@@ -1345,8 +1360,8 @@ printf("Reduced GDVs\n");
 //    Kokkos::deep_copy(prev_hashes, 0);
 //    Kokkos::deep_copy(curr_hashes, 0);
 //    prev_hashes_h = Kokkos::View<hash_digest_type*, Kokkos::DefaultHostExecutionSpace>("Previous hashes host", num_elements);
-//    changed_regions = Kokkos::View<size_t*>("Regions that changed", num_hashes);
-//    changed_regions_h = Kokkos::View<size_t*, Kokkos::DefaultHostExecutionSpace>("Changed regions host", num_hashes);
+//    changed_regions = Kokkos::View<uint64_t*>("Regions that changed", num_hashes);
+//    changed_regions_h = Kokkos::View<uint64_t*, Kokkos::DefaultHostExecutionSpace>("Changed regions host", num_hashes);
 //    std::string logfile = std::string("case2.chunk_size_") + 
 //                          std::to_string(CHUNK_SIZE) + 
 //                          std::string(".") + 
@@ -1363,8 +1378,8 @@ printf("Reduced GDVs\n");
 //    Kokkos::deep_copy(curr_hashes, 0);
 //    prev_hashes_h = Kokkos::View<hash_digest_type*, Kokkos::DefaultHostExecutionSpace>("Previous hashes host", num_elements);
 //    curr_hashes_h = Kokkos::View<hash_digest_type*, Kokkos::DefaultHostExecutionSpace>("Current hashes host", num_elements);
-//    changed_regions = Kokkos::View<size_t*>("Regions that changed", num_hashes);
-//    changed_regions_h = Kokkos::View<size_t*, Kokkos::DefaultHostExecutionSpace>("Changed regions host", num_hashes);
+//    changed_regions = Kokkos::View<uint64_t*>("Regions that changed", num_hashes);
+//    changed_regions_h = Kokkos::View<uint64_t*, Kokkos::DefaultHostExecutionSpace>("Changed regions host", num_hashes);
 //    std::string logfile = std::string("case3.chunk_size_") + 
 //                          std::to_string(CHUNK_SIZE) + 
 //                          std::string(".") + 
@@ -1383,8 +1398,8 @@ printf("Reduced GDVs\n");
 ////    Kokkos::deep_copy(curr_hashes, 0);
 ////    prev_hashes_h = Kokkos::View<uint8_t*, Kokkos::DefaultHostExecutionSpace>("Previous hashes host", num_hashes*20);
 ////    curr_hashes_h = Kokkos::View<uint8_t*, Kokkos::DefaultHostExecutionSpace>("Current hashes host", num_hashes*20);
-////    changed_regions = Kokkos::View<size_t*>("Regions that changed", num_hashes);
-////    changed_regions_h = Kokkos::View<size_t*, Kokkos::DefaultHostExecutionSpace>(changed_regions);
+////    changed_regions = Kokkos::View<uint64_t*>("Regions that changed", num_hashes);
+////    changed_regions_h = Kokkos::View<uint64_t*, Kokkos::DefaultHostExecutionSpace>(changed_regions);
 //    GDVs::HostMirror current_gdvs_h = Kokkos::create_mirror_view(graph_GDV);
 //    Kokkos::View<uint8_t*, Kokkos::HostSpace> diff_buff_h("Diff", graph_GDV.span()*sizeof(uint32_t));
 //    Kokkos::fence();
@@ -1533,7 +1548,7 @@ printf("Reduced GDVs\n");
 //      if(range_dirty) {
 //        printf("Detected changes\n");
 //      }
-//      size_t num_pages = ((end_addr-start_addr)/page_size);
+//      uint64_t num_pages = ((end_addr-start_addr)/page_size);
 //      uint64_t* page_list = (uint64_t*) malloc(sizeof(uint64_t)*num_pages);
 //      for(int j=0; j<num_pages; j++) {
 //        page_list[j] = 0; 
@@ -1774,13 +1789,13 @@ printf("Reduced GDVs\n");
 ////        int n_neighbors = EssensKokkos::find_neighbours(starts_host(chunk_idx), graph, 4, neighbor_scratch);
 //        int n_neighbors = EssensKokkos::find_neighbours(curr_node, graph, 4, neighbor_scratch);
 //
-//        size_t start_combination;
-//        size_t end_combination;
-//        size_t start_comb_subgraph[5] = {0,0,0,0,0};
-//        size_t end_comb_subgraph[5] = {0,0,0,0,0};
+//        uint64_t start_combination;
+//        uint64_t end_combination;
+//        uint64_t start_comb_subgraph[5] = {0,0,0,0,0};
+//        uint64_t end_comb_subgraph[5] = {0,0,0,0,0};
 //        start_comb_subgraph[0] = 0;
 //        end_comb_subgraph[0] = 0;
-//        size_t start_chunk = 0;
+//        uint64_t start_chunk = 0;
 //        for(int j=0; j<chunk_idx; j++) {
 //          int u = get_node_from_combinations(graph, num_combinations_host, k_interval, j);
 //          if(u == curr_node)
@@ -1835,7 +1850,7 @@ printf("Reduced GDVs\n");
 //          start_combination = 0;
 //          end_combination = k_interval;
 //printf("Rank %d start combination: %zu, end combination: %zu\n", rankn, start_combination, end_combination);
-//          size_t counter = k_interval;
+//          uint64_t counter = k_interval;
 //          for(int j=1; j<5; j++) {
 //            int64_t n_comb = get_num_combinations(n_neighbors, j);
 //            if(counter > n_comb) {
@@ -1856,7 +1871,7 @@ printf("Reduced GDVs\n");
 //          start_combination = start_chunk*k_interval;
 //          end_combination = start_combination+k_interval;
 //printf("Rank %d start combination: %zu, end combination: %zu\n", rankn, start_combination, end_combination);
-//          size_t counter = 0;
+//          uint64_t counter = 0;
 //          for(int j=1; j<5; j++) {
 //            int64_t n_comb = get_num_combinations(n_neighbors, j);
 //            if(start_combination > counter && start_combination < counter+n_comb) {
@@ -2037,7 +2052,7 @@ printf("Reduced GDVs\n");
 //      if(range_dirty) {
 //        printf("Detected changes\n");
 //      }
-//      size_t num_pages = ((end_addr-start_addr)/page_size);
+//      uint64_t num_pages = ((end_addr-start_addr)/page_size);
 //      uint64_t* page_list = (uint64_t*) malloc(sizeof(uint64_t)*num_pages);
 //      for(int j=0; j<num_pages; j++) {
 //        page_list[j] = 0; 
