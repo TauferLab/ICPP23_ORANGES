@@ -1031,11 +1031,11 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
       Kokkos::fence();
       chrono::steady_clock::time_point t2 = chrono::steady_clock::now();
       chrono::duration<double> time_span = chrono::duration_cast<chrono::duration<double>>(t2-t1);
-      printf("Rank: %d: Done with chunk: %u, time: %f\n", rankn, chunk_idx, time_span.count());
+//      printf("Rank: %d: Done with chunk: %u, time: %f\n", rankn, chunk_idx, time_span.count());
 #endif
       double curr_time = MPI_Wtime();
 
-      if((offset == intervals_per_rank-1) || (curr_time - prior_time > TIME_INTERVAL)) {
+      if((offset == intervals_per_rank-1) || (curr_time - prior_time > TIME_INTERVAL) || (TIME_INTERVAL == 0)) {
         std::string filename = label + "." + std::to_string(chkpt_counter) + ".hashtree.incr_chkpt";
         std::string logname = label + "." + std::to_string(chkpt_counter);
         uint64_t gdv_len = graph_GDV.span()*sizeof(uint32_t);
@@ -1044,6 +1044,7 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
         Kokkos::fence();
         diffs.push_back(diff_h);
         deduplicator.restart(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, chkpt_counter);
+        printf("Rank: %d: Done with chunk: %u, time: %f\n", rankn, chkpt_counter, time_span.count());
         prior_time = curr_time;
         chkpt_counter += 1;
       }
