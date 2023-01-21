@@ -5,33 +5,41 @@
     This file only generates subtrees
     Author: Ali Khan
 """
-from collections import namedtuple, Counter
 import random
-import ast
 from itertools import combinations, chain
 from timeit import default_timer
+import json
 import networkx as nx
-
+from orbitmatch import *
 
 ####### FLAGS ########
 RANDOM_SEED = 42
 MAX_NODES = 5 # max number of nodes in the graphlet
 # MAX_ORBIT = 72 # the maximum orbit number, gives orbits for all graphlet of MAX_NODES or less
+CALCULATE_GDV = True  # otherwise only does subtrees
 COUNTS_ONLY = True  # have the algorithm only produce the subtree counts instead of returning all the subtrees found
 
+TEST_GRAPH = nx.Graph()
 # TEST_GRAPH = nx.read_graphml("event_graph.graphml")
-# TEST_GRAPH = nx.read_graphml("eventGraph1391.grapml")
-TEST_GRAPH = nx.read_graphml("eventgraph3523.graphml").to_undirected()
-# TEST_GRAPH = nx.Graph()
+# TEST_GRAPH = nx.read_graphml("eventGraph1391.grapml")  # AMG med
+# TEST_GRAPH = nx.read_graphml("eventgraph3523.graphml").to_undirected()  # AMG large
+# print("radius",nx.radius(TEST_GRAPH), "diameter", nx.diameter(TEST_GRAPH))
+# TEST_GRAPH = nx.read_graphml("event_graphMSG.graphml").to_undirected()
 # TEST_GRAPH.add_edges_from([(0,1),(0,2),(1,2),(1,3),(2,3),(2,4),(3,4),(4,5)])  # semi-house
 # TEST_GRAPH.add_edges_from([(0,1),(0,2),(1,2)])  # triangle graph
 # TEST_GRAPH.add_edges_from([(0,3),(3,4),(3,2),(2,5),(5,1),(4,1),(4,5)])  # house-porch
 # TEST_GRAPH.add_edges_from([(0,1),(1,0),(2,1),(1,2),(3,2),(2,3),(3,0),(0,3),(4,0),(0,4),(4,1),(1,4)])  # house
+# TEST_GRAPH = nx.complete_graph(10)
 # TEST_GRAPH = nx.tutte_graph()
 # TEST_GRAPH = nx.petersen_graph()
 # TEST_GRAPH = nx.complete_graph(15)
 # TEST_GRAPH = nx.grid_2d_graph(4,4)  
-# TEST_GRAPH = nx.karate_club_graph()
+TEST_GRAPH = nx.karate_club_graph()
+# TEST_GRAPH = nx.read_gml('dolphins.gml')
+# import scipy as sp 
+# import scipy.io
+# TEST_GRAPH = nx.from_scipy_sparse_matrix(sp.io.mmread("soc-wiki-Vote.mtx"))
+# TEST_GRAPH = nx.read_edgelist("Wiki-Vote.txt")
 # TEST_GRAPH = nx.gnp_random_graph(100,.2, seed=RANDOM_SEED, directed=False)
 # TEST_GRAPH = nx.barabasi_albert_graph(100, 99, seed=RANDOM_SEED)
 GRAPH_ORDERING = "KCore"  # Reorder the graph. Options: 'Degree', 'Random', 'None', 'Ego', or 'KCore'
@@ -56,28 +64,42 @@ def enumerate_subtrees(G: nx.Graph) -> dict[int : nx.Graph]:
         final_subtrees = {i:[] for i in sorted(G.nodes())}  # dict of root:list of subtrees found in graph
 
     subtree_queue = []
+    tree_orbits = {0:0,1:1,2:1,4:3,5:3,6:4,7:4,15:9,16:9,17:9,18:10,19:10,20:10,21:10,22:11,23:11}  # maps orbit to corresponding tree graphlet
+    tree_counts = {x:0 for x in set(tree_orbits.values())}  # tracks how many tree graphlets occur in the graph
+    orbit_counts = {x:0 for x in tree_orbits.keys()}
+    queue_size = {}  # track the maximum size of the queue
 
     time_vector = {}
     for root in G.nodes():
         start_time = default_timer()
         print("root:", root)
-
+        
         # First build L(G) at level 1 with end nodes as neighbor of root
         neighbors = [u for u in G.neighbors(root) if u > root]
         leaf_combinations = [combo for i in range(1, MAX_NODES) for combo in combinations(neighbors, i)]
         for combo in leaf_combinations:
+            
+            edges = list((root, w) for w in combo if w > root)
+            nodes = list((w for w in combo if w > root))
             T = nx.Graph()
-            T.add_nodes_from(list((w for w in combo if w > root)), endnode=True)  # add neighbors and mark endnodes
-            T.add_edges_from(list((root, w) for w in combo if w > root))        # add the edges
+            T.add_nodes_from(nodes, endnode=True)  # add neighbors and mark endnodes
+            T.add_edges_from(edges)        # add the edges
 
             subtree_queue.append(T)  # append the new extended subtree to L
             if COUNTS_ONLY:
                 final_subtrees[root] += 1
             else:
                 final_subtrees[root].append(T)
+            
+            for node, orbit in get_orbits_nx(T).items():
+                orbit_counts[orbit] += 1
+
+        queue_size[root] = len(subtree_queue)
 
         # Next, go through subtree queue and expand the subtree
         while subtree_queue:
+            if queue_size[root] < len(subtree_queue):
+                queue_size[root] = len(subtree_queue)   
             T = subtree_queue.pop(-1)
             if T.number_of_nodes() <= MAX_NODES:
                 end_nodes = [u for u,isendnode in T.nodes(data='endnode') if isendnode == True]
@@ -114,11 +136,62 @@ def enumerate_subtrees(G: nx.Graph) -> dict[int : nx.Graph]:
                         final_subtrees[root] += 1
                     else:
                         final_subtrees[root].append(Tnew)
+                    
+                    for node, orbit in get_orbits_nx(T).items():
+                        orbit_counts[orbit] += 1
+
 
         time_vector[root] = default_timer() - start_time  # time elapsed to process subtrees rooted at node i
-    return final_subtrees, time_vector
+    return final_subtrees, time_vector, queue_size, orbit_counts
 
 ###### END MAIN ALGO ######
+
+###### BACKEDGES ######
+def _test_backedges():
+    T = nx.Graph()
+    T.add_edges_from([(0,4),(2,4),(3,4)])
+    backedges = [(2,3)]
+    print("Tree:",flatten_tree(T,0,set()))
+    print("Backedges:", backedges)
+    # mindict = get_mindict(T)
+    motifs = add_backedges(T,backedges)
+    print("Motifs found:")
+    for motif in motifs:
+        print(f"\t{motif.edges()}")
+    assert len(motifs) == 1
+
+def get_mindict(T: nx.Graph) -> dict[tuple[int,int]:tuple[int,int]]:
+    # return a dictionary of tuple of smallest 2 nodes in shortest path between two nodes, keyed by all pairs of nodes in the tree
+    # TODO: can reduce size by half
+    mindict= {}
+    shortestpaths = dict(nx.all_pairs_shortest_path(T))
+    sortednodes = sorted([node for node in T.nodes()],reverse=True)
+    for node_a in sortednodes:
+        for node_b in sortednodes:
+            shortestpath = shortestpaths[node_a][node_b]
+            sorted_shortestpaths = sorted([node for node in shortestpath])
+            if len(sorted_shortestpaths) >= 2:
+                mindict[(node_a,node_b)] = (sorted_shortestpaths[0],sorted_shortestpaths[1])
+    return mindict
+
+def add_backedges(T: nx.Graph, backedges: list[tuple[int,int]]) -> list[nx.Graph]:
+    # add all backedge combinations to the tree if the backedge connects the two lowest nodes in the cycle
+    # min_dict is a precomputed dict of tuples that contains the two minimum nodes in the shortest path from node_a to node_b
+    valid_backedges = []
+    out = []
+    min_dict = get_mindict(T)
+    for backedge in backedges:
+        min1, min2 = min_dict[backedge]
+        if min1 in backedge and min2 in backedge and min1 != min2:
+            valid_backedges.append(backedge)
+    backedge_combos = [combo for i in range(1,len(valid_backedges)+1) for combo in combinations(valid_backedges, i)]
+    for backedge_combo in backedge_combos:
+        Tnew = nx.Graph()
+        Tnew.add_edges_from(T.edges())
+        Tnew.add_edges_from(backedge_combo)
+        out.append(Tnew)
+    return out
+###### END Backedges ######
 
 ###### RELABEL GRAPH ######
 def _ego_relabeling(G, radius=1) -> list[int]:
@@ -135,6 +208,7 @@ def _ego_relabeling(G, radius=1) -> list[int]:
 def relabel_graph(G, ordering, **kwargs)->nx.Graph:
     # relabel the graph. ordering can be None, Random, Degree, and Ego
     # 'Ego' also accepts the 'radius' of the ego network
+    print("Ordering: ", ordering)
     if ordering == "None":
         return G
     elif ordering == "Degree":
@@ -150,12 +224,12 @@ def relabel_graph(G, ordering, **kwargs)->nx.Graph:
     else:
         raise ValueError(f"Invalid argument for ordering: `{ordering}`")
     
-    print("sorted_nodelist",sorted_nodelist)
+    # print("sorted_nodelist",sorted_nodelist)
 
     # create a mapping old label -> new label
     # node_mapping = dict(zip(G.nodes(), sorted(G.nodes(), key=lambda k: random.random()))) # random labeling
     node_mapping = {val:i for i,val in enumerate(sorted_nodelist)}
-    print("Node Mapping", node_mapping)
+    # print("Node Mapping", node_mapping)
 
     # build a new graph
     G_relabel = nx.relabel_nodes(G, node_mapping, copy=True)
@@ -205,6 +279,10 @@ def flatten_tree(G:nx.Graph, node: int, seen: set) -> list[int]:
     if children:
       out.append(children)
     return out
+
+def write_dict_to_file(fname, data):
+    with open(fname,"w") as f:
+        f.write(json.dumps(data))
 ###### END UTILS ######
 
 def _test_subtree_repeats():
@@ -221,68 +299,13 @@ def _test_subtree_repeats():
     print(len(repeated_subtree), "Repeated Trees")
     print(len(set(repeated_subtree)),"Uniquely repeated trees")
 
-##### Orbit Matching #####
 
-def get_orbit(motif: nx.Graph,root: int) -> int:
-    # matches the motif to the correct graphlet orbit
-
-    # check if the size of the motif is correct
-    motif_n = motif.number_of_nodes()
-    assert motif_n <= MAX_NODES
-
-    # calculate degree signature for the motif
-    motif_deg_sig = sorted(list(deg for node, deg in motif.degree(motif.nodes())))
-
-    # calculate the distance signature for the motif
-    motif_dist_sig = [0] * (motif_n)
-    for dist,freq in Counter(dict(nx.shortest_path_length(motif,source=root)).values()).items():
-        motif_dist_sig[dist] = freq
-
-    # match the rooted motif to the orbit
-    for orbit_info in TreeOrbitInfo:
-        orbit_n = len(orbit_info.deg_sig)
-        if orbit_n == motif.number_of_nodes() \
-            and orbit_info.deg_sig == motif_deg_sig \
-            and orbit_info.dist_sig == motif_dist_sig:
-
-            # print(f"Subgraph with degsig:{motif_deg_sig} and {motif_dist_sig} matches to orbit {orbit_info.orbit}")
-            return orbit_info.orbit
-    else:
-        raise Exception("Orbit for given motif not found")
-
-def get_orbit_info():
-    # initialize the deg signature and distance signatures for graphlet orbits
-    # orbitinfo.tsv only has trees upto 5 nodes
-
-    OrbitInfo = namedtuple('OrbitInfo',['graphlet','orbit','deg_sig','dist_sig'])
-    global TreeOrbitInfo
-    TreeOrbitInfo = []
-    with open("orbitinfo.tsv") as file:
-        for line in file.readlines()[1:]:
-            row = line.split()
-            graphlet_id = int(row[0])
-            orbit_id = int(row[1])
-            deg_sig = sorted(ast.literal_eval(row[2]))
-            dist_sig = ast.literal_eval(row[3])
-            orbit_info = OrbitInfo(graphlet=graphlet_id, orbit=orbit_id, deg_sig=deg_sig, dist_sig=dist_sig)
-            TreeOrbitInfo.append(orbit_info)
-
-def _test_get_orbit():
-    get_orbit_info()
-    G = nx.Graph()
-    G.add_edges_from([(0,1)])
-    assert get_orbit(G,0) == 0
-    G = nx.Graph()
-    G.add_edges_from([(0,1),(1,2),(2,3),(2,4)])
-    assert get_orbit(G,2) == 21
-    G = nx.Graph()
-    G.add_edges_from([(1, 2), (1, 5), (2, 3), (4, 5)])
-    print(get_orbit(G,1))
-###### END Orbit Matching #####
 
 
 if __name__ == "__main__":
-    
+
+    get_orbit_info()  # initialize precalculated orbit info
+
     # Preprocessing: relabel the nodes
     G = TEST_GRAPH
     print(G)
@@ -292,26 +315,36 @@ if __name__ == "__main__":
 
     # compute subtrees
     start = default_timer()
-    results, times = enumerate_subtrees(G)
+    results, times, queue_sizes, tree_counts = enumerate_subtrees(G)
     endtime = default_timer()-start
-    print("Time per node", dict(sorted(times.items(),key=lambda x: x[1])))
-
+    
+    print("Time per node", times)
+    write_dict_to_file("times_default.out",times)
+    
     if COUNTS_ONLY:
         subtree_counts = results
+        write_dict_to_file("counts.out",subtree_counts)
+        
         # Count number of subtrees at node v in graph
         print("Subtree counts:",  subtree_counts)
+        print("Maximal subtree queue sizes:", queue_sizes)
         print("Number of subtrees", sum(subtree_counts.values()))
+        max_queue_node = max(queue_sizes,key=queue_sizes.get)
+        print("Max queue size:", queue_sizes[max_queue_node], "  node:",max_queue_node)
         print("Elapsed time for algo: ", endtime)
-
+        print("Tree Counts:",tree_counts)
         print(TEST_GRAPH)
     else:
         subtrees_dict = results
         subtree_counts = {root:len(trees) for root,trees in sorted(subtrees_dict.items(),key=lambda x: x[0])}
+        write_dict_to_file("counts.out",subtree_counts)
 
         # Count number of subtrees at node v in graph
         print("Subtree counts:",  subtree_counts)
         print("Number of subtrees", sum(subtree_counts.values()))
         print("Elapsed time for algo: ", endtime)
+        print("Tree Counts:",tree_counts)
+        print(TEST_GRAPH)
 
         # analyze the subtrees enumerate and count the repetitions
         subtrees = list(chain(*subtrees_dict.values()))
@@ -320,7 +353,7 @@ if __name__ == "__main__":
         print(len(set(repeated_subtree)),"Uniquely repeated trees")
 
         if len(repeated_subtree) != 0:
-            get_orbit_info()  # initialize precalculated orbit info
+            # get_orbit_info()  # initialize precalculated orbit info
             
             repeat_roots = {i:0 for i in G.nodes()}  # count of repeated subtrees rooted at node i
             normalized_subtrees = {root:[_normalize_edgelist(T.edges()) for T in tlist] for root,tlist in subtrees_dict.items()}
