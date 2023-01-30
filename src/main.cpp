@@ -604,13 +604,50 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
 #endif
 
   chrono::steady_clock::time_point count_comb_beg = chrono::steady_clock::now();
-  uint64_t comb_count_scratch = sizeof(scratch_int_view) + sizeof(int)*graph.numRows();
-  Kokkos::TeamPolicy<> comb_count_policy = Kokkos::TeamPolicy<>(1, NUM_THREADS).set_scratch_size(1, Kokkos::PerThread(comb_count_scratch));
+
+//  uint64_t comb_count_scratch = sizeof(scratch_int_view) + sizeof(int)*graph.numRows();
+//  Kokkos::TeamPolicy<> comb_count_policy = Kokkos::TeamPolicy<>(1, NUM_THREADS).set_scratch_size(1, Kokkos::PerThread(comb_count_scratch));
+//  using team_member_type = Kokkos::TeamPolicy<>::member_type;
+//  Kokkos::parallel_for("Get # of combinations", comb_count_policy, KOKKOS_LAMBDA(team_member_type team_member) {
+//    scratch_int_view neighbor_subview(team_member.thread_scratch(1), graph.numRows());
+//    Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, end_offset-start_offset), [=] (int n) {
+//      uint64_t node = start_offset+n;
+//      uint32_t n_neighbors = 0;
+//      n_neighbors = EssensKokkos::get_num_neighbors(graph, node, 4, neighbor_subview);
+//      num_neighbors(node) = n_neighbors;
+//      for(int i=1; i<5; i++) {
+//        num_combinations(node) += get_num_combinations(n_neighbors, i);
+//      }
+//    });
+//  });
+
+  uint32_t max_degree = 0;
+  Kokkos::parallel_reduce("Find degree", Kokkos::RangePolicy<>(0, graph.numRows()), KOKKOS_LAMBDA(const uint32_t node, uint32_t& sum) {
+    uint32_t degree = graph.row(node).length;
+    num_neighbors(node) = degree;
+    if(degree > sum)
+      sum = degree;
+  }, Kokkos::Max<uint32_t>(max_degree));
+  printf("Max degree: %u\n", max_degree);
+  uint32_t max_neighborhood = max_degree + max_degree*max_degree + max_degree*max_degree*max_degree + max_degree*max_degree*max_degree*max_degree;
+  if(max_neighborhood > graph.numRows())
+    max_neighborhood = graph.numRows();
+  printf("Approximate max degree: %u\n", max_neighborhood);
+
+  uint32_t comb_n_leagues = 1;
+  uint64_t comb_count_scratch = sizeof(scratch_int_view) + sizeof(int)*max_neighborhood;
+  Kokkos::TeamPolicy<> comb_count_policy = Kokkos::TeamPolicy<>(comb_n_leagues, NUM_THREADS).set_scratch_size(1, Kokkos::PerThread(comb_count_scratch));
   using team_member_type = Kokkos::TeamPolicy<>::member_type;
   Kokkos::parallel_for("Get # of combinations", comb_count_policy, KOKKOS_LAMBDA(team_member_type team_member) {
-    scratch_int_view neighbor_subview(team_member.thread_scratch(1), graph.numRows());
-    Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, end_offset-start_offset), [=] (int n) {
-      uint64_t node = start_offset+n;
+    uint32_t league_rank = team_member.league_rank();
+    uint32_t per_league = (end_offset-start_offset)/comb_n_leagues;
+    if(per_league*comb_n_leagues < (end_offset-start_offset))
+      per_league += 1;
+    if(start_offset+per_league*(league_rank+1) > end_offset)
+      per_league = end_offset - (start_offset+per_league*league_rank);
+    scratch_int_view neighbor_subview(team_member.thread_scratch(1), max_neighborhood);
+    Kokkos::parallel_for(Kokkos::TeamThreadRange(team_member, per_league), [=] (int n) {
+      uint64_t node = start_offset+per_league*league_rank+n;
       uint32_t n_neighbors = 0;
       n_neighbors = EssensKokkos::get_num_neighbors(graph, node, 4, neighbor_subview);
       num_neighbors(node) = n_neighbors;
@@ -1042,6 +1079,7 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
         Kokkos::View<uint8_t*>::HostMirror diff_h;
         deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, chkpt_counter==0);
         Kokkos::fence();
+printf("Rank %u, chkpt: %u, Len of diff: %zu\n", rankn, chkpt_counter, diff_h.size());
         diffs.push_back(diff_h);
         deduplicator.restart(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, chkpt_counter);
         printf("Rank: %d: Done with chunk: %u, time: %f\n", rankn, chkpt_counter, time_span.count());
