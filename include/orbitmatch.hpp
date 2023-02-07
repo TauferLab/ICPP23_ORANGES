@@ -24,7 +24,7 @@ class OrbitMatcher
             std::array<int, 5> sp_vector;
         };
 
-        std::array<OrbitInfo, 72> OrbitTable;  // table of orbits and their features
+        std::array<OrbitInfo, 73> OrbitTable;  // table of orbits and their features
 
         std::vector<int> get_orbits(const Motif &motif) const;
 
@@ -79,7 +79,7 @@ void OrbitMatcher::read_orbit_info(const std::string fname)
         }
         // sort the deg vector so the zeros go in the beginning if len(deg_vec) < 5
         std::sort(OrbitTable[i].degree_vector.begin(), OrbitTable[i].degree_vector.end());
-
+        
         std::getline(ss, col, '\t');
         col = col.substr(1,col.size()-2);  // remove '[' and ']' from string
         std::istringstream ss3(col);
@@ -93,8 +93,8 @@ void OrbitMatcher::read_orbit_info(const std::string fname)
 
         ++i;
     }  //endwhile
-
-}
+    return;
+}  //end function read_orbit_info()
 
 // given degree and shortest path signatures, return the corresponding orbit from the OrbitTable
 int OrbitMatcher::match_orbit(std::array<int,5> deg_sig, std::array<int,5> sp_sig) const
@@ -156,7 +156,6 @@ void get_sp_sigs(const Motif &motif, std::map<Node,std::array<int,5>> &sp_sigs)
             q.pop();  // remove (node,distance) from the queue
         }  // end while
     } //end for
-    std::cout << "khk" << std::endl;
 
     return;
 }
@@ -173,8 +172,8 @@ std::vector<int> OrbitMatcher::get_orbits(const Motif &motif) const
     int N = motif.nodes.size();
     std::vector<int> orbits;
     
-    std::cout << "Motif: ";
-    printMotif(motif);
+    // std::cout << "Motif: ";
+    // printMotif(motif);
 
     if(N > 5)
     {
@@ -190,16 +189,16 @@ std::vector<int> OrbitMatcher::get_orbits(const Motif &motif) const
         sp_sigs[node][0] = 1;
     }
 
-    std::cout << "spsig " << std::endl;;
-    for (auto node_sp_sig: sp_sigs)
-    {
-        std::cout << "(" << node_sp_sig.first << "): ";
-        for (auto freq: node_sp_sig.second)
-        {
-            std::cout << freq << " ";
-        }
-        std::cout << std::endl;
-    }
+    // std::cout << "spsig " << std::endl;;
+    // for (auto node_sp_sig: sp_sigs)
+    // {
+    //     std::cout << "(" << node_sp_sig.first << "): ";
+    //     for (auto freq: node_sp_sig.second)
+    //     {
+    //         std::cout << freq << " ";
+    //     }
+    //     std::cout << std::endl;
+    // }
 
     // calculate degree signature
     size_t i = 0;
@@ -212,24 +211,23 @@ std::vector<int> OrbitMatcher::get_orbits(const Motif &motif) const
 
     // calculate sp signature. sp[x] = number of shortest paths of length x
     get_sp_sigs(motif, sp_sigs);
-    std::cout << "khkasdf" << std::endl;
 
     // match deg_sig and sp_sig to orbit
     for (Node node: motif.nodes)
     {
         orbit = match_orbit(deg_sig,sp_sigs[node]);
-        std::cout << "Node=" << node << " Orbit=" << orbit;
-        std::cout << " degsig=[";
-        for (auto deg: deg_sig)
-        {
-            std::cout << deg << ",";
-        }
-        std::cout << "] spsig= [";
-        for (auto freq: sp_sigs[node])
-        {
-            std::cout << freq << ",";
-        }
-        std::cout << "]" << std::endl;
+        // std::cout << "Node=" << node << " Orbit=" << orbit;
+        // std::cout << " degsig=[";
+        // for (auto deg: deg_sig)
+        // {
+        //     std::cout << deg << ",";
+        // }
+        // std::cout << "] spsig= [";
+        // for (auto freq: sp_sigs[node])
+        // {
+        //     std::cout << freq << ",";
+        // }
+        // std::cout << "]" << std::endl;
         orbits.push_back(orbit);
     }
     return orbits;

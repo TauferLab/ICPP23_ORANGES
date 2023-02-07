@@ -1,9 +1,10 @@
 #include "../include/orbitmatch.hpp"
+#include <memory>
 
 int main()
 {
-    OrbitMatcher orbitmatcher = OrbitMatcher();
-    // read_orbit_table(orbitmatcher);
+    OrbitMatcher orbitmatcher; 
+    read_orbit_table(orbitmatcher);
     Edge edges[] = {{2,3}, {2,4}, {3,5}, {3,6}, {4,5}, {5,6}};
     std::vector<Edge> v_edges = {{2,3}, {2,4}, {3,5}, {3,6}, {4,5}, {5,6}};
     std::vector<Node> nodes = {2,3,4,5,6};

@@ -21,6 +21,7 @@ struct Edge
 {
     Node u;
     Node v;
+    ~Edge() {}
 };
 
 bool operator== (Edge first, Edge second)
@@ -37,12 +38,8 @@ class Motif
 {
     public:
     Node root; // Node is basically int. Edge is basically pair<Node,Node>
-    //std::vector<std::pair<Node,bool>> nodes; // pair with first int the node id and the second whether the node is a leaf
-    //std::map<Node,bool> nodes;  // nodes and whether the node is a leaf
     std::vector<Node> nodes;
     std::vector<Node> endnodes; 
-    //std::array<Node,5> Nodes;
-    //std::array<bool, 5> endNodes;
     //std::vector<std::shared_ptr<Edge>> edges;
     std::vector<Edge> edges;
     //std::vector<Edge*> edges;
@@ -55,12 +52,6 @@ class Motif
             std::vector<Edge> edges_)
             :root(root_),nodes(nodes_),endnodes(endnodes_),edges(edges_){};
 };
-
-
-// Motif::Motif(Graph g, Motif parent, std::vector<std::shared_ptr<Edge>> new_edges)
-// {
-    
-// }
 
 // get neighbors of the node in the motif
 std::vector<Node> Motif::get_neighbors(Node node) const
@@ -78,18 +69,6 @@ std::vector<Node> Motif::get_neighbors(Node node) const
             neighbors.push_back(edge.u);
         }
     } // end for
-    // std::vector<std::shared_ptr<Edge>>::const_iterator it;
-    // for (it = edges.begin(); it != edges.end(); it++)
-    // {
-    //     // if node is part of an edge, we add the other node from the edge to the neighbors vector
-    //     if ((*it)->u == node)
-    //     {
-    //         neighbors.push_back((*it)->v);
-    //     } else if ((*it)->v == node)
-    //     {
-    //         neighbors.push_back((*it)->u);
-    //     }
-    // } // end for
     return neighbors;
 }
 
@@ -108,27 +87,8 @@ std::map<Node,int> Motif::get_degrees() const
         degrees[edge.u]++;
         degrees[edge.v]++;
     }
-    // std::vector<std::shared_ptr<Edge>>::const_iterator it;
-    // for (it = edges.begin(); it != edges.end(); it++)
-    // {
-    //     // increment 
-    //     degrees.at((*it)->u)++;
-    //     degrees.at((*it)->v)++;
-    // } // end for
     return degrees;
 }
-// class Edge
-// {
-//     public:
-//         Node u;
-//         Node v;
-
-//         Edge(Node a, Node b)
-//         {
-//             this->u = a;
-//             this->v = b;
-//         }
-// };
 
 class Graph
 {
@@ -137,9 +97,7 @@ class Graph
     int M;
     std::set<Node> Nodes;
     std::map<Node,std::vector<Node>> adjList;
-    //std::vector<Edge> edgelist;
 
-    //Graph();
     Graph(const Edge edges[], int n, int m);
     void addEdge(const Edge &e);
     inline std::vector<Node> neighbors(const Node u) const;
@@ -150,7 +108,6 @@ class Graph
     // void all_pair_shortest_path(std::vector<std::vector<std::vector<Node>>> paths);
     // void single_source_shortest_path(Node node, std::vector<std::vector<Node>> paths);
 };
-
 
 Graph::Graph(const Edge edges[], int n, int m):N(n),M(m)
 {
