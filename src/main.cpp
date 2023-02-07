@@ -169,9 +169,10 @@ int main(int argc, char *argv[]) {
   CHECKPOINT_INTERVAL = strtoull(argv[5], NULL, 0);
   sscanf(argv[6], "%d", &CHUNK_SIZE);
 
-  sscanf(argv[7], "%d", &MAX_INTERVALS);
+  sscanf(argv[7], "%lu", &MAX_INTERVALS);
 
-  sscanf(argv[8], "%d", &TIME_INTERVAL);
+  sscanf(argv[8], "%lu", &TIME_INTERVAL);
+
 
   dedup_mode = get_mode(argc, argv);
 
@@ -640,6 +641,8 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
   using team_member_type = Kokkos::TeamPolicy<>::member_type;
   Kokkos::parallel_for("Get # of combinations", comb_count_policy, KOKKOS_LAMBDA(team_member_type team_member) {
     uint32_t league_rank = team_member.league_rank();
+if(league_rank == 0 && team_member.team_rank() == 0) 
+  printf("Counting combinations with %d threads\n", team_member.team_size());
     uint32_t per_league = (end_offset-start_offset)/comb_n_leagues;
     if(per_league*comb_n_leagues < (end_offset-start_offset))
       per_league += 1;
@@ -788,6 +791,7 @@ printf("Rank %d allocated memory\n", rankn);
     uint64_t end_interval = MAX_INTERVALS;
     if(MAX_INTERVALS==0)
       end_interval = intervals_per_rank;
+    printf("Rank %d: Chunk size: %d, Chkpt Interval: %lu, Max Intervals: %lu, Time interval: %lu\n", rankn, CHUNK_SIZE, CHECKPOINT_INTERVAL, MAX_INTERVALS, TIME_INTERVAL);
     while(offset < intervals_per_rank && (chkpt_counter < end_interval)) {
 #ifdef DETAILED_TIMERS
       chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
@@ -1077,12 +1081,22 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
         std::string logname = label + "." + std::to_string(chkpt_counter);
         uint64_t gdv_len = graph_GDV.span()*sizeof(uint32_t);
         Kokkos::View<uint8_t*>::HostMirror diff_h;
+        auto gdv_h = Kokkos::create_mirror_view(graph_GDV);
+        Kokkos::deep_copy(gdv_h, graph_GDV);
+        std::string ref_digest = calculate_digest_host(gdv_h);
+
         deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, chkpt_counter==0);
         Kokkos::fence();
-printf("Rank %u, chkpt: %u, Len of diff: %zu\n", rankn, chkpt_counter, diff_h.size());
         diffs.push_back(diff_h);
         deduplicator.restart(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, chkpt_counter);
-        printf("Rank: %d: Done with chunk: %u, time: %f\n", rankn, chkpt_counter, time_span.count());
+
+        Kokkos::deep_copy(gdv_h, graph_GDV);
+        std::string digest = calculate_digest_host(gdv_h);
+
+        if(ref_digest != digest)
+          std::cout << "Rank " << rankn << ", Chunk " << chkpt_counter << ": Restart failed! Mismatch digests " << ref_digest << " vs " << digest << std::endl;
+
+        printf("Rank: %d: Done with chunk: %u, chkpt counter %u, time: %f\n", rankn, offset, chkpt_counter, curr_time-prior_time);
         prior_time = curr_time;
         chkpt_counter += 1;
       }
