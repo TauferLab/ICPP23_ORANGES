@@ -20,6 +20,7 @@
 #include <set>
 #include <utility>
 #include <ctime>
+#include <string>
 
 #include "../include/graph.hpp"
 #include "../include/orbitmatch.hpp"
@@ -61,6 +62,7 @@ void update_gdv_backedges(Motif const &tree, Graph const &g, std::vector<std::ar
     // 2. check that they connect two lowest nodes in the cycle
     // 2. using combinations of backedges, create new motifs
     // 3. update gdv with new motifs
+
 }
 
 // skip this combo if it has any backedges ie {(1,2), (1,3)}
@@ -159,7 +161,7 @@ void computeGDV(Graph &g, const OrbitMatcher &orbitmatcher, std::vector<std::arr
             combo_gen.next();
         } 
 
-
+        std::cout << "Initialized " << combo_gen.combo_cnt << " trees";
         // main loop
         while (!subtreeQueue.empty())
         {   
@@ -283,6 +285,19 @@ void printGDVTable(const std::vector<std::array<int,73>> gdv_table)
     return;
 }
 
+template <typename T>
+void writeTable(const T table, const std::string filename){
+    std::ofstream of(filename);
+    for (auto row: table)
+    {
+        for (auto col: row)
+        {
+            of << col << " ";
+        }
+        of << std::endl;
+    }
+}
+
 int main()
 {
     clock_t q = clock();
@@ -291,12 +306,12 @@ int main()
     Edge edges[] = {{0,1}, {0,2}, {1,3}, {1,4}, {2,3}, {3,4}};
     Edge petersen[] = {{0,1},{0,4},{0,5},{1,2},{1,6},{2,3},{2,7},{3,4},{3,8},{4,9},{5,7},{5,8},{6,8},{6,9},{7,9}};
     Edge karate[] = {
-        {0,1},{0,2},{0,3},{0,4},{0,5},{0,6},{0,7},{0,8},{0,9},{0,10},{0,11},{0,12},{0,13},{0,14},{0,15},{0,16},{1,0},{1,14},{1,16},{1,18},{1,19},{2,0},{2,17},{2,18},{2,19},{2,20},{3,0},{3,16},{4,0},{4,16},{5,0},{5,16},{6,0},{6,17},{6,18},{7,0},{7,16},{8,0},{8,16},{9,0},{9,11},{9,13},{9,16},{9,32},{10,0},{10,13},{11,0},{11,9},{11,19},{11,33},{12,0},{12,15},{12,19},{13,0},{13,9},{13,10},{13,16},{14,0},{14,1},{14,16},{14,17},{15,0},{15,12},{15,16},{15,18},{15,32},{15,33},{16,0},{16,1},{16,3},{16,4},{16,5},{16,7},{16,8},{16,9},{16,13},{16,14},{16,15},{16,19},{17,2},{17,6},{17,14},{17,18},{17,19},{17,20},{17,24},{17,30},{17,31},{18,1},{18,2},{18,6},{18,15},{18,17},{18,19},{18,20},{18,21},{18,22},{18,23},{18,24},{18,26},{18,27},{18,28},{18,30},{18,31},{19,1},{19,2},{19,11},{19,12},{19,16},{19,17},{19,18},{19,20},{19,24},{19,25},{20,2},{20,17},{20,18},{20,19},{20,24},{20,28},{21,18},{21,23},{21,26},{22,18},{22,23},{22,26},{22,29},{23,18},{23,21},{23,22},{23,29},{24,17},{24,18},{24,19},{24,20},{25,19},{26,18},{26,21},{26,22},{27,18},{28,18},{28,20},{29,22},{29,23},{30,17},{30,18},{31,17},{31,18},{32,9},{32,15},{32,33},{33,11},{33,15},{33,32}
+        {0,9},{0,14},{0,15},{0,16},{0,19},{0,20},{0,21},{0,23},{0,24},{0,27},{0,28},{0,29},{0,30},{0,31},{0,32},{0,33},{2,1},{3,1},{3,2},{4,1},{4,2},{4,3},{5,1},{6,1},{7,1},{7,5},{7,6},{8,1},{8,2},{8,3},{8,4},{9,1},{9,3},{10,3},{11,1},{11,5},{11,6},{12,1},{13,1},{13,4},{14,1},{14,2},{14,3},{14,4},{17,6},{17,7},{18,1},{18,2},{20,1},{20,2},{22,1},{22,2},{26,24},{26,25},{28,3},{28,24},{28,25},{29,3},{30,24},{30,27},{31,2},{31,9},{32,1},{32,25},{32,26},{32,29},{33,3},{33,9},{33,15},{33,16},{33,19},{33,21},{33,23},{33,24},{33,30},{33,31},{33,32}
     };
     // Graph graph(triangle,3,3);
     // Graph graph(edges,5,6);
-    Graph graph(petersen,10,15);
-    // Graph graph(karate,34,154);
+    // Graph graph(petersen,10,15);
+    Graph graph(karate,34,77);
     std::cout << "Graph: ";
     graph.printGraph();
     std::cout << "creating orbitmatcher" << std::endl;
@@ -318,6 +333,7 @@ int main()
     q = clock() - q;
     std::cout << "ending computation" << std::endl;
     printGDVTable(gdvs);
+    writeTable(gdvs,"./results/gdvs.result");
     std::cout << "Total Time for Execution: " << ((float)q)/CLOCKS_PER_SEC <<"\n";
 
     return 0;
