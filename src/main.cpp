@@ -881,7 +881,7 @@ printf("Exited branch0\n");
 #endif
       } else {
 #ifdef DEBUG
-printf("Rank: %d: Split node\n", rankn);
+printf("Rank %d: Split node\n", rankn);
 #endif
 Kokkos::fence();
         Kokkos::View<int*> neighbor_scratch("Neighbor scratch", graph.numRows());
@@ -1000,7 +1000,7 @@ printf("Rank %d: Node count: %d, Number of combinations: %lu\n", rankn, j+1, n_c
             if(start_combination > counter && start_combination < counter+n_comb) {
               start_comb_subgraph[j] = start_combination-counter;
             }
-            if(end_combination > counter+n_comb && counter+n_comb >= start_combination) {
+            if(end_combination >= counter+n_comb && counter+n_comb >= start_combination) {
               end_comb_subgraph[j] = n_comb;
             }
             if(end_combination > counter && end_combination < counter+n_comb) {
