@@ -1084,6 +1084,8 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
         auto gdv_h = Kokkos::create_mirror_view(graph_GDV);
         Kokkos::deep_copy(gdv_h, graph_GDV);
         std::string ref_digest = calculate_digest_host(gdv_h);
+//        auto ref_half_0 = Kokkos::subview(gdv_h, Kokkos::ALL(), std::make_pair(0,70));
+//        std::string ref_digest_half = calculate_digest_host(ref_half_0);
 
         deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, chkpt_counter==0);
         Kokkos::fence();
@@ -1092,9 +1094,11 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
 
         Kokkos::deep_copy(gdv_h, graph_GDV);
         std::string digest = calculate_digest_host(gdv_h);
+//        std::string digest_half = calculate_digest_host(ref_half_0);
 
         if(ref_digest != digest)
           std::cout << "Rank " << rankn << ", Chunk " << chkpt_counter << ": Restart failed! Mismatch digests " << ref_digest << " vs " << digest << std::endl;
+//          std::cout << "Rank " << rankn << ", Chunk " << chkpt_counter << ": digests " << ref_digest_half << " vs " << digest_half << std::endl;
 
         printf("Rank: %d: Done with chunk: %u, chkpt counter %u, time: %f\n", rankn, offset, chkpt_counter, curr_time-prior_time);
         prior_time = curr_time;
