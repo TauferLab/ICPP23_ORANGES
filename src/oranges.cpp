@@ -31,6 +31,13 @@ const unsigned int MAX_ORBIT = 72;
 
 using namespace ESSENS;
 
+#if _WIN32  //win32 or win64
+    #define INPUT_GRAPH_PATH ".\\data\\karate_undir.txt"
+    #define OUTPUT_GDVS_PATH ".\\results\\gdvs.result"
+#else  //linux
+    #define INPUT_GRAPH_PATH "./data/karate_undir.txt"
+    #define OUTPUT_GDVS_PATH "./results/gdvs.result"
+#endif
 
 // for each node ine motif, it takes the orbit found by the orbitmatcher and updates the gdv accordingly
 bool updateGDV(const Motif &motif, const OrbitMatcher orbitmatcher, std::vector<std::array<int,73>> &gdv)
@@ -95,7 +102,7 @@ void computeGDV(Graph &g, const OrbitMatcher &orbitmatcher, std::vector<std::arr
 {
     std::queue<Motif> subtreeQueue;
     Edge e;
-    
+
     std::vector<Node> neighbors;
     std::vector<Edge> neighboringEdges;
 
@@ -113,11 +120,12 @@ void computeGDV(Graph &g, const OrbitMatcher &orbitmatcher, std::vector<std::arr
                 neighbors.push_back(u);
             }
         }
-        // std::cout << "neighbors: [";
-        // for (auto neighbor: neighbors)
-        //     std::cout << neighbor << ",";
-        // std::cout << "]" << std::endl;
-
+        std::cout << "neighbors: [";
+        for (auto neighbor: neighbors)
+            std::cout << neighbor << ",";
+        std::cout << "]" << std::endl;
+        std::cout << "neighbor size: " << neighbors.size() << std::endl;
+ 
         // if no valid neighbors, skip to new root
         if (neighbors.size() == 0)
         {
@@ -126,11 +134,11 @@ void computeGDV(Graph &g, const OrbitMatcher &orbitmatcher, std::vector<std::arr
 
         // setup combination generator. n choose 1..k
         AllCombinationGenerator combo_gen(neighbors.size(), std::min((int) neighbors.size(),(int)MAX_NODES - 1));
-        
+
         // initialize the subtree queue
         while(!combo_gen.done)
         {
-            // std::cout << "combo " << combo_gen.combo_cnt << ": [";
+            //std::cout << "combo " << combo_gen.combo_cnt << ": [";
             // for (auto idx: combo_gen.indices)
             //     std::cout << neighbors[idx] << ",";
             // std::cout << "]" << std::endl;
@@ -148,7 +156,7 @@ void computeGDV(Graph &g, const OrbitMatcher &orbitmatcher, std::vector<std::arr
             // std::cout << "motif created" << std::endl;
             // printMotif(tree);
             // push subtree to queue if new submotifs can be generated
-            if (tree.nodes.size() != MAX_NODES)
+            if (tree.nodes.size() <= MAX_NODES)
             {
                 subtreeQueue.push(tree);  // push subtree to queue
             }
@@ -162,10 +170,14 @@ void computeGDV(Graph &g, const OrbitMatcher &orbitmatcher, std::vector<std::arr
         } 
 
         std::cout << "Initialized " << combo_gen.combo_cnt << " trees";
+        // //std::ofstream fout("trees.out");
+        // std::ofstream fout("C:\\Users\\aliyk\\repos\\Src_Fido\\Src_Fido\\trees.out");
+
         // main loop
         while (!subtreeQueue.empty())
         {   
-            // std::cout << subtreeQueue.size() << " trees in queue" << std::endl;
+            //std::cout << subtreeQueue.size() << " trees in queue" << std::endl;
+            // fout << subtreeQueue.size() << std::endl;
 
             // pop motif from queue
             Motif tree = subtreeQueue.front();
@@ -257,7 +269,7 @@ void computeGDV(Graph &g, const OrbitMatcher &orbitmatcher, std::vector<std::arr
                 update_gdv_backedges(newTree, g, gdv);
                 
                 // update the gdv using the new tree
-                updateGDV(newTree,orbitmatcher,gdv);  
+                // updateGDV(newTree,orbitmatcher,gdv);  
 
                 // std::cout << "gdv updated 2" << std::endl;
 
@@ -266,6 +278,8 @@ void computeGDV(Graph &g, const OrbitMatcher &orbitmatcher, std::vector<std::arr
             }  // end while new subtree
             subtreeQueue.pop();  // remove tree from queue and delete tree motif
         }  // end while mainloop
+
+        //break;  only look at node 0
     } // end for
     return;
 }
@@ -298,6 +312,7 @@ void writeTable(const T table, const std::string filename){
     }
 }
 
+
 int main()
 {
     clock_t q = clock();
@@ -305,35 +320,45 @@ int main()
     //Edge edges[] = {{2,3}, {2,4}, {3,5}, {3,6}, {4,5}, {5,6}};
     Edge edges[] = {{0,1}, {0,2}, {1,3}, {1,4}, {2,3}, {3,4}};
     Edge petersen[] = {{0,1},{0,4},{0,5},{1,2},{1,6},{2,3},{2,7},{3,4},{3,8},{4,9},{5,7},{5,8},{6,8},{6,9},{7,9}};
-    Edge karate[] = {
-        {0,9},{0,14},{0,15},{0,16},{0,19},{0,20},{0,21},{0,23},{0,24},{0,27},{0,28},{0,29},{0,30},{0,31},{0,32},{0,33},{2,1},{3,1},{3,2},{4,1},{4,2},{4,3},{5,1},{6,1},{7,1},{7,5},{7,6},{8,1},{8,2},{8,3},{8,4},{9,1},{9,3},{10,3},{11,1},{11,5},{11,6},{12,1},{13,1},{13,4},{14,1},{14,2},{14,3},{14,4},{17,6},{17,7},{18,1},{18,2},{20,1},{20,2},{22,1},{22,2},{26,24},{26,25},{28,3},{28,24},{28,25},{29,3},{30,24},{30,27},{31,2},{31,9},{32,1},{32,25},{32,26},{32,29},{33,3},{33,9},{33,15},{33,16},{33,19},{33,21},{33,23},{33,24},{33,30},{33,31},{33,32}
-    };
+    
     // Graph graph(triangle,3,3);
     // Graph graph(edges,5,6);
     // Graph graph(petersen,10,15);
-    Graph graph(karate,34,77);
-    std::cout << "Graph: ";
+    // Graph graph(karate,34,77);
+
+    std::vector<Edge> edgelist = read_graph(INPUT_GRAPH_PATH);
+    Graph graph(edgelist);
+
+    std::cout << "ReOrdering Graph" << std::endl;
+    std::vector<Node> kcores;
+    kcore_ordering(graph, kcores);
+    graph.relabel_graph(kcores);
+
+    std::cout << "Graph: N="<< graph.N << " M=" << graph.M << " ";
     graph.printGraph();
+
     std::cout << "creating orbitmatcher" << std::endl;
     OrbitMatcher orbitmatcher;
     std::cout << "finished creating orbitmatcher" << std::endl;
     // read_orbit_table(orbitmatcher);
+
     std::vector<std::array<int,73>> gdvs;
     for (size_t i = 0; i < graph.Nodes.size(); i++)
     {
-        //gdvs.push_back(std::array<int,72>());
         gdvs.emplace_back();
         gdvs[i].fill(0);
     }
     q = clock() - q;
     std::cout << "Total Time for Preprocessing: "<< ((float)q)/CLOCKS_PER_SEC <<"\n";
+
     std::cout << "starting computation" << std::endl;
     q = clock();
     computeGDV(graph,orbitmatcher,gdvs);
     q = clock() - q;
     std::cout << "ending computation" << std::endl;
+
     printGDVTable(gdvs);
-    writeTable(gdvs,"./results/gdvs.result");
+    // writeTable(gdvs,"./results/gdvs.result");
     std::cout << "Total Time for Execution: " << ((float)q)/CLOCKS_PER_SEC <<"\n";
 
     return 0;

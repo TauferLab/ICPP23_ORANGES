@@ -6,9 +6,13 @@
 #include<map>
 #include<set>
 #include<unordered_set>
+#include<unordered_map>
 #include<queue>
 #include<iostream>
 #include<memory>
+#include <string>
+#include <fstream>
+#include <sstream>
 
 // TODO: use smart pointers
 
@@ -40,6 +44,9 @@ class Motif
     Node root; // Node is basically int. Edge is basically pair<Node,Node>
     std::vector<Node> nodes;
     std::vector<Node> endnodes; 
+    // std::array<Node,5> nodes;
+    // std::array<Node,5> endnodes;
+    // size_t num_nodes;
     //std::vector<std::shared_ptr<Edge>> edges;
     std::vector<Edge> edges;
     //std::vector<Edge*> edges;
@@ -50,7 +57,8 @@ class Motif
             std::vector<Node> nodes_, 
             std::vector<Node> endnodes_, 
             std::vector<Edge> edges_)
-            :root(root_),nodes(nodes_),endnodes(endnodes_),edges(edges_){};
+            :root(root_),nodes(nodes_),endnodes(endnodes_),edges(edges_)
+    {}
 };
 
 // get neighbors of the node in the motif
@@ -98,6 +106,7 @@ class Graph
     std::set<Node> Nodes;
     std::map<Node,std::vector<Node>> adjList;
 
+    Graph(const std::vector<Edge> &edges);
     Graph(const Edge edges[], int n, int m);
     void addEdge(const Edge &e);
     inline std::vector<Node> neighbors(const Node u) const;
@@ -107,6 +116,7 @@ class Graph
     void printGraph() const;
     // void all_pair_shortest_path(std::vector<std::vector<std::vector<Node>>> paths);
     // void single_source_shortest_path(Node node, std::vector<std::vector<Node>> paths);
+    void relabel_graph(std::vector<Node> const &ordering);
 };
 
 Graph::Graph(const Edge edges[], int n, int m):N(n),M(m)
@@ -117,6 +127,17 @@ Graph::Graph(const Edge edges[], int n, int m):N(n),M(m)
         addEdge(edges[i]);
         // std::cout << "added edge (" << edges[i].u << ", " << edges[i].v << ")" << std::endl;
     }
+}
+
+Graph::Graph(const std::vector<Edge> &edges)
+{
+    // assumes undirected and unique
+    for (Edge edge: edges)
+    {
+        addEdge(edge);
+    }
+    N = Nodes.size();
+    M = edges.size();
 }
 
 void Graph::addEdge(const Edge &edge)
@@ -265,10 +286,96 @@ void all_pair_shortest_lengths(const Motif &motif, std::map<std::pair<Node,Node>
     return;
 }
 
-void kcore_counts(const std::map<Node,int> &count)
+void kcore_ordering(Graph graph, std::vector<Node> &ordered)
 {
-    // iterative dfs to get kcores
-}
+    // given graph, orders the nodes into a vector based on their kcore number
+    // aka degeneracy ordering
+    // Matula & Beck (1983)
+    std::unordered_map<Node, int> degrees;  // the number of neighbors of v that are not already in output
+    std::vector<std::vector<Node>> buckets;  // degree-indexed bucket queue
+    int max_deg = -1;  // maximum degree of the graph
+    for (auto const &node_pair: graph.adjList)
+    {
+        int deg = node_pair.second.size();
+        degrees[node_pair.first] = deg;  // initialize to degree of the node
+        if (max_deg < deg)
+        {
+            max_deg = deg;
+        }
+    }
+
+    for (int i = 0; i <= max_deg; i++)
+    {
+        buckets.emplace_back();
+    }
+    // initialize buckets for which deg(v)=i
+    for (auto const &node_pair: graph.adjList)
+    {
+        int deg = node_pair.second.size();
+        buckets[deg].push_back(node_pair.first);
+    }
+    
+    size_t k = 0;
+
+    // iterate N times
+    for (int x = 0; x < graph.N; x++)
+    {
+        // find nonempty degrees[i]
+        size_t i;
+        for (i = 0; i < buckets.size() && buckets[i].size() <= 0; i++);
+
+        k = std::max(k,i);
+        // pop node from bucket[i] and add it to ordered
+        Node u = buckets[i].back();
+        ordered.push_back(u);
+        buckets[i].pop_back();
+
+        // update neighbors
+        for (Node neighbor: graph.adjList[u])
+        {
+            // check if neighbor isnt already in ordered
+            if ( std::find(ordered.begin(),ordered.end(),neighbor) == ordered.end())
+            {
+                int deg = degrees[neighbor];  // current degree of neighbor
+                degrees[neighbor]--;  // decrement degree of neighbor
+                // move neighbor from current bucket to new bucket
+                buckets[deg-1].push_back(neighbor);  // add neighbor to new bucket
+                auto it = std::find(buckets[deg].begin(),buckets[deg].end(),neighbor);
+                buckets[deg].erase(it);  // remove neighbor from its current bucket
+            }  // end if
+        }  // end for updating neighbors
+    } // end for
+}  // end function core numbers
+
+
+void Graph::relabel_graph(std::vector<Node> const &ordering)
+{
+    // relabels the nodes in the graph where ordering[i] is the old and i is the new label
+
+    // initialize map for faster access
+    std::unordered_map<Node,Node> node_ordering; // {old label : new label}
+    for (std::size_t i = 0; i != ordering.size(); i++)
+    {
+        node_ordering[ordering[i]] = (Node) i;
+    }
+
+    std::map<Node,std::vector<Node>> new_adjList;  // new adjacency list
+    for (auto node_pair: node_ordering)
+    {
+        Node u = node_pair.second;
+        Node old_u = node_pair.first;
+        std::vector<Node> old_neighbors = adjList[old_u];
+        std::vector<Node> new_neighbors;
+        for (Node old_v: old_neighbors)
+        {
+            Node new_v = ordering.at(old_v);
+            new_neighbors.push_back(new_v);
+        }
+        new_adjList[u] = new_neighbors;
+    }
+    adjList = new_adjList;
+}  // end function relabel_graph
+
 
 void Graph::printGraph() const
 {
@@ -300,6 +407,31 @@ void printMotif(const Motif &motif)
     }
     std::cout << "]" << std::endl;
 }
+
+std::vector<Edge> read_graph(std::string fname)
+{
+    // assumes first line has number of nodes, and number of edges
+    // every subsequent line is an edge
+    // note that first node should be labelled 0
+    std::vector<Edge> edgelist;
+    std::ifstream ifs(fname);
+    if (!ifs.is_open())
+        std::cout << fname << " is not open!" << std::endl;
+
+    std::string line, word1, word2;
+
+    getline(ifs, line); // skip first line
+
+    while(getline(ifs, line))
+    {
+        std::stringstream str(line);
+        std::getline(str,word1,' ');
+        std::getline(str,word2,' ');
+        edgelist.push_back({(Node)stoi(word1),(Node)stoi(word2)});
+    }
+    return edgelist;
+}
+
 
 } // essens namespace
 #endif
