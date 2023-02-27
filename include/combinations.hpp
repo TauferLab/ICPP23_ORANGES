@@ -165,7 +165,7 @@ class CombinationGeneratorVector
     {
       combo.clear();
       for(int i=0; i<k; i++) {
-        if(combination[i] < set.size())
+        if(static_cast<uint32_t>(combination[i]) < set.size())
           combo.push_back(set[combination[i]]);
       }
       return;

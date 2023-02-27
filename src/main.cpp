@@ -132,7 +132,7 @@ int main(int argc, char *argv[]) {
 
   time_t now = time(0);
   double pre_tStart = MPI_Wtime();
-  double start_time, end_time;
+  double start_time=0.0, end_time;
   /* Accepts file as input. 
      Input should be in the format of ( node1 node2 weight ). 
      By default, weight should be 1
@@ -389,7 +389,7 @@ kokkos_similarity_metric_calculation_for_two_graphs(const matrix_type& graph1,
   MPI_Comm_rank(MPI_COMM_WORLD, &rankm);
   MPI_Comm_size(MPI_COMM_WORLD, &numtasksm);
 
-  double start;
+  double start = 0.0;
   if(rankm == 0)
     start = MPI_Wtime();
   int graph_counter = 1;
@@ -565,7 +565,7 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
   cout << "# of processes : " << comm_size << endl;
 #endif
 
-  double process_ends_communication;
+  double process_ends_communication=0.0;
   double vec_calc_start = MPI_Wtime();
 
   Kokkos::View<uint64_t*> num_combinations("Number of combinations", graph.numRows());
@@ -584,12 +584,12 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
   uint32_t vertices_per_proc = graph.numRows()/comm_size;
   uint64_t start_offset = rankn*vertices_per_proc;
   uint64_t end_offset = start_offset+vertices_per_proc;
-  if(end_offset > graph.numRows())
+  if(end_offset > static_cast<uint64_t>(graph.numRows()))
     end_offset = graph.numRows();
   int* recv_count = new int[comm_size];
   int* displs = new int[comm_size];
   int running_count = 0;
-  for(uint64_t i=0; i<comm_size-1; i++) {
+  for(int i=0; i<comm_size-1; i++) {
     recv_count[i] = vertices_per_proc;
     displs[i] = running_count;
     running_count += vertices_per_proc;
@@ -631,7 +631,7 @@ kokkos_GDV_vector_calculation(const matrix_type& graph,
   }, Kokkos::Max<uint32_t>(max_degree));
   printf("Max degree: %u\n", max_degree);
   uint32_t max_neighborhood = max_degree + max_degree*max_degree + max_degree*max_degree*max_degree + max_degree*max_degree*max_degree*max_degree;
-  if(max_neighborhood > graph.numRows())
+  if(max_neighborhood > static_cast<uint32_t>(graph.numRows()))
     max_neighborhood = graph.numRows();
   printf("Approximate max degree: %u\n", max_neighborhood);
 
@@ -740,20 +740,20 @@ Kokkos::fence();
     Kokkos::deep_copy(graph_GDV, 0);
     uint64_t intervals_per_rank = num_intervals/comm_size;
     uint64_t remaining_intervals = num_intervals%comm_size;
-    if(rankn < remaining_intervals)
+    if(static_cast<uint64_t>(rankn) < remaining_intervals)
       intervals_per_rank += 1;
     uint64_t start_index = 0;
-    if(rankn < remaining_intervals) {
+    if(static_cast<uint64_t>(rankn) < remaining_intervals) {
       start_index = intervals_per_rank*rankn;
     }
-    if(rankn >= remaining_intervals) {
+    if(static_cast<uint64_t>(rankn) >= remaining_intervals) {
       start_index = ((intervals_per_rank+1)*remaining_intervals) + 
                     (intervals_per_rank*(rankn-remaining_intervals));
     }
     if(start_index+intervals_per_rank > num_intervals) {
       intervals_per_rank = num_intervals - start_index;
     }
-    int offset = 0;
+    uint64_t offset = 0;
 #ifdef DEBUG
 printf("Rank %d: start_index: %llu, intervals_per_rank: %llu\n", rankn, start_index, intervals_per_rank);
 #endif
@@ -940,12 +940,12 @@ printf("Rank %d: Chunk (node %d) is first: %d, middle: %d, last: %d\n", rankn, c
 #ifdef DEBUG
 printf("Rank %d: Last chunk: start comb: %zu, end comb: %zu\n", rankn, start_combination, end_combination);
 #endif
-          int64_t counter = end_combination;
+          uint64_t counter = end_combination;
           for(int j=4; j>0; j--) {
             uint64_t n_comb = get_num_combinations(n_neighbors, j);
             end_comb_subgraph[j] = n_comb;
             counter -= n_comb;
-            if(counter > start_combination) {
+            if(end_combination >= counter && counter > start_combination) {
               start_comb_subgraph[j] = 0;
             } else {
               start_comb_subgraph[j] = start_combination-counter;
@@ -1081,26 +1081,48 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
         std::string logname = label + "." + std::to_string(chkpt_counter);
         uint64_t gdv_len = graph_GDV.span()*sizeof(uint32_t);
         Kokkos::View<uint8_t*>::HostMirror diff_h;
-        auto gdv_h = Kokkos::create_mirror_view(graph_GDV);
-        Kokkos::deep_copy(gdv_h, graph_GDV);
-        std::string ref_digest = calculate_digest_host(gdv_h);
-//        auto ref_half_0 = Kokkos::subview(gdv_h, Kokkos::ALL(), std::make_pair(0,70));
-//        std::string ref_digest_half = calculate_digest_host(ref_half_0);
+        GDVs::HostMirror gdv_ref_h("Ref mirror", graph_GDV.extent(0), graph_GDV.extent(1));
+        GDVs::HostMirror gdv_h("Ref restart mirror", graph_GDV.extent(0), graph_GDV.extent(1));
+        Kokkos::fence();
+        Kokkos::deep_copy(gdv_ref_h, graph_GDV);
+        Kokkos::fence();
+        std::string ref_digest = calculate_digest_host(gdv_ref_h);
+        Kokkos::fence();
+        auto ref_half_0 = Kokkos::subview(gdv_h, Kokkos::ALL(), std::make_pair(0,1));
+        std::string ref_digest_half = calculate_digest_host(ref_half_0);
 
         deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, chkpt_counter==0);
         Kokkos::fence();
         diffs.push_back(diff_h);
+        Kokkos::deep_copy(graph_GDV, 0);
+        Kokkos::fence();
         deduplicator.restart(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, chkpt_counter);
+        Kokkos::fence();
 
         Kokkos::deep_copy(gdv_h, graph_GDV);
+        Kokkos::fence();
         std::string digest = calculate_digest_host(gdv_h);
-//        std::string digest_half = calculate_digest_host(ref_half_0);
+        std::string digest_half = calculate_digest_host(ref_half_0);
+        Kokkos::fence();
+
+        uint64_t num_checks = 0, num_diffs = 0;
+        for(uint64_t j=0; j<graph_GDV.extent(1); j++) {
+          for(uint64_t i=0; i<graph_GDV.extent(0); i++) {
+            if(gdv_ref_h(i,j) != gdv_h(i,j)) {
+//              printf("Mismatch at (%lu,%lu): %u vs %u\n", i,j, gdv_ref_h(i,j), gdv_h(i,j));
+              num_diffs += 1;
+            } else {
+              num_checks += 1;
+            }
+          }
+        }
+        printf("Num checks: %lu, num differences: %lu\n", num_checks, num_diffs);
 
         if(ref_digest != digest)
           std::cout << "Rank " << rankn << ", Chunk " << chkpt_counter << ": Restart failed! Mismatch digests " << ref_digest << " vs " << digest << std::endl;
 //          std::cout << "Rank " << rankn << ", Chunk " << chkpt_counter << ": digests " << ref_digest_half << " vs " << digest_half << std::endl;
 
-        printf("Rank: %d: Done with chunk: %u, chkpt counter %u, time: %f\n", rankn, offset, chkpt_counter, curr_time-prior_time);
+        printf("Rank: %d: Done with chunk: %lu, chkpt counter %u, time: %f\n", rankn, offset, chkpt_counter, curr_time-prior_time);
         prior_time = curr_time;
         chkpt_counter += 1;
       }

@@ -33,7 +33,7 @@ get_approx_num_neighbors(const matrix_type& graph, int node, int distance) {
   uint32_t num_neighbors = 0;
   auto row = graph.row(node);
   if(distance > 1) {
-    for(size_t i=0; i<row.length; i++) {
+    for(int i=0; i<row.length; i++) {
       num_neighbors += get_approx_num_neighbors(graph, row.colidx(i), distance-1);
     }
   } else {
@@ -47,7 +47,7 @@ KOKKOS_INLINE_FUNCTION void combination_from_position(IndexView& indices, int64_
   int64_t m = position;
   int n = size;
   int r = k;
-  for(int i=0; i<indices.extent(0); i++) {
+  for(uint32_t i=0; i<indices.extent(0); i++) {
     indices(i) = 0;
   }
 //  Kokkos::deep_copy(indices, 0);
@@ -67,7 +67,7 @@ KOKKOS_INLINE_FUNCTION void combination_from_position(IndexView& indices, int64_
     }
     n -= 1;
   }
-  for(size_t i=0; i<k; i++) {
+  for(int i=0; i<k; i++) {
     int index = 0;
     for(size_t j=i; j<indices.extent(0); j++) {
       if(indices(j) == 1) {
@@ -281,10 +281,10 @@ namespace EssensKokkos {
   get_num_subgraph_edges(const matrix_type& graph, const Kokkos::View<int*>& nodes)
   {
     int edge_count = 0;
-    for(int i=0; i<nodes.size(); i++) {
+    for(uint32_t i=0; i<nodes.size(); i++) {
       auto row = graph.rowConst(nodes(i));
       for(int j=0; j<row.length; j++) {
-        for(int k=0; k<nodes.size(); k++) {
+        for(uint32_t k=0; k<nodes.size(); k++) {
           if(row.colidx(j) == nodes(k)) {
             edge_count++;
           }
@@ -389,10 +389,10 @@ namespace EssensKokkos {
       }
     }
     int edge_count = 0;
-    for(size_t i=0; i<nodes.size(); i++) {
+    for(uint32_t i=0; i<nodes.size(); i++) {
       auto row = graph.row(nodes(i));
-      for(size_t j=0; j<row.length; j++) {
-        for(size_t k=0; k<nodes.size(); k++) {
+      for(uint32_t j=0; j<row.length; j++) {
+        for(uint32_t k=0; k<nodes.size(); k++) {
           if(row.colidx(j) == nodes(k) && (k!=i)) {
             subgraph(i,k) = row.value(j);
             edge_count++;
@@ -702,7 +702,7 @@ namespace EssensKokkos {
   template<class SignatureA, class SignatureB>
   KOKKOS_INLINE_FUNCTION
   bool compare_signatures(const SignatureA& sig1, const SignatureB& sig2) {
-    for(int i=0; i<sig1.size(); i++) {
+    for(size_t i=0; i<sig1.size(); i++) {
       if(sig1(i) != sig2(i)) {
         return false;
       }
