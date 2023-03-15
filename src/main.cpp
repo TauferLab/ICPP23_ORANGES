@@ -230,12 +230,14 @@ int main(int argc, char *argv[]) {
   using namespace std::chrono;
   high_resolution_clock::time_point start_time0 = high_resolution_clock::now();
   int num_orbits = k_orbits.degree.extent(0);
+  printf("Number of orbits: %d\n", num_orbits);
   GDVs gdvs("GDVs", graphx.numRows(), num_orbits);
+  printf("Memory allocated for GDVS: %lu vs %lu\n", gdvs.span()*sizeof(uint32_t), gdvs.extent(0)*gdvs.extent(1)*sizeof(uint32_t));
   GDVs::HostMirror graph1_gdvs = Kokkos::create_mirror_view(gdvs);
   compute_gdvs(graphx, k_orbits, gdvs, graph_name1);
   Kokkos::deep_copy(graph1_gdvs, gdvs);
   high_resolution_clock::time_point end_time0 = high_resolution_clock::now();
-  printf("Time spent on graph 1: %f\n", duration_cast<duration<double>>(end_time0 - start_time0));
+  std::cout << "Time spent on graph 1: " << duration_cast<duration<double>>(end_time0 - start_time0).count() << std::endl;
 
 //  readin_graph(&the_file1, graphy);
 //  if(rank == 0) {
@@ -709,7 +711,8 @@ if(league_rank == 0 && team_member.team_rank() == 0)
                  displs, 
                  MPI_UNSIGNED_LONG, 
                  MPI_COMM_WORLD);
-  delete[] recv_count, displs;
+  delete[] recv_count;
+  delete[] displs;
   MPI_Allreduce(&local_combinations, &total_combinations, 1, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
   MPI_Allreduce(&local_neighbors, &total_neighbors, 1, MPI_UNSIGNED_LONG, MPI_SUM, MPI_COMM_WORLD);
   MPI_Barrier(MPI_COMM_WORLD);
@@ -845,7 +848,7 @@ printf("%lu bytes\n", scratch_bytes);
 #endif
         Kokkos::TeamPolicy<> team_policy = Kokkos::TeamPolicy<>(per_league, NUM_THREADS).set_scratch_size(1, Kokkos::PerThread(scratch_bytes));
 #ifdef DETAILED_TIMERS
-        chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
+//        chrono::steady_clock::time_point t1 = chrono::steady_clock::now();
 #endif
         Kokkos::parallel_for("Calculate GDV", team_policy, KOKKOS_LAMBDA(member_type team_member) {
           int32_t node = start_node+team_member.league_rank();
@@ -1077,50 +1080,161 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
       double curr_time = MPI_Wtime();
 
       if((offset == intervals_per_rank-1) || (curr_time - prior_time > TIME_INTERVAL) || (TIME_INTERVAL == 0)) {
+        //std::string filename = label + "." + std::to_string(chkpt_counter) + ".hashtree.incr_chkpt";
         std::string filename = label + "." + std::to_string(chkpt_counter) + ".hashtree.incr_chkpt";
+        if(dedup_mode == Full) {
+          filename += ".full.chkpt";
+        } else if(dedup_mode == Basic) {
+          filename += ".basic.chkpt";
+        } else if(dedup_mode == List) {
+          filename += ".list.chkpt";
+        } else if(dedup_mode == TreeLowOffset) {
+          filename += ".tree_low_offset.chkpt";
+        } else if(dedup_mode == TreeLowRoot) {
+          filename += ".tree_low_root.chkpt";
+        }
         std::string logname = label + "." + std::to_string(chkpt_counter);
         uint64_t gdv_len = graph_GDV.span()*sizeof(uint32_t);
-        Kokkos::View<uint8_t*>::HostMirror diff_h;
-        GDVs::HostMirror gdv_ref_h("Ref mirror", graph_GDV.extent(0), graph_GDV.extent(1));
+
+        Kokkos::fence();
+        auto gdv_ref_h = Kokkos::create_mirror_view(graph_GDV);
+        Kokkos::deep_copy(gdv_ref_h, graph_GDV);
+
+        chrono::steady_clock::time_point beg_hash = chrono::steady_clock::now();
+
+        std::string ref_digest;
+        std::string digest;
+
+//        std::string ref_digest = calculate_digest_host(gdv_ref_h, gdv_len);
+//        HashDigest host_dig;
+//        kokkos_murmur3::hash((uint8_t*)(gdv_ref_h.data()), gdv_len, host_dig.digest);
+//
+//        chrono::steady_clock::time_point end_hash = chrono::steady_clock::now();
+//        chrono::duration<double> hash_time_span = chrono::duration_cast<chrono::duration<double>>(end_hash-beg_hash);
+//        std::cout << "Time spent calculating hashes (CPU) for " << gdv_len << " bytes: " << hash_time_span.count() << std::endl;
+//
+//{
+//        uint64_t blocksize = CHUNK_SIZE;
+//        uint64_t num_blocks = gdv_len/blocksize;
+//        if(blocksize*num_blocks < gdv_len)
+//          num_blocks++;
+//
+////        digest = calculate_digest_device(graph_GDV, gdv_len); 
+//        Kokkos::View<HashDigest*> digest_d("Hash digest", num_blocks);
+//        Kokkos::View<HashDigest*> digest_d2("Hash digest", num_blocks);
+////        Kokkos::deep_copy(digest, 0);
+//        beg_hash = chrono::steady_clock::now();
+//        Kokkos::parallel_for("Calculate hashes", Kokkos::RangePolicy<>(0,num_blocks), KOKKOS_LAMBDA(const uint64_t i) {
+//          uint64_t num_bytes = blocksize;
+//          if(i == num_blocks-1)
+//            num_bytes = gdv_len-i*blocksize;
+//          kokkos_murmur3::hash((uint8_t*)(graph_GDV.data())+i*blocksize, num_bytes, digest_d(i).digest);
+//        });
+//        Kokkos::fence();
+//        end_hash = chrono::steady_clock::now();
+//        hash_time_span = chrono::duration_cast<chrono::duration<double>>(end_hash-beg_hash);
+//        std::cout << "Time spent calculating hashes (GPU) for " << gdv_len << " bytes: " << hash_time_span.count() << std::endl;
+//
+//        beg_hash = chrono::steady_clock::now();
+//
+//        typedef Kokkos::View<uint32_t*, ScratchSpace, Kokkos::MemoryTraits<Kokkos::Unmanaged>> scratch_uint32_view;
+//        Kokkos::TeamPolicy<> team_policy = Kokkos::TeamPolicy<>((num_blocks/8)+1, 8);//.set_scratch_size(1, Kokkos::PerTeam(sizeof(Kokkos::View<uint32_t*>)*sizeof(uint32_t)*32*32));
+//        Kokkos::parallel_for("Calculate hashes", team_policy, 
+//        KOKKOS_LAMBDA(member_type team_member) {
+//          uint64_t i=team_member.league_rank();
+//          uint64_t j=team_member.team_rank();
+//          uint64_t block_idx = i*team_member.team_size()+j;
+//          if(block_idx < num_blocks) {
+//            uint64_t num_bytes = blocksize;
+//            if(block_idx == num_blocks-1)
+//              num_bytes = gdv_len-(block_idx)*blocksize;
+//            kokkos_murmur3::hash((uint8_t*)(graph_GDV.data())+blocksize*block_idx, num_bytes, digest_d2(block_idx).digest);
+//          }
+//        });
+//        Kokkos::fence();
+//
+//        end_hash = chrono::steady_clock::now();
+//        hash_time_span = chrono::duration_cast<chrono::duration<double>>(end_hash-beg_hash);
+//        std::cout << "Time spent calculating hashes (GPU) for " << gdv_len << " bytes: " << hash_time_span.count() << std::endl;
+
+//        static const char hexchars[] = "0123456789ABCDEF";
+//        auto digest_h = Kokkos::create_mirror_view(digest_d);
+//        Kokkos::deep_copy(digest_h, digest_d);
+//        auto digest_h2 = Kokkos::create_mirror_view(digest_d2);
+//        Kokkos::deep_copy(digest_h2, digest_d2);
+//        for(uint64_t i=0; i<digest_h.size(); i++) {
+//          for(uint64_t j=0; j<16; j++) {
+//            if(digest_h(i).digest[j] != digest_h2(i).digest[j]) {
+//              printf("Mismatch digest at (%lu,%lu)\n", i, j);
+//              break;
+//            }
+//          }
+//        }
+        
+//        for(int k=0; k<16; k++) {
+//          unsigned char b = host_dig.digest[k];
+//          char hex[3];
+//          hex[0] = hexchars[b >> 4];
+//          hex[1] = hexchars[b & 0xF];
+//          hex[2] = 0;
+//          ref_digest.append(hex);
+//          if(k%4 == 3)
+//            ref_digest.append(" ");
+//
+//          b = digest_h(0).digest[k];
+//          hex[0] = hexchars[b >> 4];
+//          hex[1] = hexchars[b & 0xF];
+//          hex[2] = 0;
+//          digest.append(hex);
+//          if(k%4 == 3)
+//            digest.append(" ");
+//        }
+//        std::cout << "Reference digest: " << ref_digest << " vs " << digest << std::endl;
+//}        
+        Kokkos::View<uint8_t*>::HostMirror diff_h("Host diff", 1);
+//        GDVs::HostMirror gdv_ref_h("Ref mirror", graph_GDV.extent(0), graph_GDV.extent(1));
         GDVs::HostMirror gdv_h("Ref restart mirror", graph_GDV.extent(0), graph_GDV.extent(1));
         Kokkos::fence();
         Kokkos::deep_copy(gdv_ref_h, graph_GDV);
         Kokkos::fence();
-        std::string ref_digest = calculate_digest_host(gdv_ref_h);
+//        std::string ref_digest = calculate_digest_host(gdv_ref_h);
+        ref_digest = calculate_digest_host(gdv_ref_h);
         Kokkos::fence();
         auto ref_half_0 = Kokkos::subview(gdv_h, Kokkos::ALL(), std::make_pair(0,1));
         std::string ref_digest_half = calculate_digest_host(ref_half_0);
 
         deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, chkpt_counter==0);
+//        deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, filename, logname, chkpt_counter == 0);
         Kokkos::fence();
         diffs.push_back(diff_h);
-        Kokkos::deep_copy(graph_GDV, 0);
-        Kokkos::fence();
-        deduplicator.restart(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, chkpt_counter);
-        Kokkos::fence();
+//        Kokkos::deep_copy(graph_GDV, 0);
+//        Kokkos::fence();
+//        deduplicator.restart(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, chkpt_counter);
+//        Kokkos::fence();
 
-        Kokkos::deep_copy(gdv_h, graph_GDV);
-        Kokkos::fence();
-        std::string digest = calculate_digest_host(gdv_h);
-        std::string digest_half = calculate_digest_host(ref_half_0);
-        Kokkos::fence();
-
-        uint64_t num_checks = 0, num_diffs = 0;
-        for(uint64_t j=0; j<graph_GDV.extent(1); j++) {
-          for(uint64_t i=0; i<graph_GDV.extent(0); i++) {
-            if(gdv_ref_h(i,j) != gdv_h(i,j)) {
-//              printf("Mismatch at (%lu,%lu): %u vs %u\n", i,j, gdv_ref_h(i,j), gdv_h(i,j));
-              num_diffs += 1;
-            } else {
-              num_checks += 1;
-            }
-          }
-        }
-        printf("Num checks: %lu, num differences: %lu\n", num_checks, num_diffs);
-
-        if(ref_digest != digest)
-          std::cout << "Rank " << rankn << ", Chunk " << chkpt_counter << ": Restart failed! Mismatch digests " << ref_digest << " vs " << digest << std::endl;
-//          std::cout << "Rank " << rankn << ", Chunk " << chkpt_counter << ": digests " << ref_digest_half << " vs " << digest_half << std::endl;
+//        Kokkos::deep_copy(gdv_h, graph_GDV);
+//        Kokkos::fence();
+////        std::string digest = calculate_digest_host(gdv_h);
+//        digest = calculate_digest_host(gdv_h);
+//        std::string digest_half = calculate_digest_host(ref_half_0);
+//        Kokkos::fence();
+//
+//        uint64_t num_checks = 0, num_diffs = 0;
+//        for(uint64_t j=0; j<graph_GDV.extent(1); j++) {
+//          for(uint64_t i=0; i<graph_GDV.extent(0); i++) {
+//            if(gdv_ref_h(i,j) != gdv_h(i,j)) {
+////              printf("Mismatch at (%lu,%lu): %u vs %u\n", i,j, gdv_ref_h(i,j), gdv_h(i,j));
+//              num_diffs += 1;
+//            } else {
+//              num_checks += 1;
+//            }
+//          }
+//        }
+//        printf("Num checks: %lu, num differences: %lu\n", num_checks, num_diffs);
+//
+//        if(ref_digest != digest)
+//          std::cout << "Rank " << rankn << ", Chunk " << chkpt_counter << ": Restart failed! Mismatch digests " << ref_digest << " vs " << digest << std::endl;
+////          std::cout << "Rank " << rankn << ", Chunk " << chkpt_counter << ": digests " << ref_digest_half << " vs " << digest_half << std::endl;
 
         printf("Rank: %d: Done with chunk: %lu, chkpt counter %u, time: %f\n", rankn, offset, chkpt_counter, curr_time-prior_time);
         prior_time = curr_time;

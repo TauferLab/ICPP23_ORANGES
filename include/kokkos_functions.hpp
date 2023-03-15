@@ -391,7 +391,7 @@ namespace EssensKokkos {
     int edge_count = 0;
     for(uint32_t i=0; i<nodes.size(); i++) {
       auto row = graph.row(nodes(i));
-      for(uint32_t j=0; j<row.length; j++) {
+      for(uint32_t j=0; j<static_cast<uint32_t>(row.length); j++) {
         for(uint32_t k=0; k<nodes.size(); k++) {
           if(row.colidx(j) == nodes(k) && (k!=i)) {
             subgraph(i,k) = row.value(j);
