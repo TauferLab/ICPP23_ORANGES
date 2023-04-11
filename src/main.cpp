@@ -7,6 +7,7 @@
 #include "hash_change_detection.hpp"
 #include "update_pattern_analysis.hpp"
 #include "io.hpp"
+#include "gdv_analysis.hpp"
 //#include "hash_functions.hpp"
 //#include "deduplication.hpp"
 #include "utils.hpp"
@@ -1192,49 +1193,64 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
 //        std::cout << "Reference digest: " << ref_digest << " vs " << digest << std::endl;
 //}        
         Kokkos::View<uint8_t*>::HostMirror diff_h("Host diff", 1);
-//        GDVs::HostMirror gdv_ref_h("Ref mirror", graph_GDV.extent(0), graph_GDV.extent(1));
         GDVs::HostMirror gdv_h("Ref restart mirror", graph_GDV.extent(0), graph_GDV.extent(1));
+//        GDVs::HostMirror gdv_ref_h("Ref mirror", graph_GDV.extent(0), graph_GDV.extent(1));
         Kokkos::fence();
         Kokkos::deep_copy(gdv_ref_h, graph_GDV);
         Kokkos::fence();
-//        std::string ref_digest = calculate_digest_host(gdv_ref_h);
         ref_digest = calculate_digest_host(gdv_ref_h);
-        Kokkos::fence();
-        auto ref_half_0 = Kokkos::subview(gdv_h, Kokkos::ALL(), std::make_pair(0,1));
-        std::string ref_digest_half = calculate_digest_host(ref_half_0);
 
-        deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, chkpt_counter==0);
+//        calc_gdv_stats(graph_GDV);
+
+//uint64_t pow_2_len = gdv_len;
+//pow_2_len--;
+//pow_2_len |= pow_2_len >> 1;
+//pow_2_len |= pow_2_len >> 2;
+//pow_2_len |= pow_2_len >> 4;
+//pow_2_len |= pow_2_len >> 8;
+//pow_2_len |= pow_2_len >> 16;
+//pow_2_len |= pow_2_len >> 32;
+//pow_2_len++;
+//printf("Power of 2 length: %lu\n", pow_2_len);
+//Kokkos::View<uint8_t*> buff("Power of 2 buffer", pow_2_len);
+//Kokkos::deep_copy(buff, 0);
+//Kokkos::View<uint8_t*, Kokkos::MemoryTraits<Kokkos::Unmanaged> > data_unman((uint8_t*)(graph_GDV.data()), gdv_len);
+//auto buff_subview = Kokkos::subview(buff, Kokkos::make_pair(static_cast<size_t>(0), gdv_len));
+//Kokkos::deep_copy(buff_subview, data_unman);
+//        deduplicator.checkpoint(dedup_mode, (uint8_t*)(buff.data()), pow_2_len, diff_h, logname, chkpt_counter == 0);
+        
+
 //        deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, filename, logname, chkpt_counter == 0);
+        deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, chkpt_counter==0);
         Kokkos::fence();
+//printf("Done checkpointing with checkpoint size %lu\n", diff_h.size());
         diffs.push_back(diff_h);
-//        Kokkos::deep_copy(graph_GDV, 0);
-//        Kokkos::fence();
-//        deduplicator.restart(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, chkpt_counter);
-//        Kokkos::fence();
+        Kokkos::deep_copy(graph_GDV, 0);
+        Kokkos::fence();
+        deduplicator.restart(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, chkpt_counter);
+        Kokkos::fence();
 
-//        Kokkos::deep_copy(gdv_h, graph_GDV);
-//        Kokkos::fence();
-////        std::string digest = calculate_digest_host(gdv_h);
-//        digest = calculate_digest_host(gdv_h);
-//        std::string digest_half = calculate_digest_host(ref_half_0);
-//        Kokkos::fence();
-//
-//        uint64_t num_checks = 0, num_diffs = 0;
-//        for(uint64_t j=0; j<graph_GDV.extent(1); j++) {
-//          for(uint64_t i=0; i<graph_GDV.extent(0); i++) {
-//            if(gdv_ref_h(i,j) != gdv_h(i,j)) {
-////              printf("Mismatch at (%lu,%lu): %u vs %u\n", i,j, gdv_ref_h(i,j), gdv_h(i,j));
-//              num_diffs += 1;
-//            } else {
-//              num_checks += 1;
-//            }
-//          }
-//        }
-//        printf("Num checks: %lu, num differences: %lu\n", num_checks, num_diffs);
-//
-//        if(ref_digest != digest)
-//          std::cout << "Rank " << rankn << ", Chunk " << chkpt_counter << ": Restart failed! Mismatch digests " << ref_digest << " vs " << digest << std::endl;
-////          std::cout << "Rank " << rankn << ", Chunk " << chkpt_counter << ": digests " << ref_digest_half << " vs " << digest_half << std::endl;
+        Kokkos::deep_copy(gdv_h, graph_GDV);
+        Kokkos::fence();
+//        std::string digest = calculate_digest_host(gdv_h);
+        digest = calculate_digest_host(gdv_h);
+        Kokkos::fence();
+
+        uint64_t num_checks = 0, num_diffs = 0;
+        for(uint64_t j=0; j<graph_GDV.extent(1); j++) {
+          for(uint64_t i=0; i<graph_GDV.extent(0); i++) {
+            if(gdv_ref_h(i,j) != gdv_h(i,j)) {
+//              printf("Mismatch at (%lu,%lu): %u vs %u\n", i,j, gdv_ref_h(i,j), gdv_h(i,j));
+              num_diffs += 1;
+            } else {
+              num_checks += 1;
+            }
+          }
+        }
+        printf("Num checks: %lu, num differences: %lu\n", num_checks, num_diffs);
+
+        if(ref_digest != digest)
+          std::cout << "Rank " << rankn << ", Chunk " << chkpt_counter << ": Restart failed! Mismatch digests " << ref_digest << " vs " << digest << std::endl;
 
         printf("Rank: %d: Done with chunk: %lu, chkpt counter %u, time: %f\n", rankn, offset, chkpt_counter, curr_time-prior_time);
         prior_time = curr_time;
