@@ -7,7 +7,7 @@
 #include "hash_change_detection.hpp"
 #include "update_pattern_analysis.hpp"
 #include "io.hpp"
-#include "gdv_analysis.hpp"
+//#include "gdv_analysis.hpp"
 //#include "hash_functions.hpp"
 //#include "deduplication.hpp"
 #include "utils.hpp"
@@ -1205,7 +1205,7 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
         Kokkos::fence();
         Kokkos::deep_copy(gdv_ref_h, graph_GDV);
         Kokkos::fence();
-        ref_digest = calculate_digest_host(gdv_ref_h);
+//        ref_digest = calculate_digest_host(gdv_ref_h);
 
 //        calc_gdv_stats(graph_GDV);
 
@@ -1277,21 +1277,36 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
         digest = calculate_digest_host(gdv_h);
         Kokkos::fence();
 
-        uint64_t num_checks = 0, num_diffs = 0;
-        for(uint64_t j=0; j<graph_GDV.extent(1); j++) {
-          for(uint64_t i=0; i<graph_GDV.extent(0); i++) {
-            if(gdv_ref_h(i,j) != gdv_h(i,j)) {
-//              printf("Mismatch at (%lu,%lu): %u vs %u\n", i,j, gdv_ref_h(i,j), gdv_h(i,j));
-              num_diffs += 1;
-            } else {
-              num_checks += 1;
-            }
-          }
-        }
-        printf("Num checks: %lu, num differences: %lu\n", num_checks, num_diffs);
-
-        if(ref_digest != digest)
-          std::cout << "Rank " << rankn << ", Chunk " << chkpt_counter << ": Restart failed! Mismatch digests " << ref_digest << " vs " << digest << std::endl;
+//        deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, chkpt_counter==0);
+//        Kokkos::fence();
+////printf("Done checkpointing with checkpoint size %lu\n", diff_h.size());
+//        diffs.push_back(diff_h);
+//        Kokkos::deep_copy(graph_GDV, 0);
+//        Kokkos::fence();
+//        deduplicator.restart(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, chkpt_counter);
+//        Kokkos::fence();
+//
+//        Kokkos::deep_copy(gdv_h, graph_GDV);
+//        Kokkos::fence();
+////        std::string digest = calculate_digest_host(gdv_h);
+//        digest = calculate_digest_host(gdv_h);
+//        Kokkos::fence();
+//
+//        uint64_t num_checks = 0, num_diffs = 0;
+//        for(uint64_t j=0; j<graph_GDV.extent(1); j++) {
+//          for(uint64_t i=0; i<graph_GDV.extent(0); i++) {
+//            if(gdv_ref_h(i,j) != gdv_h(i,j)) {
+////              printf("Mismatch at (%lu,%lu): %u vs %u\n", i,j, gdv_ref_h(i,j), gdv_h(i,j));
+//              num_diffs += 1;
+//            } else {
+//              num_checks += 1;
+//            }
+//          }
+//        }
+//        printf("Num checks: %lu, num differences: %lu\n", num_checks, num_diffs);
+//
+//        if(ref_digest != digest)
+//          std::cout << "Rank " << rankn << ", Chunk " << chkpt_counter << ": Restart failed! Mismatch digests " << ref_digest << " vs " << digest << std::endl;
 
         printf("Rank: %d: Done with chunk: %lu, chkpt counter %u, time: %f\n", rankn, offset, chkpt_counter, curr_time-prior_time);
         prior_time = curr_time;
