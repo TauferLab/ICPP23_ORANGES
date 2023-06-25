@@ -143,17 +143,12 @@ int main(int argc, char *argv[]) {
     cout<<"INPUT ERROR:: Could not open the graph input file\n";
   }
 
-  ifstream the_file1 ( argv[2] ); 
-  if (!the_file1.is_open() ) { 
-    cout<<"INPUT ERROR:: Could not open the graph input file\n";
-  }
-
-  ifstream the_file2 ( argv[3] ); 
+  ifstream the_file2 ( argv[2] ); 
   if (!the_file2.is_open() ) { 
     cout<<"INPUT ERROR:: Could not open the orbit file\n";
   }
 
-  ifstream the_file3 ( argv[4] );
+  ifstream the_file3 ( argv[3] );
   if (!the_file3.is_open() ) {
     cout << "INPUT ERROR:: Could not open the time recording file\n";
   }
@@ -167,12 +162,12 @@ int main(int argc, char *argv[]) {
     start_time = MPI_Wtime();
   }
 
-  CHECKPOINT_INTERVAL = strtoull(argv[5], NULL, 0);
-  sscanf(argv[6], "%d", &CHUNK_SIZE);
+  CHECKPOINT_INTERVAL = strtoull(argv[4], NULL, 0);
+  sscanf(argv[5], "%d", &CHUNK_SIZE);
 
-  sscanf(argv[7], "%lu", &MAX_INTERVALS);
+  sscanf(argv[6], "%lu", &MAX_INTERVALS);
 
-  sscanf(argv[8], "%lu", &TIME_INTERVAL);
+  sscanf(argv[7], "%lu", &TIME_INTERVAL);
 
 
   dedup_mode = get_mode(argc, argv);
@@ -194,7 +189,7 @@ int main(int argc, char *argv[]) {
   // Get data on graph names
   string delimiter = "/";
   string graph_name1 = argv[1];
-  string graph_name2 = argv[2];
+//  string graph_name2 = argv[2];
   
   uint64_t pos1 = 0;
   string token1;
@@ -206,10 +201,10 @@ int main(int argc, char *argv[]) {
   
   uint64_t pos2 = 0;
   string token2;
-  while ((pos2 = graph_name2.find(delimiter)) != string::npos) {
-    token2 = graph_name2.substr(0, pos2);
-    graph_name2.erase(0, pos2 + delimiter.length());
-  }
+//  while ((pos2 = graph_name2.find(delimiter)) != string::npos) {
+//    token2 = graph_name2.substr(0, pos2);
+//    graph_name2.erase(0, pos2 + delimiter.length());
+//  }
 
   #ifdef DEBUG
     cout << "Starting Similarity Metric Calculation on Rank: " << rank << endl;
@@ -258,7 +253,7 @@ int main(int argc, char *argv[]) {
 //  printf("Time spent on graph 2: %f\n", duration_cast<duration<double>>(end_time0 - start_time0));
 
 #ifdef OUTPUT_GDV    
-  write_gdvs(graph1_gdvs, graph_name1, graph2_gdvs, graph_name2);
+//  write_gdvs(graph1_gdvs, graph_name1, graph2_gdvs, graph_name2);
 #endif
 
   if(rank == 0) {
@@ -301,7 +296,7 @@ int main(int argc, char *argv[]) {
     // File IO to Record Run Data
     // Date \t n_procs \t graph_name1 \t graph_name2 \t n_nodes \t runtime(s) 
     ofstream myfile;
-    myfile.open(argv[4], ios_base::app);
+    myfile.open(argv[3], ios_base::app);
     if (!myfile.is_open() ) {
       cout << "INPUT ERROR:: Could not open the time recording file\n";   
     }
@@ -311,9 +306,11 @@ int main(int argc, char *argv[]) {
     if (myfile.is_open()) {
       uint64_t team_size = team_policy.team_size();
       if(team_size > 0) {
-        myfile << month << "/" << day << "/" << year << "\t" << numtasks << "\t" << team_policy.team_size() << "\t" << graph_name1 << "\t" << graph_name2 << "\t" << graphx.numRows() << "\t\t" << total_time_taken << " \n";
+//        myfile << month << "/" << day << "/" << year << "\t" << numtasks << "\t" << team_policy.team_size() << "\t" << graph_name1 << "\t" << graph_name2 << "\t" << graphx.numRows() << "\t\t" << total_time_taken << " \n";
+        myfile << month << "/" << day << "/" << year << "\t" << numtasks << "\t" << team_policy.team_size() << "\t" << graph_name1 << "\t" << graphx.numRows() << "\t\t" << total_time_taken << " \n";
       } else {
-        myfile << month << "/" << day << "/" << year << "\t" << numtasks << "\t" << "AUTO" << "\t" << graph_name1 << "\t" << graph_name2 << "\t" << graphx.numRows() << "\t\t" << total_time_taken << " \n";
+//        myfile << month << "/" << day << "/" << year << "\t" << numtasks << "\t" << "AUTO" << "\t" << graph_name1 << "\t" << graph_name2 << "\t" << graphx.numRows() << "\t\t" << total_time_taken << " \n";
+        myfile << month << "/" << day << "/" << year << "\t" << numtasks << "\t" << "AUTO" << "\t" << graph_name1 << "\t" << graphx.numRows() << "\t\t" << total_time_taken << " \n";
       }
       myfile.close();
     } else { 
@@ -786,7 +783,17 @@ printf("Rank %d allocated memory\n", rankn);
 
     const int num_leagues = 1;
 
-    Deduplicator<MD5Hash> deduplicator(CHUNK_SIZE);
+//    Deduplicator<MD5Hash> deduplicator(CHUNK_SIZE);
+    BaseDeduplicator* deduplicator;
+    if(dedup_mode == Full) {
+      deduplicator = reinterpret_cast<BaseDeduplicator*>(new FullDeduplicator(CHUNK_SIZE));
+    } else if(dedup_mode == Basic) {
+      deduplicator = reinterpret_cast<BaseDeduplicator*>(new BasicDeduplicator(CHUNK_SIZE));
+    } else if(dedup_mode == List) {
+      deduplicator = reinterpret_cast<BaseDeduplicator*>(new ListDeduplicator(CHUNK_SIZE));
+    } else {
+      deduplicator = reinterpret_cast<BaseDeduplicator*>(new TreeDeduplicator(CHUNK_SIZE));
+    }
     std::vector<Kokkos::View<uint8_t*>::HostMirror> diffs;
 
     double prior_time = MPI_Wtime();
@@ -1221,13 +1228,47 @@ printf("Rank %d done with chunk %d\n", rankn, chunk_idx);
         
 
 //        deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, filename, logname, chkpt_counter == 0);
-        deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, chkpt_counter==0);
+//        deduplicator.checkpoint(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, chkpt_counter==0);
+        if(dedup_mode == Full) {
+          filename = filename + ".full_chkpt";
+          FullDeduplicator* full_deduplicator = reinterpret_cast<FullDeduplicator*>(deduplicator);
+          full_deduplicator->checkpoint((uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, chkpt_counter==0);
+        } else if(dedup_mode == Basic) {
+          filename = filename + ".basic.incr_chkpt";
+          BasicDeduplicator* basic_deduplicator = reinterpret_cast<BasicDeduplicator*>(deduplicator);
+          basic_deduplicator->checkpoint((uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, chkpt_counter==0);
+        } else if(dedup_mode == List) {
+          filename = filename + ".hashlist.incr_chkpt";
+          ListDeduplicator* list_deduplicator = reinterpret_cast<ListDeduplicator*>(deduplicator);
+          list_deduplicator->checkpoint((uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, chkpt_counter==0);
+        } else {
+          filename = filename + ".hashtree.incr_chkpt";
+          TreeDeduplicator* tree_deduplicator = reinterpret_cast<TreeDeduplicator*>(deduplicator);
+          tree_deduplicator->checkpoint((uint8_t*)(graph_GDV.data()), gdv_len, diff_h, logname, chkpt_counter==0);
+        }
         Kokkos::fence();
 //printf("Done checkpointing with checkpoint size %lu\n", diff_h.size());
         diffs.push_back(diff_h);
         Kokkos::deep_copy(graph_GDV, 0);
         Kokkos::fence();
-        deduplicator.restart(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, chkpt_counter);
+//        deduplicator.restart(dedup_mode, (uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, chkpt_counter);
+        if(dedup_mode == Full) {
+          filename = filename + ".full_chkpt";
+          FullDeduplicator* full_deduplicator = reinterpret_cast<FullDeduplicator*>(deduplicator);
+          full_deduplicator->restart((uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, chkpt_counter);
+        } else if(dedup_mode == Basic) {
+          filename = filename + ".basic.incr_chkpt";
+          BasicDeduplicator* basic_deduplicator = reinterpret_cast<BasicDeduplicator*>(deduplicator);
+          basic_deduplicator->restart((uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, chkpt_counter);
+        } else if(dedup_mode == List) {
+          filename = filename + ".hashlist.incr_chkpt";
+          ListDeduplicator* list_deduplicator = reinterpret_cast<ListDeduplicator*>(deduplicator);
+          list_deduplicator->restart((uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, chkpt_counter);
+        } else {
+          filename = filename + ".hashtree.incr_chkpt";
+          TreeDeduplicator* tree_deduplicator = reinterpret_cast<TreeDeduplicator*>(deduplicator);
+          tree_deduplicator->restart((uint8_t*)(graph_GDV.data()), gdv_len, diffs, logname, chkpt_counter);
+        }
         Kokkos::fence();
 
         Kokkos::deep_copy(gdv_h, graph_GDV);
