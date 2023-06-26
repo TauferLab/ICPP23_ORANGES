@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.15)
 
-project(FIDO)
+project(ORANGES)
 
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}")
 
@@ -15,23 +15,23 @@ find_package(deduplicator REQUIRED)
 
 file(GLOB SOURCES src/*.cpp)
 
-add_executable(fido ${SOURCES})
+add_executable(oranges ${SOURCES})
 
-target_include_directories(fido PUBLIC ${CMAKE_SOURCE_DIR}/include)
-target_link_libraries(fido PRIVATE MPI::MPI_CXX)
-target_link_libraries(fido PRIVATE Kokkos::kokkos)
-target_link_libraries(fido PRIVATE Kokkos::kokkoskernels)
-target_link_libraries(fido PRIVATE Deduplicator::deduplicator)
-target_link_libraries(fido PRIVATE OpenSSL::SSL)
-#target_link_libraries(fido PRIVATE etl)
-#target_link_libraries(fido PRIVATE Kokkos::resilience)
-#target_link_libraries(fido PRIVATE veloc::veloc)
+target_include_directories(oranges PUBLIC ${CMAKE_SOURCE_DIR}/include)
+target_link_libraries(oranges PRIVATE MPI::MPI_CXX)
+target_link_libraries(oranges PRIVATE Kokkos::kokkos)
+target_link_libraries(oranges PRIVATE Kokkos::kokkoskernels)
+target_link_libraries(oranges PRIVATE Deduplicator::deduplicator)
+target_link_libraries(oranges PRIVATE OpenSSL::SSL)
+#target_link_libraries(oranges PRIVATE etl)
+#target_link_libraries(oranges PRIVATE Kokkos::resilience)
+#target_link_libraries(oranges PRIVATE veloc::veloc)
 
-set_target_properties(fido PROPERTIES
+set_target_properties(oranges PROPERTIES
     CXX_STANDARD 14
     CXX_STANDARD_REQUIRED YES
     CXX_EXTENSIONS NO
 )
 
-install(TARGETS fido DESTINATION ${CMAKE_INSTALL_BINDIR})
+install(TARGETS oranges DESTINATION ${CMAKE_INSTALL_BINDIR})
 
